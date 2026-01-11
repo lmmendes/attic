@@ -23,14 +23,14 @@ func NewAssetRepository(pool *pgxpool.Pool) *AssetRepository {
 func (r *AssetRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Asset, error) {
 	query := `
 		SELECT id, organization_id, category_id, location_id, condition_id, collection_id,
-		       name, description, quantity, attributes, created_at, updated_at
+		       name, description, quantity, attributes, purchase_at, purchase_note, created_at, updated_at
 		FROM assets
 		WHERE id = $1 AND deleted_at IS NULL
 	`
 	var a domain.Asset
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&a.ID, &a.OrganizationID, &a.CategoryID, &a.LocationID, &a.ConditionID, &a.CollectionID,
-		&a.Name, &a.Description, &a.Quantity, &a.Attributes, &a.CreatedAt, &a.UpdatedAt,
+		&a.Name, &a.Description, &a.Quantity, &a.Attributes, &a.PurchaseAt, &a.PurchaseNote, &a.CreatedAt, &a.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -152,7 +152,7 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 	// Get assets with related data
 	query := fmt.Sprintf(`
 		SELECT a.id, a.organization_id, a.category_id, a.location_id, a.condition_id, a.collection_id,
-		       a.name, a.description, a.quantity, a.attributes, a.created_at, a.updated_at,
+		       a.name, a.description, a.quantity, a.attributes, a.purchase_at, a.purchase_note, a.created_at, a.updated_at,
 		       c.id, c.name,
 		       l.id, l.name,
 		       cond.id, cond.code, cond.label
@@ -182,7 +182,7 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 
 		if err := rows.Scan(
 			&a.ID, &a.OrganizationID, &a.CategoryID, &a.LocationID, &a.ConditionID, &a.CollectionID,
-			&a.Name, &a.Description, &a.Quantity, &a.Attributes, &a.CreatedAt, &a.UpdatedAt,
+			&a.Name, &a.Description, &a.Quantity, &a.Attributes, &a.PurchaseAt, &a.PurchaseNote, &a.CreatedAt, &a.UpdatedAt,
 			&catID, &catName,
 			&locID, &locName,
 			&condID, &condCode, &condLabel,
@@ -228,8 +228,8 @@ func (r *AssetRepository) Search(ctx context.Context, orgID uuid.UUID, query str
 
 func (r *AssetRepository) Create(ctx context.Context, a *domain.Asset) error {
 	query := `
-		INSERT INTO assets (id, organization_id, category_id, location_id, condition_id, collection_id, name, description, quantity, attributes)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO assets (id, organization_id, category_id, location_id, condition_id, collection_id, name, description, quantity, attributes, purchase_at, purchase_note)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING created_at, updated_at
 	`
 	if a.ID == uuid.Nil {
@@ -240,7 +240,7 @@ func (r *AssetRepository) Create(ctx context.Context, a *domain.Asset) error {
 	}
 	return r.pool.QueryRow(ctx, query,
 		a.ID, a.OrganizationID, a.CategoryID, a.LocationID, a.ConditionID, a.CollectionID,
-		a.Name, a.Description, a.Quantity, a.Attributes,
+		a.Name, a.Description, a.Quantity, a.Attributes, a.PurchaseAt, a.PurchaseNote,
 	).Scan(&a.CreatedAt, &a.UpdatedAt)
 }
 
@@ -248,13 +248,13 @@ func (r *AssetRepository) Update(ctx context.Context, a *domain.Asset) error {
 	query := `
 		UPDATE assets
 		SET category_id = $2, location_id = $3, condition_id = $4, collection_id = $5,
-		    name = $6, description = $7, quantity = $8, attributes = $9
+		    name = $6, description = $7, quantity = $8, attributes = $9, purchase_at = $10, purchase_note = $11
 		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING updated_at
 	`
 	return r.pool.QueryRow(ctx, query,
 		a.ID, a.CategoryID, a.LocationID, a.ConditionID, a.CollectionID,
-		a.Name, a.Description, a.Quantity, a.Attributes,
+		a.Name, a.Description, a.Quantity, a.Attributes, a.PurchaseAt, a.PurchaseNote,
 	).Scan(&a.UpdatedAt)
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/mendelui/attic/internal/domain"
@@ -18,6 +19,8 @@ type CreateAssetRequest struct {
 	Description  *string         `json:"description,omitempty"`
 	Quantity     int             `json:"quantity"`
 	Attributes   json.RawMessage `json:"attributes,omitempty"`
+	PurchaseAt   *string         `json:"purchase_at,omitempty"`
+	PurchaseNote *string         `json:"purchase_note,omitempty"`
 }
 
 type UpdateAssetRequest struct {
@@ -29,6 +32,8 @@ type UpdateAssetRequest struct {
 	Description  *string         `json:"description,omitempty"`
 	Quantity     int             `json:"quantity"`
 	Attributes   json.RawMessage `json:"attributes,omitempty"`
+	PurchaseAt   *string         `json:"purchase_at,omitempty"`
+	PurchaseNote *string         `json:"purchase_note,omitempty"`
 }
 
 type AssetListResponse struct {
@@ -155,6 +160,12 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 			asset.CollectionID = &id
 		}
 	}
+	if req.PurchaseAt != nil && *req.PurchaseAt != "" {
+		if t, err := time.Parse("2006-01-02", *req.PurchaseAt); err == nil {
+			asset.PurchaseAt = &t
+		}
+	}
+	asset.PurchaseNote = req.PurchaseNote
 
 	if err := h.repos.Assets.Create(r.Context(), asset); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create asset")
@@ -223,6 +234,14 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	} else {
 		asset.CollectionID = nil
 	}
+	if req.PurchaseAt != nil && *req.PurchaseAt != "" {
+		if t, err := time.Parse("2006-01-02", *req.PurchaseAt); err == nil {
+			asset.PurchaseAt = &t
+		}
+	} else {
+		asset.PurchaseAt = nil
+	}
+	asset.PurchaseNote = req.PurchaseNote
 
 	if err := h.repos.Assets.Update(r.Context(), asset); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update asset")

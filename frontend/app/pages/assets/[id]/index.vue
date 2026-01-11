@@ -398,6 +398,24 @@ const warrantyStatus = computed(() => {
             </p>
           </UCard>
 
+          <!-- Purchase Information -->
+          <UCard v-if="asset.purchase_at || asset.purchase_note">
+            <template #header>
+              <h2 class="font-semibold">Purchase Information</h2>
+            </template>
+
+            <dl class="space-y-3">
+              <div v-if="asset.purchase_at">
+                <dt class="text-sm text-muted">Purchase Date</dt>
+                <dd class="font-medium">{{ formatDate(asset.purchase_at) }}</dd>
+              </div>
+              <div v-if="asset.purchase_note">
+                <dt class="text-sm text-muted">Notes</dt>
+                <dd class="font-medium">{{ asset.purchase_note }}</dd>
+              </div>
+            </dl>
+          </UCard>
+
           <!-- Metadata -->
           <UCard>
             <template #header>

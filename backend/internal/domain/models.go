@@ -121,6 +121,8 @@ type Asset struct {
 	Description    *string         `json:"description,omitempty"`
 	Quantity       int             `json:"quantity"`
 	Attributes     json.RawMessage `json:"attributes"`
+	PurchaseAt     *time.Time      `json:"purchase_at,omitempty"`
+	PurchaseNote   *string         `json:"purchase_note,omitempty"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
 	DeletedAt      *time.Time      `json:"-"`

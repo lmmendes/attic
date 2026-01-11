@@ -22,7 +22,9 @@ const form = reactive({
   location_id: undefined as string | undefined,
   condition_id: undefined as string | undefined,
   quantity: 1,
-  attributes: {} as Record<string, string | number | boolean>
+  attributes: {} as Record<string, string | number | boolean>,
+  purchase_at: '',
+  purchase_note: ''
 })
 
 const categoryOptions = computed(() =>
@@ -92,7 +94,9 @@ async function submitForm() {
       location_id: form.location_id || undefined,
       condition_id: form.condition_id || undefined,
       quantity: form.quantity,
-      attributes: Object.keys(form.attributes).length > 0 ? form.attributes : undefined
+      attributes: Object.keys(form.attributes).length > 0 ? form.attributes : undefined,
+      purchase_at: form.purchase_at || undefined,
+      purchase_note: form.purchase_note || undefined
     }
 
     const response = await apiFetch<{ id: string }>(`/api/assets`, {
@@ -227,6 +231,29 @@ async function submitForm() {
 
             <div v-else-if="form.category_id" class="text-center py-4 text-muted">
               <p>This category has no custom attributes.</p>
+            </div>
+
+            <!-- Purchase Information -->
+            <div class="space-y-4">
+              <USeparator />
+              <h3 class="font-medium text-lg">Purchase Information</h3>
+
+              <div class="grid grid-cols-2 gap-4">
+                <UFormField label="Purchase Date">
+                  <UInput
+                    v-model="form.purchase_at"
+                    type="date"
+                  />
+                </UFormField>
+              </div>
+
+              <UFormField label="Purchase Notes">
+                <UTextarea
+                  v-model="form.purchase_note"
+                  placeholder="Store, price, receipt number, etc."
+                  :rows="3"
+                />
+              </UFormField>
             </div>
           </div>
 

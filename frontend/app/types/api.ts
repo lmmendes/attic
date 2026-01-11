@@ -73,6 +73,8 @@ export interface Asset {
   description?: string
   quantity: number
   attributes?: Record<string, unknown>
+  purchase_at?: string
+  purchase_note?: string
   category?: Category
   location?: Location
   condition?: Condition
