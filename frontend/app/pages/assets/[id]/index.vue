@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Asset, Warranty, Attachment } from '~/types/api'
+import type { Asset, Warranty, Attachment, Category } from '~/types/api'
 
 definePageMeta({
   middleware: 'auth'
@@ -8,6 +8,7 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const apiFetch = useApiFetch()
 
 const { data: asset, refresh } = useApi<Asset>(() => `/api/assets/${route.params.id}`)
 const { data: warranty, refresh: refreshWarranty } = useApi<Warranty>(() => `/api/assets/${route.params.id}/warranty`)
@@ -15,10 +16,30 @@ const { data: attachments, refresh: refreshAttachments } = useApi<Attachment[]>(
   () => `/api/assets/${route.params.id}/attachments`
 )
 
+// Fetch category with attribute definitions when asset loads
+const categoryWithAttrs = ref<Category | null>(null)
+
+watch(() => asset.value?.category_id, async (categoryId) => {
+  if (categoryId) {
+    try {
+      categoryWithAttrs.value = await apiFetch<Category>(`/api/categories/${categoryId}`)
+    } catch {
+      categoryWithAttrs.value = null
+    }
+  }
+}, { immediate: true })
+
+// Get attribute value formatted for display
+function getAttributeValue(key: string): string {
+  const value = asset.value?.attributes?.[key]
+  if (value === undefined || value === null || value === '') return '-'
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  return String(value)
+}
+
 const deleteModalOpen = ref(false)
 const warrantyModalOpen = ref(false)
 const uploadModalOpen = ref(false)
-const apiFetch = useApiFetch()
 const config = useRuntimeConfig()
 
 // Warranty form
@@ -250,15 +271,18 @@ const warrantyStatus = computed(() => {
           </UCard>
 
           <!-- Attributes -->
-          <UCard v-if="asset.attributes && Object.keys(asset.attributes).length">
+          <UCard v-if="categoryWithAttrs?.attributes?.length">
             <template #header>
-              <h2 class="font-semibold">Attributes</h2>
+              <h2 class="font-semibold">{{ categoryWithAttrs.name }} Attributes</h2>
             </template>
 
             <dl class="grid grid-cols-2 gap-4">
-              <div v-for="(value, key) in asset.attributes" :key="key">
-                <dt class="text-sm text-muted capitalize">{{ String(key).replace(/_/g, ' ') }}</dt>
-                <dd class="font-medium">{{ value }}</dd>
+              <div v-for="ca in categoryWithAttrs.attributes" :key="ca.attribute_id">
+                <dt class="text-sm text-muted">
+                  {{ ca.attribute?.name || ca.attribute_id }}
+                  <span v-if="ca.required" class="text-error">*</span>
+                </dt>
+                <dd class="font-medium">{{ getAttributeValue(ca.attribute?.key || '') }}</dd>
               </div>
             </dl>
           </UCard>

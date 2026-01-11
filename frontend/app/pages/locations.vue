@@ -74,6 +74,31 @@ const parentOptions = computed(() => [
   { label: 'None (Top Level)', value: undefined },
   ...(locations.value?.map(l => ({ label: l.name, value: l.id })) || [])
 ])
+
+// Build a map of location id to location for quick lookup
+const locationMap = computed(() => {
+  const map = new Map<string, Location>()
+  locations.value?.forEach(l => map.set(l.id, l))
+  return map
+})
+
+// Get the full path/breadcrumb for a location
+function getLocationPath(location: Location): string[] {
+  const path: string[] = []
+  let current: Location | undefined = location
+
+  // Traverse up the tree, collecting names
+  while (current) {
+    path.unshift(current.name)
+    if (current.parent_id) {
+      current = locationMap.value.get(current.parent_id)
+    } else {
+      break
+    }
+  }
+
+  return path
+}
 </script>
 
 <template>
@@ -93,7 +118,7 @@ const parentOptions = computed(() => [
         <UTable
           :data="locations || []"
           :columns="[
-            { accessorKey: 'name', id: 'name', header: 'Name' },
+            { accessorKey: 'name', id: 'name', header: 'Location' },
             { accessorKey: 'description', id: 'description', header: 'Description' },
             { id: 'actions', header: '' }
           ]"
@@ -101,8 +126,21 @@ const parentOptions = computed(() => [
         >
           <template #name-cell="{ row }">
             <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-map-pin" class="w-4 h-4 text-muted" />
-              <span class="font-medium">{{ row.original.name }}</span>
+              <UIcon name="i-lucide-map-pin" class="w-4 h-4 text-muted flex-shrink-0" />
+              <div class="flex items-center gap-1 text-sm">
+                <template v-for="(segment, index) in getLocationPath(row.original)" :key="index">
+                  <span
+                    :class="index === getLocationPath(row.original).length - 1 ? 'font-medium' : 'text-muted'"
+                  >
+                    {{ segment }}
+                  </span>
+                  <UIcon
+                    v-if="index < getLocationPath(row.original).length - 1"
+                    name="i-lucide-chevron-right"
+                    class="w-3 h-3 text-muted"
+                  />
+                </template>
+              </div>
             </div>
           </template>
           <template #actions-cell="{ row }">
