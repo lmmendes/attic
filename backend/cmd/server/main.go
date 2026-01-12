@@ -21,6 +21,7 @@ import (
 	"github.com/mendelui/attic/internal/handler"
 	"github.com/mendelui/attic/internal/plugin"
 	"github.com/mendelui/attic/internal/plugin/googlebooks"
+	"github.com/mendelui/attic/internal/plugin/tmdb"
 	"github.com/mendelui/attic/internal/repository"
 	"github.com/mendelui/attic/internal/storage"
 )
@@ -125,6 +126,12 @@ func main() {
 	pluginRegistry := plugin.NewRegistry()
 	if err := pluginRegistry.Register(googlebooks.New()); err != nil {
 		slog.Error("failed to register Google Books plugin", "error", err)
+	}
+	if err := pluginRegistry.Register(tmdb.NewMoviesPlugin()); err != nil {
+		slog.Error("failed to register TMDB Movies plugin", "error", err)
+	}
+	if err := pluginRegistry.Register(tmdb.NewSeriesPlugin()); err != nil {
+		slog.Error("failed to register TMDB Series plugin", "error", err)
 	}
 	slog.Info("registered plugins", "count", len(pluginRegistry.List()))
 
