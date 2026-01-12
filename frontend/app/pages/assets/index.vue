@@ -77,14 +77,14 @@ function clearFilters() {
 }
 
 const page = computed({
-  get: () => Math.floor(filters.offset / filters.limit) + 1,
+  get: () => Math.floor((filters.offset ?? 0) / (filters.limit ?? 20)) + 1,
   set: (val: number) => {
-    filters.offset = (val - 1) * filters.limit
+    filters.offset = (val - 1) * (filters.limit ?? 20)
   }
 })
 
 const totalPages = computed(() =>
-  Math.ceil((assetsResponse.value?.total || 0) / filters.limit)
+  Math.ceil((assetsResponse.value?.total || 0) / (filters.limit ?? 20))
 )
 </script>
 

@@ -204,7 +204,7 @@ function daysUntilExpiry(endDate?: string) {
   return Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 }
 
-const warrantyStatus = computed(() => {
+const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', text: string } | null => {
   if (!warranty.value?.end_date) return null
   const days = daysUntilExpiry(warranty.value.end_date)
   if (days === null) return null

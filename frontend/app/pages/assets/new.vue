@@ -225,15 +225,17 @@ async function submitForm() {
                     <!-- Boolean type: checkbox -->
                     <UCheckbox
                       v-if="ca.attribute.data_type === 'boolean'"
-                      v-model="form.attributes[ca.attribute.key]"
+                      :model-value="form.attributes[ca.attribute.key] as boolean"
                       :label="ca.attribute.name"
+                      @update:model-value="form.attributes[ca.attribute.key] = $event"
                     />
                     <!-- Text (long) type: textarea -->
                     <UTextarea
                       v-else-if="ca.attribute.data_type === 'text'"
-                      v-model="form.attributes[ca.attribute.key]"
+                      :model-value="form.attributes[ca.attribute.key] as string"
                       :placeholder="`Enter ${ca.attribute.name.toLowerCase()}`"
                       :rows="3"
+                      @update:model-value="form.attributes[ca.attribute.key] = $event"
                     />
                     <!-- Other types: input -->
                     <UInput

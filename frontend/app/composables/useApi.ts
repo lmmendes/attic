@@ -31,11 +31,17 @@ export function useApiLazy<T>(
   return useApi<T>(url, { ...options, lazy: true })
 }
 
+type HttpMethod = 'GET' | 'HEAD' | 'PATCH' | 'POST' | 'PUT' | 'DELETE' | 'CONNECT' | 'OPTIONS' | 'TRACE'
+
+interface ApiFetchOptions extends Omit<RequestInit, 'method'> {
+  method?: HttpMethod
+}
+
 // Composable for making authenticated API mutations (POST, PUT, DELETE)
 export function useApiFetch() {
   const config = useRuntimeConfig()
 
-  return async <T>(url: string, options: RequestInit = {}): Promise<T> => {
+  return async <T>(url: string, options: ApiFetchOptions = {}): Promise<T> => {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers

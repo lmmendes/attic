@@ -39,7 +39,11 @@ watch(asset, async (newAsset) => {
     form.location_id = newAsset.location_id || undefined
     form.condition_id = newAsset.condition_id || undefined
     form.quantity = newAsset.quantity
-    form.attributes = newAsset.attributes ? { ...newAsset.attributes } : {}
+    form.attributes = newAsset.attributes
+      ? Object.fromEntries(
+          Object.entries(newAsset.attributes).map(([k, v]) => [k, v as string | number | boolean])
+        )
+      : {}
     form.purchase_at = newAsset.purchase_at?.split('T')[0] || ''
     form.purchase_price = newAsset.purchase_price || undefined
     form.purchase_note = newAsset.purchase_note || ''
@@ -272,15 +276,17 @@ async function submitForm() {
                     <!-- Boolean type: checkbox -->
                     <UCheckbox
                       v-if="ca.attribute.data_type === 'boolean'"
-                      v-model="form.attributes[ca.attribute.key]"
+                      :model-value="form.attributes[ca.attribute.key] as boolean"
                       :label="ca.attribute.name"
+                      @update:model-value="form.attributes[ca.attribute.key] = $event"
                     />
                     <!-- Text (long) type: textarea -->
                     <UTextarea
                       v-else-if="ca.attribute.data_type === 'text'"
-                      v-model="form.attributes[ca.attribute.key]"
+                      :model-value="form.attributes[ca.attribute.key] as string"
                       :placeholder="`Enter ${ca.attribute.name.toLowerCase()}`"
                       :rows="3"
+                      @update:model-value="form.attributes[ca.attribute.key] = $event"
                     />
                     <!-- Other types: input -->
                     <UInput
