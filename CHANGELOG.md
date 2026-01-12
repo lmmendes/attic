@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.1](https://github.com/lmmendes/attic/compare/v1.0.0...v1.0.1) (2026-01-12)
+
+
+### Bug Fixes
+
+* **cicd:** goreleaser hook how invokes a shell ([fe069ff](https://github.com/lmmendes/attic/commit/fe069ffb5e461d4761f2f6c03cc59e38184195ea))
+
+
+### Miscellaneous Chores
+
+* release 1.0.1 ([ce08fb7](https://github.com/lmmendes/attic/commit/ce08fb7b17d044a605eee7fc3416ccadfc65570c))
+
 ## 1.0.0 (2026-01-12)
 
 
