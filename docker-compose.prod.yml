@@ -1,10 +1,8 @@
 version: '3.8'
 
 services:
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+  attic:
+    image: ghcr.io/mendelui/attic:latest
     ports:
       - "8080:8080"
     environment:
@@ -17,27 +15,12 @@ services:
       - S3_SECRET_KEY=${S3_SECRET_KEY}
       - OIDC_ISSUER=${OIDC_ISSUER}
       - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - BASE_URL=${BASE_URL:-http://localhost:8080}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8080}
     depends_on:
       postgres:
         condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - attic-network
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NUXT_PUBLIC_API_BASE=http://backend:8080
-      - NUXT_OIDC_ISSUER=${OIDC_ISSUER}
-      - NUXT_OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
-      - NUXT_OIDC_SESSION_SECRET=${OIDC_SESSION_SECRET}
-      - NUXT_OIDC_TOKEN_KEY=${OIDC_TOKEN_KEY}
-    depends_on:
-      - backend
     restart: unless-stopped
     networks:
       - attic-network

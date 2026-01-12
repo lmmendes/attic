@@ -1,0 +1,54 @@
+version: 2
+
+before:
+  hooks:
+    - cd frontend && bun install --frozen-lockfile
+    - cd frontend && bun run build
+
+builds:
+  - id: attic
+    dir: backend
+    main: ./cmd/server
+    binary: attic
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+
+archives:
+  - id: attic
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+dockers_v2:
+  - ids:
+      - attic
+    dockerfile: Dockerfile.goreleaser
+    images:
+      - ghcr.io/mendelui/attic
+    tags:
+      - "{{ .Version }}"
+      - latest
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.source: "{{ .GitURL }}"
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
