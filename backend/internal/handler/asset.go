@@ -11,29 +11,31 @@ import (
 )
 
 type CreateAssetRequest struct {
-	CategoryID   string          `json:"category_id"`
-	LocationID   *string         `json:"location_id,omitempty"`
-	ConditionID  *string         `json:"condition_id,omitempty"`
-	CollectionID *string         `json:"collection_id,omitempty"`
-	Name         string          `json:"name"`
-	Description  *string         `json:"description,omitempty"`
-	Quantity     int             `json:"quantity"`
-	Attributes   json.RawMessage `json:"attributes,omitempty"`
-	PurchaseAt   *string         `json:"purchase_at,omitempty"`
-	PurchaseNote *string         `json:"purchase_note,omitempty"`
+	CategoryID    string          `json:"category_id"`
+	LocationID    *string         `json:"location_id,omitempty"`
+	ConditionID   *string         `json:"condition_id,omitempty"`
+	CollectionID  *string         `json:"collection_id,omitempty"`
+	Name          string          `json:"name"`
+	Description   *string         `json:"description,omitempty"`
+	Quantity      int             `json:"quantity"`
+	Attributes    json.RawMessage `json:"attributes,omitempty"`
+	PurchaseAt    *string         `json:"purchase_at,omitempty"`
+	PurchasePrice *float64        `json:"purchase_price,omitempty"`
+	PurchaseNote  *string         `json:"purchase_note,omitempty"`
 }
 
 type UpdateAssetRequest struct {
-	CategoryID   string          `json:"category_id"`
-	LocationID   *string         `json:"location_id,omitempty"`
-	ConditionID  *string         `json:"condition_id,omitempty"`
-	CollectionID *string         `json:"collection_id,omitempty"`
-	Name         string          `json:"name"`
-	Description  *string         `json:"description,omitempty"`
-	Quantity     int             `json:"quantity"`
-	Attributes   json.RawMessage `json:"attributes,omitempty"`
-	PurchaseAt   *string         `json:"purchase_at,omitempty"`
-	PurchaseNote *string         `json:"purchase_note,omitempty"`
+	CategoryID    string          `json:"category_id"`
+	LocationID    *string         `json:"location_id,omitempty"`
+	ConditionID   *string         `json:"condition_id,omitempty"`
+	CollectionID  *string         `json:"collection_id,omitempty"`
+	Name          string          `json:"name"`
+	Description   *string         `json:"description,omitempty"`
+	Quantity      int             `json:"quantity"`
+	Attributes    json.RawMessage `json:"attributes,omitempty"`
+	PurchaseAt    *string         `json:"purchase_at,omitempty"`
+	PurchasePrice *float64        `json:"purchase_price,omitempty"`
+	PurchaseNote  *string         `json:"purchase_note,omitempty"`
 }
 
 type AssetListResponse struct {
@@ -165,6 +167,7 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 			asset.PurchaseAt = &t
 		}
 	}
+	asset.PurchasePrice = req.PurchasePrice
 	asset.PurchaseNote = req.PurchaseNote
 
 	if err := h.repos.Assets.Create(r.Context(), asset); err != nil {
@@ -241,6 +244,7 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	} else {
 		asset.PurchaseAt = nil
 	}
+	asset.PurchasePrice = req.PurchasePrice
 	asset.PurchaseNote = req.PurchaseNote
 
 	if err := h.repos.Assets.Update(r.Context(), asset); err != nil {
@@ -268,4 +272,20 @@ func (h *Handler) DeleteAsset(w http.ResponseWriter, r *http.Request) {
 
 func parseUUIDString(s string) (uuid.UUID, error) {
 	return uuid.Parse(s)
+}
+
+type AssetStatsResponse struct {
+	TotalValue float64 `json:"total_value"`
+}
+
+func (h *Handler) GetAssetStats(w http.ResponseWriter, r *http.Request) {
+	totalValue, err := h.repos.Assets.GetTotalValue(r.Context(), h.orgID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get asset stats")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, AssetStatsResponse{
+		TotalValue: totalValue,
+	})
 }

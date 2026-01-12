@@ -74,12 +74,17 @@ export interface Asset {
   quantity: number
   attributes?: Record<string, unknown>
   purchase_at?: string
+  purchase_price?: number
   purchase_note?: string
   category?: Category
   location?: Location
   condition?: Condition
   created_at: string
   updated_at: string
+}
+
+export interface AssetStats {
+  total_value: number
 }
 
 export interface Warranty {

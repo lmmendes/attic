@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Asset, Category, Location, Warranty } from '~/types/api'
+import type { Asset, AssetStats, Category, Location, Warranty } from '~/types/api'
 
 // No middleware - accessible to all
 
@@ -7,6 +7,10 @@ const { isAuthenticated: loggedIn, login } = useAuth()
 
 // Fetch dashboard data when logged in
 const { data: assets } = useApi<{ assets: Asset[], total: number }>('/api/assets?limit=5', {
+  immediate: loggedIn.value
+})
+
+const { data: assetStats } = useApi<AssetStats>('/api/assets/stats', {
   immediate: loggedIn.value
 })
 
@@ -22,7 +26,22 @@ const { data: expiringWarranties } = useApi<Warranty[]>('/api/warranties/expirin
   immediate: loggedIn.value
 })
 
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value)
+}
+
 const stats = computed(() => [
+  {
+    label: 'Total Value',
+    value: formatCurrency(assetStats.value?.total_value || 0),
+    icon: 'i-lucide-dollar-sign',
+    to: '/assets'
+  },
   {
     label: 'Total Assets',
     value: assets.value?.total || 0,
@@ -80,7 +99,7 @@ const stats = computed(() => [
         </h1>
 
         <!-- Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <NuxtLink
             v-for="stat in stats"
             :key="stat.label"

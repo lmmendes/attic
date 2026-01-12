@@ -124,6 +124,7 @@ type Asset struct {
 	Quantity         int             `json:"quantity"`
 	Attributes       json.RawMessage `json:"attributes"`
 	PurchaseAt       *time.Time      `json:"purchase_at,omitempty"`
+	PurchasePrice    *float64        `json:"purchase_price,omitempty"`
 	PurchaseNote     *string         `json:"purchase_note,omitempty"`
 	ImportPluginID   *string         `json:"import_plugin_id,omitempty"`   // Plugin that imported this asset
 	ImportExternalID *string         `json:"import_external_id,omitempty"` // External ID for re-fetching

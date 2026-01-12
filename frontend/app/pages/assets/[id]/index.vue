@@ -189,6 +189,14 @@ function formatBytes(bytes: number) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
 }
 
+function formatCurrency(value?: number) {
+  if (value === undefined || value === null) return '-'
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(value)
+}
+
 function daysUntilExpiry(endDate?: string) {
   if (!endDate) return null
   const end = new Date(endDate)
@@ -399,21 +407,30 @@ const warrantyStatus = computed(() => {
           </UCard>
 
           <!-- Purchase Information -->
-          <UCard v-if="asset.purchase_at || asset.purchase_note">
+          <UCard>
             <template #header>
               <h2 class="font-semibold">Purchase Information</h2>
             </template>
 
-            <dl class="space-y-3">
-              <div v-if="asset.purchase_at">
-                <dt class="text-sm text-muted">Purchase Date</dt>
-                <dd class="font-medium">{{ formatDate(asset.purchase_at) }}</dd>
-              </div>
-              <div v-if="asset.purchase_note">
-                <dt class="text-sm text-muted">Notes</dt>
-                <dd class="font-medium">{{ asset.purchase_note }}</dd>
-              </div>
-            </dl>
+            <div v-if="asset.purchase_at || asset.purchase_price || asset.purchase_note">
+              <dl class="space-y-3">
+                <div>
+                  <dt class="text-sm text-muted">Purchase Date</dt>
+                  <dd class="font-medium">{{ formatDate(asset.purchase_at) }}</dd>
+                </div>
+                <div>
+                  <dt class="text-sm text-muted">Purchase Price</dt>
+                  <dd class="font-medium">{{ formatCurrency(asset.purchase_price) }}</dd>
+                </div>
+                <div v-if="asset.purchase_note">
+                  <dt class="text-sm text-muted">Notes</dt>
+                  <dd class="font-medium">{{ asset.purchase_note }}</dd>
+                </div>
+              </dl>
+            </div>
+            <p v-else class="text-muted text-center py-4">
+              No purchase information
+            </p>
           </UCard>
 
           <!-- Metadata -->

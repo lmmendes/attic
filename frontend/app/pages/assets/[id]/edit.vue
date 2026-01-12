@@ -26,6 +26,7 @@ const form = reactive({
   quantity: 1,
   attributes: {} as Record<string, string | number | boolean>,
   purchase_at: '',
+  purchase_price: undefined as number | undefined,
   purchase_note: ''
 })
 
@@ -40,6 +41,7 @@ watch(asset, async (newAsset) => {
     form.quantity = newAsset.quantity
     form.attributes = newAsset.attributes ? { ...newAsset.attributes } : {}
     form.purchase_at = newAsset.purchase_at?.split('T')[0] || ''
+    form.purchase_price = newAsset.purchase_price || undefined
     form.purchase_note = newAsset.purchase_note || ''
 
     // Load category with attributes
@@ -127,6 +129,7 @@ async function submitForm() {
       quantity: form.quantity,
       attributes: Object.keys(form.attributes).length > 0 ? form.attributes : undefined,
       purchase_at: form.purchase_at || undefined,
+      purchase_price: form.purchase_price || undefined,
       purchase_note: form.purchase_note || undefined
     }
 
@@ -280,12 +283,26 @@ async function submitForm() {
                     type="date"
                   />
                 </UFormField>
+
+                <UFormField label="Purchase Price">
+                  <UInput
+                    v-model.number="form.purchase_price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                  >
+                    <template #leading>
+                      <span class="text-muted">$</span>
+                    </template>
+                  </UInput>
+                </UFormField>
               </div>
 
               <UFormField label="Purchase Notes">
                 <UTextarea
                   v-model="form.purchase_note"
-                  placeholder="Store, price, receipt number, etc."
+                  placeholder="Store, receipt number, etc."
                   :rows="3"
                 />
               </UFormField>

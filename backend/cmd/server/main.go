@@ -226,6 +226,7 @@ func main() {
 		// Assets
 		r.Route("/assets", func(r chi.Router) {
 			r.Get("/", h.ListAssets)
+			r.Get("/stats", h.GetAssetStats)
 			r.Post("/", h.CreateAsset)
 			r.Get("/{id}", h.GetAsset)
 			r.Put("/{id}", h.UpdateAsset)
