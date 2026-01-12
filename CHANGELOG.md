@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.2](https://github.com/lmmendes/attic/compare/v1.0.1...v1.0.2) (2026-01-12)
+
+
+### Bug Fixes
+
+* **cicd:** publishing to github packages ([4075c4b](https://github.com/lmmendes/attic/commit/4075c4b045e904307183912971faca8ea7a7b6f6))
+
+
+### Miscellaneous Chores
+
+* release 1.0.2 ([ae5285c](https://github.com/lmmendes/attic/commit/ae5285c00fa48f8661ca64d1792e88fe0b0640f2))
+
 ## [1.0.1](https://github.com/lmmendes/attic/compare/v1.0.0...v1.0.1) (2026-01-12)
 
 
