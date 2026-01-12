@@ -2,8 +2,8 @@ version: 2
 
 before:
   hooks:
-    - cd frontend && bun install --frozen-lockfile
-    - cd frontend && bun run build
+    - sh -c "cd frontend && bun install --frozen-lockfile"
+    - sh -c "cd frontend && bun run build"
 
 builds:
   - id: attic
