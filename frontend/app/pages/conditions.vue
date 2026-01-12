@@ -71,7 +71,7 @@ async function saveCondition() {
     })
     modalOpen.value = false
     refresh()
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to save condition', color: 'error' })
   }
 }
@@ -85,7 +85,7 @@ async function deleteCondition(condition: Condition) {
     })
     toast.add({ title: 'Condition deleted', color: 'success' })
     refresh()
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to delete condition', color: 'error' })
   }
 }
@@ -95,7 +95,9 @@ async function deleteCondition(condition: Condition) {
   <UContainer>
     <div class="py-8">
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold">Conditions</h1>
+        <h1 class="text-2xl font-bold">
+          Conditions
+        </h1>
         <UButton
           icon="i-lucide-plus"
           @click="openCreateModal"
@@ -154,12 +156,24 @@ async function deleteCondition(condition: Condition) {
               </h3>
             </template>
 
-            <form class="space-y-4" @submit.prevent="saveCondition">
-              <UFormField label="Label" required>
-                <UInput v-model="form.label" placeholder="e.g., New, Good, Fair" />
+            <form
+              class="space-y-4"
+              @submit.prevent="saveCondition"
+            >
+              <UFormField
+                label="Label"
+                required
+              >
+                <UInput
+                  v-model="form.label"
+                  placeholder="e.g., New, Good, Fair"
+                />
               </UFormField>
 
-              <UFormField label="Code" required>
+              <UFormField
+                label="Code"
+                required
+              >
                 <UInput
                   v-model="form.code"
                   placeholder="e.g., NEW, GOOD, FAIR"
@@ -173,17 +187,27 @@ async function deleteCondition(condition: Condition) {
               </UFormField>
 
               <UFormField label="Description">
-                <UTextarea v-model="form.description" placeholder="Optional description" />
+                <UTextarea
+                  v-model="form.description"
+                  placeholder="Optional description"
+                />
               </UFormField>
 
               <UFormField label="Sort Order">
-                <UInput v-model.number="form.sort_order" type="number" min="1" />
+                <UInput
+                  v-model.number="form.sort_order"
+                  type="number"
+                  min="1"
+                />
               </UFormField>
             </form>
 
             <template #footer>
               <div class="flex justify-end gap-2">
-                <UButton variant="ghost" @click="modalOpen = false">
+                <UButton
+                  variant="ghost"
+                  @click="modalOpen = false"
+                >
                   Cancel
                 </UButton>
                 <UButton @click="saveCondition">

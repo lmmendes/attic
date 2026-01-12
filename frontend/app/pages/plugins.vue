@@ -19,7 +19,9 @@ function getCategoryStatus(plugin: Plugin): 'active' | 'pending' {
     <div class="py-8">
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h1 class="text-2xl font-bold">Import Plugins</h1>
+          <h1 class="text-2xl font-bold">
+            Import Plugins
+          </h1>
           <p class="text-gray-500 mt-1">
             Plugins allow you to import items from external sources like Google Books, TMDB, and more.
           </p>
@@ -34,7 +36,9 @@ function getCategoryStatus(plugin: Plugin): 'active' | 'pending' {
         >
           <template #header>
             <div class="flex items-center justify-between">
-              <h3 class="font-semibold text-lg">{{ plugin.name }}</h3>
+              <h3 class="font-semibold text-lg">
+                {{ plugin.name }}
+              </h3>
               <UBadge
                 :color="getCategoryStatus(plugin) === 'active' ? 'success' : 'neutral'"
                 variant="subtle"
@@ -54,9 +58,17 @@ function getCategoryStatus(plugin: Plugin): 'active' | 'pending' {
                 Category
               </h4>
               <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-folder" class="w-4 h-4 text-gray-400" />
+                <UIcon
+                  name="i-lucide-folder"
+                  class="w-4 h-4 text-gray-400"
+                />
                 <span>{{ plugin.category_name }}</span>
-                <UBadge v-if="plugin.category_id" color="success" variant="subtle" size="xs">
+                <UBadge
+                  v-if="plugin.category_id"
+                  color="success"
+                  variant="subtle"
+                  size="xs"
+                >
                   Created
                 </UBadge>
               </div>
@@ -120,19 +132,33 @@ function getCategoryStatus(plugin: Plugin): 'active' | 'pending' {
         </UCard>
       </div>
 
-      <UCard v-if="plugins.length === 0 && status !== 'pending'" class="mt-4">
+      <UCard
+        v-if="plugins.length === 0 && status !== 'pending'"
+        class="mt-4"
+      >
         <div class="text-center py-8">
-          <UIcon name="i-lucide-puzzle" class="w-12 h-12 mx-auto mb-4 text-gray-400" />
-          <h3 class="font-medium text-gray-900 dark:text-white">No Plugins Available</h3>
+          <UIcon
+            name="i-lucide-puzzle"
+            class="w-12 h-12 mx-auto mb-4 text-gray-400"
+          />
+          <h3 class="font-medium text-gray-900 dark:text-white">
+            No Plugins Available
+          </h3>
           <p class="text-gray-500 mt-1">
             Import plugins will appear here when they are configured.
           </p>
         </div>
       </UCard>
 
-      <UCard v-if="status === 'pending'" class="mt-4">
+      <UCard
+        v-if="status === 'pending'"
+        class="mt-4"
+      >
         <div class="flex items-center justify-center py-8">
-          <UIcon name="i-lucide-loader-2" class="w-6 h-6 animate-spin text-gray-400" />
+          <UIcon
+            name="i-lucide-loader-2"
+            class="w-6 h-6 animate-spin text-gray-400"
+          />
           <span class="ml-2 text-gray-500">Loading plugins...</span>
         </div>
       </UCard>
@@ -141,8 +167,13 @@ function getCategoryStatus(plugin: Plugin): 'active' | 'pending' {
       <UCard class="mt-6">
         <template #header>
           <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-info" class="w-5 h-5" />
-            <h3 class="font-medium">How Import Plugins Work</h3>
+            <UIcon
+              name="i-lucide-info"
+              class="w-5 h-5"
+            />
+            <h3 class="font-medium">
+              How Import Plugins Work
+            </h3>
           </div>
         </template>
         <div class="prose prose-sm dark:prose-invert max-w-none">

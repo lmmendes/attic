@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Asset, Category, Location, Condition, CategoryAttribute } from '~/types/api'
+import type { Asset, Category, Location, Condition } from '~/types/api'
 
 definePageMeta({
   middleware: 'auth'
@@ -48,7 +48,7 @@ watch(asset, async (newAsset) => {
     if (newAsset.category_id) {
       try {
         selectedCategory.value = await apiFetch<Category>(`/api/categories/${newAsset.category_id}`)
-      } catch (error) {
+      } catch {
         selectedCategory.value = null
       }
     }
@@ -65,14 +65,14 @@ watch(() => form.category_id, async (categoryId, oldCategoryId) => {
       selectedCategory.value = await apiFetch<Category>(`/api/categories/${categoryId}`)
       // Initialize attribute values for new category
       const newAttributes: Record<string, string | number | boolean> = {}
-      selectedCategory.value?.attributes?.forEach(ca => {
+      selectedCategory.value?.attributes?.forEach((ca) => {
         if (ca.attribute) {
           // Preserve existing value if key exists
           newAttributes[ca.attribute.key] = form.attributes[ca.attribute.key] ?? getDefaultValue(ca.attribute.data_type)
         }
       })
       form.attributes = newAttributes
-    } catch (error) {
+    } catch {
       selectedCategory.value = null
     }
   } else {
@@ -140,8 +140,9 @@ async function submitForm() {
 
     toast.add({ title: 'Asset updated successfully', color: 'success' })
     router.push(`/assets/${route.params.id}`)
-  } catch (error: any) {
-    toast.add({ title: error.message || 'Failed to update asset', color: 'error' })
+  } catch (err: unknown) {
+    const error = err as { message?: string }
+    toast.add({ title: error?.message || 'Failed to update asset', color: 'error' })
   } finally {
     loading.value = false
   }
@@ -157,22 +158,40 @@ async function submitForm() {
           variant="ghost"
           icon="i-lucide-arrow-left"
         />
-        <h1 class="text-2xl font-bold">Edit Asset</h1>
+        <h1 class="text-2xl font-bold">
+          Edit Asset
+        </h1>
       </div>
 
-      <div v-if="assetStatus === 'pending'" class="text-center py-12">
-        <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin mx-auto text-muted" />
-        <p class="mt-2 text-muted">Loading asset...</p>
+      <div
+        v-if="assetStatus === 'pending'"
+        class="text-center py-12"
+      >
+        <UIcon
+          name="i-lucide-loader-2"
+          class="w-8 h-8 animate-spin mx-auto text-muted"
+        />
+        <p class="mt-2 text-muted">
+          Loading asset...
+        </p>
       </div>
 
-      <form v-else @submit.prevent="submitForm">
+      <form
+        v-else
+        @submit.prevent="submitForm"
+      >
         <UCard>
           <div class="space-y-6">
             <!-- Basic Info -->
             <div class="space-y-4">
-              <h3 class="font-medium text-lg">Basic Information</h3>
+              <h3 class="font-medium text-lg">
+                Basic Information
+              </h3>
 
-              <UFormField label="Name" required>
+              <UFormField
+                label="Name"
+                required
+              >
                 <UInput
                   v-model="form.name"
                   placeholder="Enter asset name"
@@ -188,7 +207,10 @@ async function submitForm() {
               </UFormField>
 
               <div class="grid grid-cols-2 gap-4">
-                <UFormField label="Category" required>
+                <UFormField
+                  label="Category"
+                  required
+                >
                   <USelectMenu
                     v-model="form.category_id"
                     :items="categoryOptions"
@@ -228,9 +250,14 @@ async function submitForm() {
             </div>
 
             <!-- Category Attributes -->
-            <div v-if="selectedCategory?.attributes?.length" class="space-y-4">
+            <div
+              v-if="selectedCategory?.attributes?.length"
+              class="space-y-4"
+            >
               <USeparator />
-              <h3 class="font-medium text-lg">{{ selectedCategory.name }} Attributes</h3>
+              <h3 class="font-medium text-lg">
+                {{ selectedCategory.name }} Attributes
+              </h3>
 
               <div class="space-y-3">
                 <div
@@ -267,14 +294,19 @@ async function submitForm() {
               </div>
             </div>
 
-            <div v-else-if="form.category_id" class="text-center py-4 text-muted">
+            <div
+              v-else-if="form.category_id"
+              class="text-center py-4 text-muted"
+            >
               <p>This category has no custom attributes.</p>
             </div>
 
             <!-- Purchase Information -->
             <div class="space-y-4">
               <USeparator />
-              <h3 class="font-medium text-lg">Purchase Information</h3>
+              <h3 class="font-medium text-lg">
+                Purchase Information
+              </h3>
 
               <div class="grid grid-cols-2 gap-4">
                 <UFormField label="Purchase Date">

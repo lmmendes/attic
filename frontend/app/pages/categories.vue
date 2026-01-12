@@ -49,7 +49,7 @@ async function openEditModal(category: Category) {
       sort_order: ca.sort_order ?? index
     }))
     modalOpen.value = true
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to load category', color: 'error' })
   }
 }
@@ -106,7 +106,7 @@ async function saveCategory() {
     })
     modalOpen.value = false
     refresh()
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to save category', color: 'error' })
   }
 }
@@ -120,7 +120,7 @@ async function deleteCategory(category: Category) {
     })
     toast.add({ title: 'Category deleted', color: 'success' })
     refresh()
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to delete category', color: 'error' })
   }
 }
@@ -135,7 +135,9 @@ const parentOptions = computed(() => [
   <UContainer>
     <div class="py-8">
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold">Categories</h1>
+        <h1 class="text-2xl font-bold">
+          Categories
+        </h1>
         <UButton
           icon="i-lucide-plus"
           @click="openCreateModal"
@@ -191,12 +193,21 @@ const parentOptions = computed(() => [
       >
         <template #body>
           <div class="space-y-4">
-            <UFormField label="Name" required>
-              <UInput v-model="form.name" placeholder="Category name" />
+            <UFormField
+              label="Name"
+              required
+            >
+              <UInput
+                v-model="form.name"
+                placeholder="Category name"
+              />
             </UFormField>
 
             <UFormField label="Description">
-              <UTextarea v-model="form.description" placeholder="Optional description" />
+              <UTextarea
+                v-model="form.description"
+                placeholder="Optional description"
+              />
             </UFormField>
 
             <UFormField label="Parent Category">
@@ -223,11 +234,17 @@ const parentOptions = computed(() => [
                 </UButton>
               </div>
 
-              <div v-if="form.attributes.length === 0" class="text-sm text-gray-500 py-2">
+              <div
+                v-if="form.attributes.length === 0"
+                class="text-sm text-gray-500 py-2"
+              >
                 No attributes assigned. Click "Add" to assign attributes.
               </div>
 
-              <div v-else class="space-y-2">
+              <div
+                v-else
+                class="space-y-2"
+              >
                 <div
                   v-for="(attr, index) in form.attributes"
                   :key="attr.attribute_id"
@@ -256,8 +273,14 @@ const parentOptions = computed(() => [
                 </div>
               </div>
 
-              <p v-if="attributes?.length === 0" class="text-sm text-gray-500 mt-2">
-                <NuxtLink to="/attributes" class="text-primary hover:underline">
+              <p
+                v-if="attributes?.length === 0"
+                class="text-sm text-gray-500 mt-2"
+              >
+                <NuxtLink
+                  to="/attributes"
+                  class="text-primary hover:underline"
+                >
                   Create attributes
                 </NuxtLink>
                 first to assign them to categories.
@@ -268,7 +291,10 @@ const parentOptions = computed(() => [
 
         <template #footer>
           <div class="flex justify-end gap-2">
-            <UButton variant="ghost" @click="modalOpen = false">
+            <UButton
+              variant="ghost"
+              @click="modalOpen = false"
+            >
               Cancel
             </UButton>
             <UButton @click="saveCategory">

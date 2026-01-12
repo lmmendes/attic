@@ -10,7 +10,7 @@ const router = useRouter()
 const toast = useToast()
 const apiFetch = useApiFetch()
 
-const { data: asset, refresh } = useApi<Asset>(() => `/api/assets/${route.params.id}`)
+const { data: asset, refresh: refreshAsset } = useApi<Asset>(() => `/api/assets/${route.params.id}`)
 const { data: warranty, refresh: refreshWarranty } = useApi<Warranty>(() => `/api/assets/${route.params.id}/warranty`)
 const { data: attachments, refresh: refreshAttachments } = useApi<Attachment[]>(
   () => `/api/assets/${route.params.id}/attachments`
@@ -39,7 +39,7 @@ function getAttributeValue(key: string): string {
 
 const deleteModalOpen = ref(false)
 const warrantyModalOpen = ref(false)
-const uploadModalOpen = ref(false)
+void refreshAsset // Mark as used
 const config = useRuntimeConfig()
 
 // Warranty form
@@ -89,7 +89,7 @@ async function saveWarranty() {
     toast.add({ title: 'Warranty saved', color: 'success' })
     warrantyModalOpen.value = false
     refreshWarranty()
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to save warranty', color: 'error' })
   }
 }
@@ -102,7 +102,7 @@ async function deleteWarranty() {
     })
     toast.add({ title: 'Warranty deleted', color: 'success' })
     refreshWarranty()
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to delete warranty', color: 'error' })
   }
 }
@@ -114,7 +114,7 @@ async function deleteAsset() {
     })
     toast.add({ title: 'Asset deleted', color: 'success' })
     router.push('/assets')
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to delete asset', color: 'error' })
   }
 }
@@ -125,7 +125,7 @@ async function downloadAttachment(attachment: Attachment) {
     if (response.url) {
       window.open(response.url, '_blank')
     }
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to get download link', color: 'error' })
   }
 }
@@ -138,7 +138,7 @@ async function deleteAttachment(attachment: Attachment) {
     })
     toast.add({ title: 'Attachment deleted', color: 'success' })
     refreshAttachments()
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to delete attachment', color: 'error' })
   }
 }
@@ -168,7 +168,7 @@ async function handleFileUpload(event: Event) {
 
     toast.add({ title: 'File uploaded', color: 'success' })
     refreshAttachments()
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to upload file', color: 'error' })
   } finally {
     uploading.value = false
@@ -225,7 +225,9 @@ const warrantyStatus = computed(() => {
             variant="ghost"
             icon="i-lucide-arrow-left"
           />
-          <h1 class="text-2xl font-bold">{{ asset?.name || 'Loading...' }}</h1>
+          <h1 class="text-2xl font-bold">
+            {{ asset?.name || 'Loading...' }}
+          </h1>
         </div>
         <div class="flex gap-2">
           <UButton
@@ -246,34 +248,59 @@ const warrantyStatus = computed(() => {
         </div>
       </div>
 
-      <div v-if="asset" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div
+        v-if="asset"
+        class="grid grid-cols-1 lg:grid-cols-3 gap-6"
+      >
         <!-- Main Info -->
         <div class="lg:col-span-2 space-y-6">
           <UCard>
             <template #header>
-              <h2 class="font-semibold">Details</h2>
+              <h2 class="font-semibold">
+                Details
+              </h2>
             </template>
 
             <dl class="grid grid-cols-2 gap-4">
               <div>
-                <dt class="text-sm text-muted">Category</dt>
-                <dd class="font-medium">{{ asset.category?.name || '-' }}</dd>
+                <dt class="text-sm text-muted">
+                  Category
+                </dt>
+                <dd class="font-medium">
+                  {{ asset.category?.name || '-' }}
+                </dd>
               </div>
               <div>
-                <dt class="text-sm text-muted">Location</dt>
-                <dd class="font-medium">{{ asset.location?.name || '-' }}</dd>
+                <dt class="text-sm text-muted">
+                  Location
+                </dt>
+                <dd class="font-medium">
+                  {{ asset.location?.name || '-' }}
+                </dd>
               </div>
               <div>
-                <dt class="text-sm text-muted">Condition</dt>
-                <dd class="font-medium">{{ asset.condition?.label || '-' }}</dd>
+                <dt class="text-sm text-muted">
+                  Condition
+                </dt>
+                <dd class="font-medium">
+                  {{ asset.condition?.label || '-' }}
+                </dd>
               </div>
               <div>
-                <dt class="text-sm text-muted">Quantity</dt>
-                <dd class="font-medium">{{ asset.quantity }}</dd>
+                <dt class="text-sm text-muted">
+                  Quantity
+                </dt>
+                <dd class="font-medium">
+                  {{ asset.quantity }}
+                </dd>
               </div>
               <div class="col-span-2">
-                <dt class="text-sm text-muted">Description</dt>
-                <dd class="font-medium">{{ asset.description || '-' }}</dd>
+                <dt class="text-sm text-muted">
+                  Description
+                </dt>
+                <dd class="font-medium">
+                  {{ asset.description || '-' }}
+                </dd>
               </div>
             </dl>
           </UCard>
@@ -281,16 +308,26 @@ const warrantyStatus = computed(() => {
           <!-- Attributes -->
           <UCard v-if="categoryWithAttrs?.attributes?.length">
             <template #header>
-              <h2 class="font-semibold">{{ categoryWithAttrs.name }} Attributes</h2>
+              <h2 class="font-semibold">
+                {{ categoryWithAttrs.name }} Attributes
+              </h2>
             </template>
 
             <dl class="grid grid-cols-2 gap-4">
-              <div v-for="ca in categoryWithAttrs.attributes" :key="ca.attribute_id">
+              <div
+                v-for="ca in categoryWithAttrs.attributes"
+                :key="ca.attribute_id"
+              >
                 <dt class="text-sm text-muted">
                   {{ ca.attribute?.name || ca.attribute_id }}
-                  <span v-if="ca.required" class="text-error">*</span>
+                  <span
+                    v-if="ca.required"
+                    class="text-error"
+                  >*</span>
                 </dt>
-                <dd class="font-medium">{{ getAttributeValue(ca.attribute?.key || '') }}</dd>
+                <dd class="font-medium">
+                  {{ getAttributeValue(ca.attribute?.key || '') }}
+                </dd>
               </div>
             </dl>
           </UCard>
@@ -299,7 +336,9 @@ const warrantyStatus = computed(() => {
           <UCard>
             <template #header>
               <div class="flex items-center justify-between">
-                <h2 class="font-semibold">Attachments</h2>
+                <h2 class="font-semibold">
+                  Attachments
+                </h2>
                 <UButton
                   variant="soft"
                   size="sm"
@@ -318,17 +357,27 @@ const warrantyStatus = computed(() => {
               </div>
             </template>
 
-            <div v-if="attachments?.length" class="space-y-2">
+            <div
+              v-if="attachments?.length"
+              class="space-y-2"
+            >
               <div
                 v-for="attachment in attachments"
                 :key="attachment.id"
                 class="flex items-center justify-between p-3 rounded-lg bg-muted/50"
               >
                 <div class="flex items-center gap-3">
-                  <UIcon name="i-lucide-file" class="w-5 h-5 text-muted" />
+                  <UIcon
+                    name="i-lucide-file"
+                    class="w-5 h-5 text-muted"
+                  />
                   <div>
-                    <p class="font-medium">{{ attachment.file_name }}</p>
-                    <p class="text-xs text-muted">{{ formatBytes(attachment.file_size) }}</p>
+                    <p class="font-medium">
+                      {{ attachment.file_name }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ formatBytes(attachment.file_size) }}
+                    </p>
                   </div>
                 </div>
                 <div class="flex gap-1">
@@ -348,7 +397,10 @@ const warrantyStatus = computed(() => {
                 </div>
               </div>
             </div>
-            <p v-else class="text-muted text-center py-4">
+            <p
+              v-else
+              class="text-muted text-center py-4"
+            >
               No attachments yet
             </p>
           </UCard>
@@ -360,7 +412,9 @@ const warrantyStatus = computed(() => {
           <UCard>
             <template #header>
               <div class="flex items-center justify-between">
-                <h2 class="font-semibold">Warranty</h2>
+                <h2 class="font-semibold">
+                  Warranty
+                </h2>
                 <UButton
                   variant="ghost"
                   size="sm"
@@ -375,33 +429,58 @@ const warrantyStatus = computed(() => {
             <div v-if="warranty">
               <dl class="space-y-3">
                 <div>
-                  <dt class="text-sm text-muted">Provider</dt>
-                  <dd class="font-medium">{{ warranty.provider || '-' }}</dd>
+                  <dt class="text-sm text-muted">
+                    Provider
+                  </dt>
+                  <dd class="font-medium">
+                    {{ warranty.provider || '-' }}
+                  </dd>
                 </div>
                 <div>
-                  <dt class="text-sm text-muted">Policy Number</dt>
-                  <dd class="font-medium">{{ warranty.policy_number || '-' }}</dd>
+                  <dt class="text-sm text-muted">
+                    Policy Number
+                  </dt>
+                  <dd class="font-medium">
+                    {{ warranty.policy_number || '-' }}
+                  </dd>
                 </div>
                 <div>
-                  <dt class="text-sm text-muted">Start Date</dt>
-                  <dd class="font-medium">{{ formatDate(warranty.start_date) }}</dd>
+                  <dt class="text-sm text-muted">
+                    Start Date
+                  </dt>
+                  <dd class="font-medium">
+                    {{ formatDate(warranty.start_date) }}
+                  </dd>
                 </div>
                 <div>
-                  <dt class="text-sm text-muted">End Date</dt>
+                  <dt class="text-sm text-muted">
+                    End Date
+                  </dt>
                   <dd class="font-medium flex items-center gap-2">
                     {{ formatDate(warranty.end_date) }}
-                    <UBadge v-if="warrantyStatus" :color="warrantyStatus.color" size="xs">
+                    <UBadge
+                      v-if="warrantyStatus"
+                      :color="warrantyStatus.color"
+                      size="xs"
+                    >
                       {{ warrantyStatus.text }}
                     </UBadge>
                   </dd>
                 </div>
                 <div v-if="warranty.notes">
-                  <dt class="text-sm text-muted">Notes</dt>
-                  <dd class="font-medium">{{ warranty.notes }}</dd>
+                  <dt class="text-sm text-muted">
+                    Notes
+                  </dt>
+                  <dd class="font-medium">
+                    {{ warranty.notes }}
+                  </dd>
                 </div>
               </dl>
             </div>
-            <p v-else class="text-muted text-center py-4">
+            <p
+              v-else
+              class="text-muted text-center py-4"
+            >
               No warranty information
             </p>
           </UCard>
@@ -409,26 +488,43 @@ const warrantyStatus = computed(() => {
           <!-- Purchase Information -->
           <UCard>
             <template #header>
-              <h2 class="font-semibold">Purchase Information</h2>
+              <h2 class="font-semibold">
+                Purchase Information
+              </h2>
             </template>
 
             <div v-if="asset.purchase_at || asset.purchase_price || asset.purchase_note">
               <dl class="space-y-3">
                 <div>
-                  <dt class="text-sm text-muted">Purchase Date</dt>
-                  <dd class="font-medium">{{ formatDate(asset.purchase_at) }}</dd>
+                  <dt class="text-sm text-muted">
+                    Purchase Date
+                  </dt>
+                  <dd class="font-medium">
+                    {{ formatDate(asset.purchase_at) }}
+                  </dd>
                 </div>
                 <div>
-                  <dt class="text-sm text-muted">Purchase Price</dt>
-                  <dd class="font-medium">{{ formatCurrency(asset.purchase_price) }}</dd>
+                  <dt class="text-sm text-muted">
+                    Purchase Price
+                  </dt>
+                  <dd class="font-medium">
+                    {{ formatCurrency(asset.purchase_price) }}
+                  </dd>
                 </div>
                 <div v-if="asset.purchase_note">
-                  <dt class="text-sm text-muted">Notes</dt>
-                  <dd class="font-medium">{{ asset.purchase_note }}</dd>
+                  <dt class="text-sm text-muted">
+                    Notes
+                  </dt>
+                  <dd class="font-medium">
+                    {{ asset.purchase_note }}
+                  </dd>
                 </div>
               </dl>
             </div>
-            <p v-else class="text-muted text-center py-4">
+            <p
+              v-else
+              class="text-muted text-center py-4"
+            >
               No purchase information
             </p>
           </UCard>
@@ -436,17 +532,27 @@ const warrantyStatus = computed(() => {
           <!-- Metadata -->
           <UCard>
             <template #header>
-              <h2 class="font-semibold">Metadata</h2>
+              <h2 class="font-semibold">
+                Metadata
+              </h2>
             </template>
 
             <dl class="space-y-3">
               <div>
-                <dt class="text-sm text-muted">Created</dt>
-                <dd class="font-medium">{{ formatDate(asset.created_at) }}</dd>
+                <dt class="text-sm text-muted">
+                  Created
+                </dt>
+                <dd class="font-medium">
+                  {{ formatDate(asset.created_at) }}
+                </dd>
               </div>
               <div>
-                <dt class="text-sm text-muted">Last Updated</dt>
-                <dd class="font-medium">{{ formatDate(asset.updated_at) }}</dd>
+                <dt class="text-sm text-muted">
+                  Last Updated
+                </dt>
+                <dd class="font-medium">
+                  {{ formatDate(asset.updated_at) }}
+                </dd>
               </div>
             </dl>
           </UCard>
@@ -458,15 +564,23 @@ const warrantyStatus = computed(() => {
         <template #content>
           <UCard>
             <template #header>
-              <h3 class="font-semibold">Delete Asset</h3>
+              <h3 class="font-semibold">
+                Delete Asset
+              </h3>
             </template>
             <p>Are you sure you want to delete "{{ asset?.name }}"? This action cannot be undone.</p>
             <template #footer>
               <div class="flex justify-end gap-2">
-                <UButton variant="ghost" @click="deleteModalOpen = false">
+                <UButton
+                  variant="ghost"
+                  @click="deleteModalOpen = false"
+                >
                   Cancel
                 </UButton>
-                <UButton color="error" @click="deleteAsset">
+                <UButton
+                  color="error"
+                  @click="deleteAsset"
+                >
                   Delete
                 </UButton>
               </div>
@@ -480,30 +594,51 @@ const warrantyStatus = computed(() => {
         <template #content>
           <UCard>
             <template #header>
-              <h3 class="font-semibold">{{ warranty ? 'Edit Warranty' : 'Add Warranty' }}</h3>
+              <h3 class="font-semibold">
+                {{ warranty ? 'Edit Warranty' : 'Add Warranty' }}
+              </h3>
             </template>
 
-            <form class="space-y-4" @submit.prevent="saveWarranty">
+            <form
+              class="space-y-4"
+              @submit.prevent="saveWarranty"
+            >
               <UFormField label="Provider">
-                <UInput v-model="warrantyForm.provider" placeholder="Warranty provider" />
+                <UInput
+                  v-model="warrantyForm.provider"
+                  placeholder="Warranty provider"
+                />
               </UFormField>
 
               <UFormField label="Policy Number">
-                <UInput v-model="warrantyForm.policy_number" placeholder="Policy number" />
+                <UInput
+                  v-model="warrantyForm.policy_number"
+                  placeholder="Policy number"
+                />
               </UFormField>
 
               <div class="grid grid-cols-2 gap-4">
                 <UFormField label="Start Date">
-                  <UInput v-model="warrantyForm.start_date" type="date" />
+                  <UInput
+                    v-model="warrantyForm.start_date"
+                    type="date"
+                  />
                 </UFormField>
 
                 <UFormField label="End Date">
-                  <UInput v-model="warrantyForm.end_date" type="date" />
+                  <UInput
+                    v-model="warrantyForm.end_date"
+                    type="date"
+                  />
                 </UFormField>
               </div>
 
               <UFormField label="Notes">
-                <UTextarea v-model="warrantyForm.notes" placeholder="Additional notes" :rows="3" />
+                <UTextarea
+                  v-model="warrantyForm.notes"
+                  placeholder="Additional notes"
+                  :rows="3"
+                />
               </UFormField>
             </form>
 
@@ -518,7 +653,10 @@ const warrantyStatus = computed(() => {
                   Delete
                 </UButton>
                 <div class="flex gap-2 ml-auto">
-                  <UButton variant="ghost" @click="warrantyModalOpen = false">
+                  <UButton
+                    variant="ghost"
+                    @click="warrantyModalOpen = false"
+                  >
                     Cancel
                   </UButton>
                   <UButton @click="saveWarranty">

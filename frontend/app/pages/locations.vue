@@ -51,7 +51,7 @@ async function saveLocation() {
     })
     modalOpen.value = false
     refresh()
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to save location', color: 'error' })
   }
 }
@@ -65,7 +65,7 @@ async function deleteLocation(location: Location) {
     })
     toast.add({ title: 'Location deleted', color: 'success' })
     refresh()
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to delete location', color: 'error' })
   }
 }
@@ -105,7 +105,9 @@ function getLocationPath(location: Location): string[] {
   <UContainer>
     <div class="py-8">
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold">Locations</h1>
+        <h1 class="text-2xl font-bold">
+          Locations
+        </h1>
         <UButton
           icon="i-lucide-plus"
           @click="openCreateModal"
@@ -126,9 +128,15 @@ function getLocationPath(location: Location): string[] {
         >
           <template #name-cell="{ row }">
             <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-map-pin" class="w-4 h-4 text-muted flex-shrink-0" />
+              <UIcon
+                name="i-lucide-map-pin"
+                class="w-4 h-4 text-muted flex-shrink-0"
+              />
               <div class="flex items-center gap-1 text-sm">
-                <template v-for="(segment, index) in getLocationPath(row.original)" :key="index">
+                <template
+                  v-for="(segment, index) in getLocationPath(row.original)"
+                  :key="index"
+                >
                   <span
                     :class="index === getLocationPath(row.original).length - 1 ? 'font-medium' : 'text-muted'"
                   >
@@ -173,13 +181,25 @@ function getLocationPath(location: Location): string[] {
               </h3>
             </template>
 
-            <form class="space-y-4" @submit.prevent="saveLocation">
-              <UFormField label="Name" required>
-                <UInput v-model="form.name" placeholder="Location name" />
+            <form
+              class="space-y-4"
+              @submit.prevent="saveLocation"
+            >
+              <UFormField
+                label="Name"
+                required
+              >
+                <UInput
+                  v-model="form.name"
+                  placeholder="Location name"
+                />
               </UFormField>
 
               <UFormField label="Description">
-                <UTextarea v-model="form.description" placeholder="Optional description" />
+                <UTextarea
+                  v-model="form.description"
+                  placeholder="Optional description"
+                />
               </UFormField>
 
               <UFormField label="Parent Location">
@@ -194,7 +214,10 @@ function getLocationPath(location: Location): string[] {
 
             <template #footer>
               <div class="flex justify-end gap-2">
-                <UButton variant="ghost" @click="modalOpen = false">
+                <UButton
+                  variant="ghost"
+                  @click="modalOpen = false"
+                >
                   Cancel
                 </UButton>
                 <UButton @click="saveLocation">

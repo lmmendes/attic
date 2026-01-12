@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Category, Location, Condition, CategoryAttribute } from '~/types/api'
+import type { Category, Location, Condition } from '~/types/api'
 
 definePageMeta({
   middleware: 'auth'
@@ -49,12 +49,12 @@ watch(() => form.category_id, async (categoryId) => {
       selectedCategory.value = await apiFetch<Category>(`/api/categories/${categoryId}`)
       // Initialize attribute values
       form.attributes = {}
-      selectedCategory.value?.attributes?.forEach(ca => {
+      selectedCategory.value?.attributes?.forEach((ca) => {
         if (ca.attribute) {
           form.attributes[ca.attribute.key] = getDefaultValue(ca.attribute.data_type)
         }
       })
-    } catch (error) {
+    } catch {
       selectedCategory.value = null
     }
   } else {
@@ -108,8 +108,9 @@ async function submitForm() {
 
     toast.add({ title: 'Asset created successfully', color: 'success' })
     router.push(`/assets/${response.id}`)
-  } catch (error: any) {
-    toast.add({ title: error.message || 'Failed to create asset', color: 'error' })
+  } catch (err: unknown) {
+    const error = err as { message?: string }
+    toast.add({ title: error?.message || 'Failed to create asset', color: 'error' })
   } finally {
     loading.value = false
   }
@@ -125,7 +126,9 @@ async function submitForm() {
           variant="ghost"
           icon="i-lucide-arrow-left"
         />
-        <h1 class="text-2xl font-bold">New Asset</h1>
+        <h1 class="text-2xl font-bold">
+          New Asset
+        </h1>
       </div>
 
       <form @submit.prevent="submitForm">
@@ -133,9 +136,14 @@ async function submitForm() {
           <div class="space-y-6">
             <!-- Basic Info -->
             <div class="space-y-4">
-              <h3 class="font-medium text-lg">Basic Information</h3>
+              <h3 class="font-medium text-lg">
+                Basic Information
+              </h3>
 
-              <UFormField label="Name" required>
+              <UFormField
+                label="Name"
+                required
+              >
                 <UInput
                   v-model="form.name"
                   placeholder="Enter asset name"
@@ -152,7 +160,10 @@ async function submitForm() {
               </UFormField>
 
               <div class="grid grid-cols-2 gap-4">
-                <UFormField label="Category" required>
+                <UFormField
+                  label="Category"
+                  required
+                >
                   <USelectMenu
                     v-model="form.category_id"
                     :items="categoryOptions"
@@ -192,9 +203,14 @@ async function submitForm() {
             </div>
 
             <!-- Category Attributes -->
-            <div v-if="selectedCategory?.attributes?.length" class="space-y-4">
+            <div
+              v-if="selectedCategory?.attributes?.length"
+              class="space-y-4"
+            >
               <USeparator />
-              <h3 class="font-medium text-lg">{{ selectedCategory.name }} Attributes</h3>
+              <h3 class="font-medium text-lg">
+                {{ selectedCategory.name }} Attributes
+              </h3>
 
               <div class="space-y-3">
                 <div
@@ -231,14 +247,19 @@ async function submitForm() {
               </div>
             </div>
 
-            <div v-else-if="form.category_id" class="text-center py-4 text-muted">
+            <div
+              v-else-if="form.category_id"
+              class="text-center py-4 text-muted"
+            >
               <p>This category has no custom attributes.</p>
             </div>
 
             <!-- Purchase Information -->
             <div class="space-y-4">
               <USeparator />
-              <h3 class="font-medium text-lg">Purchase Information</h3>
+              <h3 class="font-medium text-lg">
+                Purchase Information
+              </h3>
 
               <div class="grid grid-cols-2 gap-4">
                 <UFormField label="Purchase Date">

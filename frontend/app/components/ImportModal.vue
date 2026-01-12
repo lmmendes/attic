@@ -91,7 +91,8 @@ async function search() {
     if (searchResults.value.length === 0) {
       toast.add({ title: 'No results found', description: 'Try different search terms', color: 'warning' })
     }
-  } catch (error: any) {
+  } catch (err: unknown) {
+    const error = err as { data?: { error?: string }, message?: string }
     const message = error?.data?.error || error?.message || 'Search failed'
     toast.add({
       title: 'Search failed',
@@ -126,7 +127,8 @@ async function importItem(result: PluginSearchResult) {
 
     emit('update:open', false)
     emit('imported', response.asset.id)
-  } catch (error: any) {
+  } catch (err: unknown) {
+    const error = err as { data?: { error?: string }, message?: string }
     const message = error?.data?.error || error?.message || 'Import failed'
 
     let description = 'Please try again later'
@@ -167,16 +169,25 @@ function close() {
           @click="goBack"
         />
         <h3 class="text-lg font-semibold">
-          <template v-if="step === 'select'">Import from External Source</template>
-          <template v-else-if="step === 'search'">{{ selectedPlugin?.name }}</template>
-          <template v-else>Importing...</template>
+          <template v-if="step === 'select'">
+            Import from External Source
+          </template>
+          <template v-else-if="step === 'search'">
+            {{ selectedPlugin?.name }}
+          </template>
+          <template v-else>
+            Importing...
+          </template>
         </h3>
       </div>
     </template>
 
     <template #body>
       <!-- Step 1: Select Plugin -->
-      <div v-if="step === 'select'" class="space-y-3">
+      <div
+        v-if="step === 'select'"
+        class="space-y-3"
+      >
         <p class="text-sm text-gray-500 mb-4">
           Choose a source to import from:
         </p>
@@ -189,21 +200,37 @@ function close() {
         >
           <div class="flex items-center justify-between">
             <div>
-              <h4 class="font-medium">{{ plugin.name }}</h4>
-              <p class="text-sm text-gray-500">{{ plugin.description }}</p>
+              <h4 class="font-medium">
+                {{ plugin.name }}
+              </h4>
+              <p class="text-sm text-gray-500">
+                {{ plugin.description }}
+              </p>
             </div>
-            <UIcon name="i-lucide-chevron-right" class="w-5 h-5 text-gray-400" />
+            <UIcon
+              name="i-lucide-chevron-right"
+              class="w-5 h-5 text-gray-400"
+            />
           </div>
         </div>
 
-        <div v-if="plugins.length === 0" class="text-center py-8 text-gray-500">
+        <div
+          v-if="plugins.length === 0"
+          class="text-center py-8 text-gray-500"
+        >
           No import plugins available
         </div>
       </div>
 
       <!-- Step 2: Search -->
-      <div v-else-if="step === 'search'" class="space-y-4">
-        <form @submit.prevent="search" class="flex gap-2">
+      <div
+        v-else-if="step === 'search'"
+        class="space-y-4"
+      >
+        <form
+          class="flex gap-2"
+          @submit.prevent="search"
+        >
           <USelectMenu
             v-model="searchField"
             :items="searchFieldOptions"
@@ -227,7 +254,10 @@ function close() {
         </form>
 
         <!-- Results -->
-        <div v-if="searchResults.length > 0" class="space-y-2 max-h-96 overflow-y-auto">
+        <div
+          v-if="searchResults.length > 0"
+          class="space-y-2 max-h-96 overflow-y-auto"
+        >
           <div
             v-for="result in searchResults"
             :key="result.external_id"
@@ -238,14 +268,24 @@ function close() {
               :src="result.image_url"
               :alt="result.title"
               class="w-12 h-16 object-cover rounded"
-            />
-            <div v-else class="w-12 h-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center">
-              <UIcon name="i-lucide-image-off" class="w-6 h-6 text-gray-400" />
+            >
+            <div
+              v-else
+              class="w-12 h-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center"
+            >
+              <UIcon
+                name="i-lucide-image-off"
+                class="w-6 h-6 text-gray-400"
+              />
             </div>
 
             <div class="flex-1 min-w-0">
-              <h4 class="font-medium truncate">{{ result.title }}</h4>
-              <p class="text-sm text-gray-500 truncate">{{ result.subtitle }}</p>
+              <h4 class="font-medium truncate">
+                {{ result.title }}
+              </h4>
+              <p class="text-sm text-gray-500 truncate">
+                {{ result.subtitle }}
+              </p>
             </div>
 
             <UButton
@@ -257,27 +297,51 @@ function close() {
           </div>
         </div>
 
-        <div v-else-if="!searching && searchQuery" class="text-center py-8 text-gray-500">
-          <UIcon name="i-lucide-search-x" class="w-12 h-12 mx-auto mb-2 opacity-50" />
+        <div
+          v-else-if="!searching && searchQuery"
+          class="text-center py-8 text-gray-500"
+        >
+          <UIcon
+            name="i-lucide-search-x"
+            class="w-12 h-12 mx-auto mb-2 opacity-50"
+          />
           <p>No results found. Try a different search.</p>
         </div>
 
-        <div v-else-if="!searching" class="text-center py-8 text-gray-500">
-          <UIcon name="i-lucide-search" class="w-12 h-12 mx-auto mb-2 opacity-50" />
+        <div
+          v-else-if="!searching"
+          class="text-center py-8 text-gray-500"
+        >
+          <UIcon
+            name="i-lucide-search"
+            class="w-12 h-12 mx-auto mb-2 opacity-50"
+          />
           <p>Enter a search term to find items</p>
         </div>
       </div>
 
       <!-- Step 3: Importing -->
-      <div v-else-if="step === 'importing'" class="flex flex-col items-center justify-center py-12">
-        <UIcon name="i-lucide-loader-2" class="w-12 h-12 animate-spin text-primary mb-4" />
-        <p class="text-gray-500">Importing item...</p>
+      <div
+        v-else-if="step === 'importing'"
+        class="flex flex-col items-center justify-center py-12"
+      >
+        <UIcon
+          name="i-lucide-loader-2"
+          class="w-12 h-12 animate-spin text-primary mb-4"
+        />
+        <p class="text-gray-500">
+          Importing item...
+        </p>
       </div>
     </template>
 
     <template #footer>
       <div class="flex justify-end">
-        <UButton variant="ghost" @click="close" :disabled="importing">
+        <UButton
+          variant="ghost"
+          :disabled="importing"
+          @click="close"
+        >
           Cancel
         </UButton>
       </div>

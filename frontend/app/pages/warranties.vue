@@ -45,7 +45,9 @@ const dayOptions = [
   <UContainer>
     <div class="py-8">
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold">Warranties</h1>
+        <h1 class="text-2xl font-bold">
+          Warranties
+        </h1>
         <USelectMenu
           v-model="days"
           :items="dayOptions"
@@ -97,8 +99,14 @@ const dayOptions = [
           </template>
         </UTable>
 
-        <div v-if="!warranties?.length && status !== 'pending'" class="text-center py-8 text-muted">
-          <UIcon name="i-lucide-shield-check" class="w-12 h-12 mx-auto mb-4 opacity-50" />
+        <div
+          v-if="!warranties?.length && status !== 'pending'"
+          class="text-center py-8 text-muted"
+        >
+          <UIcon
+            name="i-lucide-shield-check"
+            class="w-12 h-12 mx-auto mb-4 opacity-50"
+          />
           <p>No warranties expiring in the next {{ days }} days</p>
         </div>
       </UCard>

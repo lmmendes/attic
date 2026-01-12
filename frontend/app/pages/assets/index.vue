@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Asset, Category, Location, Condition, AssetsResponse, AssetFilters } from '~/types/api'
+import type { Category, Location, Condition, AssetsResponse, AssetFilters } from '~/types/api'
 
 definePageMeta({
   middleware: 'auth'
@@ -33,7 +33,7 @@ const queryString = computed(() => {
   return params.toString()
 })
 
-const { data: assetsResponse, refresh, status } = useApi<AssetsResponse>(
+const { data: assetsResponse, status } = useApi<AssetsResponse>(
   () => `/api/assets?${queryString.value}`
 )
 
@@ -41,11 +41,17 @@ const { data: categories } = useApi<Category[]>('/api/categories')
 const { data: locations } = useApi<Location[]>('/api/locations')
 const { data: conditions } = useApi<Condition[]>('/api/conditions')
 
+interface AssetRow {
+  category?: { name: string }
+  location?: { name: string }
+  condition?: { label: string }
+}
+
 const columns = [
   { accessorKey: 'name', id: 'name', header: 'Name' },
-  { accessorFn: (row: any) => row.category?.name, id: 'category', header: 'Category' },
-  { accessorFn: (row: any) => row.location?.name, id: 'location', header: 'Location' },
-  { accessorFn: (row: any) => row.condition?.label, id: 'condition', header: 'Condition' },
+  { accessorFn: (row: AssetRow) => row.category?.name, id: 'category', header: 'Category' },
+  { accessorFn: (row: AssetRow) => row.location?.name, id: 'location', header: 'Location' },
+  { accessorFn: (row: AssetRow) => row.condition?.label, id: 'condition', header: 'Condition' },
   { accessorKey: 'quantity', id: 'quantity', header: 'Qty' },
   { id: 'actions', header: '' }
 ]
@@ -86,7 +92,9 @@ const totalPages = computed(() =>
   <UContainer>
     <div class="py-8">
       <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold">Assets</h1>
+        <h1 class="text-2xl font-bold">
+          Assets
+        </h1>
         <div class="flex gap-2">
           <UButton
             variant="outline"

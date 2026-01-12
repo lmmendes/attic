@@ -57,8 +57,14 @@ const userMenuItems = computed(() => [
   <UApp>
     <UHeader>
       <template #left>
-        <NuxtLink to="/" class="flex items-center gap-2">
-          <UIcon name="i-lucide-archive" class="w-6 h-6 text-primary" />
+        <NuxtLink
+          to="/"
+          class="flex items-center gap-2"
+        >
+          <UIcon
+            name="i-lucide-archive"
+            class="w-6 h-6 text-primary"
+          />
           <span class="font-semibold text-lg">Attic</span>
         </NuxtLink>
 
@@ -82,8 +88,12 @@ const userMenuItems = computed(() => [
             />
             <template #account>
               <div class="text-left">
-                <p class="font-medium">{{ user?.name || 'User' }}</p>
-                <p class="text-xs text-muted truncate">{{ user?.email }}</p>
+                <p class="font-medium">
+                  {{ user?.name || 'User' }}
+                </p>
+                <p class="text-xs text-muted truncate">
+                  {{ user?.email }}
+                </p>
               </div>
             </template>
           </UDropdownMenu>

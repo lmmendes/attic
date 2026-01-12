@@ -74,7 +74,10 @@ const stats = computed(() => [
     <!-- Logged out state -->
     <template v-if="!loggedIn">
       <div class="py-24 text-center">
-        <UIcon name="i-lucide-archive" class="w-16 h-16 mx-auto text-primary mb-6" />
+        <UIcon
+          name="i-lucide-archive"
+          class="w-16 h-16 mx-auto text-primary mb-6"
+        />
         <h1 class="text-4xl font-bold mb-4">
           Welcome to Attic
         </h1>
@@ -108,7 +111,10 @@ const stats = computed(() => [
             <UCard class="hover:bg-elevated transition-colors">
               <div class="flex items-center gap-4">
                 <div class="p-3 rounded-lg bg-primary/10">
-                  <UIcon :name="stat.icon" class="w-6 h-6 text-primary" />
+                  <UIcon
+                    :name="stat.icon"
+                    class="w-6 h-6 text-primary"
+                  />
                 </div>
                 <div>
                   <p class="text-2xl font-bold">{{ stat.value }}</p>
@@ -123,7 +129,9 @@ const stats = computed(() => [
         <UCard>
           <template #header>
             <div class="flex items-center justify-between">
-              <h2 class="font-semibold">Recent Assets</h2>
+              <h2 class="font-semibold">
+                Recent Assets
+              </h2>
               <UButton
                 to="/assets"
                 variant="ghost"
@@ -144,8 +152,14 @@ const stats = computed(() => [
               { accessorKey: 'quantity', id: 'quantity', header: 'Qty' }
             ]"
           />
-          <div v-else class="text-center py-8 text-muted">
-            <UIcon name="i-lucide-inbox" class="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <div
+            v-else
+            class="text-center py-8 text-muted"
+          >
+            <UIcon
+              name="i-lucide-inbox"
+              class="w-12 h-12 mx-auto mb-4 opacity-50"
+            />
             <p>No assets yet. Start by adding your first asset.</p>
             <UButton
               to="/assets/new"

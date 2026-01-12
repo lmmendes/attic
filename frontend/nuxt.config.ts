@@ -14,6 +14,12 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  runtimeConfig: {
+    public: {
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080'
+    }
+  },
+
   compatibilityDate: '2025-01-15',
 
   // Output static files to backend for embedding
@@ -21,12 +27,6 @@ export default defineNuxtConfig({
     output: {
       dir: '../backend/cmd/server/.output',
       publicDir: '../backend/cmd/server/dist'
-    }
-  },
-
-  runtimeConfig: {
-    public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080'
     }
   },
 

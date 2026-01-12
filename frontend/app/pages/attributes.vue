@@ -83,7 +83,7 @@ async function saveAttribute() {
     })
     modalOpen.value = false
     refresh()
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to save attribute', color: 'error' })
   }
 }
@@ -97,7 +97,7 @@ async function deleteAttribute(attribute: Attribute) {
     })
     toast.add({ title: 'Attribute deleted', color: 'success' })
     refresh()
-  } catch (error) {
+  } catch {
     toast.add({ title: 'Failed to delete attribute', color: 'error' })
   }
 }
@@ -119,7 +119,9 @@ function formatDataType(type: string): string {
     <div class="py-8">
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h1 class="text-2xl font-bold">Attributes</h1>
+          <h1 class="text-2xl font-bold">
+            Attributes
+          </h1>
           <p class="text-sm text-gray-500 mt-1">
             Define reusable attributes that can be assigned to categories
           </p>
@@ -183,11 +185,20 @@ function formatDataType(type: string): string {
       >
         <template #body>
           <div class="space-y-4">
-            <UFormField label="Name" required>
-              <UInput v-model="form.name" placeholder="e.g., Serial Number" />
+            <UFormField
+              label="Name"
+              required
+            >
+              <UInput
+                v-model="form.name"
+                placeholder="e.g., Serial Number"
+              />
             </UFormField>
 
-            <UFormField label="Key" required>
+            <UFormField
+              label="Key"
+              required
+            >
               <UInput
                 v-model="form.key"
                 placeholder="e.g., serial_number"
@@ -200,7 +211,10 @@ function formatDataType(type: string): string {
               </template>
             </UFormField>
 
-            <UFormField label="Data Type" required>
+            <UFormField
+              label="Data Type"
+              required
+            >
               <USelectMenu
                 v-model="form.data_type"
                 :items="dataTypeOptions"
@@ -213,7 +227,10 @@ function formatDataType(type: string): string {
 
         <template #footer>
           <div class="flex justify-end gap-2">
-            <UButton variant="ghost" @click="modalOpen = false">
+            <UButton
+              variant="ghost"
+              @click="modalOpen = false"
+            >
               Cancel
             </UButton>
             <UButton @click="saveAttribute">
