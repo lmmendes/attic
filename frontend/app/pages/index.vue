@@ -3,7 +3,7 @@ import type { Asset, Category, Location, Warranty } from '~/types/api'
 
 // No middleware - accessible to all
 
-const { loggedIn, login } = useOidcAuth()
+const { isAuthenticated: loggedIn, login } = useAuth()
 
 // Fetch dashboard data when logged in
 const { data: assets } = useApi<{ assets: Asset[], total: number }>('/api/assets?limit=5', {

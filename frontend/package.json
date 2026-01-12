@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "nuxt build",
+    "build": "nuxt generate",
     "dev": "nuxt dev",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
@@ -14,8 +14,7 @@
     "@iconify-json/lucide": "^1.2.82",
     "@iconify-json/simple-icons": "^1.2.63",
     "@nuxt/ui": "^4.3.0",
-    "nuxt": "^4.2.2",
-    "nuxt-oidc-auth": "^1.0.0-beta.7"
+    "nuxt": "^4.2.2"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.12.1",

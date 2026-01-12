@@ -21,7 +21,12 @@ useSeoMeta({
   ogDescription: description
 })
 
-const { loggedIn, user, login, logout } = useOidcAuth()
+const { isAuthenticated: loggedIn, user, login, logout, fetchSession } = useAuth()
+
+// Fetch session on app load
+onMounted(() => {
+  fetchSession()
+})
 
 const navigation = [
   { label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' },

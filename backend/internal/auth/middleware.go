@@ -27,6 +27,7 @@ type Claims struct {
 type Middleware struct {
 	verifier *oidc.IDTokenVerifier
 	disabled bool
+	oauth    *OAuthHandler
 }
 
 // Config for auth middleware
@@ -59,6 +60,11 @@ func NewMiddleware(ctx context.Context, cfg Config) (*Middleware, error) {
 	return &Middleware{verifier: verifier}, nil
 }
 
+// SetOAuthHandler sets the OAuth handler for cookie-based auth
+func (m *Middleware) SetOAuthHandler(oauth *OAuthHandler) {
+	m.oauth = oauth
+}
+
 // Authenticate is HTTP middleware that validates JWT tokens
 func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -75,20 +81,26 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		// Extract token from Authorization header
+		var tokenString string
+
+		// First, try Authorization header
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, `{"error":"missing authorization header"}`, http.StatusUnauthorized)
-			return
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
+				tokenString = parts[1]
+			}
 		}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
-			http.Error(w, `{"error":"invalid authorization header format"}`, http.StatusUnauthorized)
-			return
+		// If no header, try session cookie
+		if tokenString == "" && m.oauth != nil {
+			tokenString = m.oauth.GetAccessToken(r)
 		}
 
-		tokenString := parts[1]
+		if tokenString == "" {
+			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
 
 		// Verify the token
 		idToken, err := m.verifier.Verify(r.Context(), tokenString)

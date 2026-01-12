@@ -26,6 +26,9 @@ import (
 //go:embed openapi.yaml
 var openapiSpec []byte
 
+// Version is set by ldflags during build
+var Version = "dev"
+
 var defaultOrgID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 func main() {
@@ -66,6 +69,19 @@ func main() {
 		slog.Info("connected to S3", "bucket", cfg.S3Bucket)
 	}
 
+	// OAuth handler for login flow
+	oauthHandler, err := auth.NewOAuthHandler(ctx, auth.OAuthConfig{
+		IssuerURL:     cfg.OIDCIssuer,
+		ClientID:      cfg.OIDCClientID,
+		BaseURL:       cfg.BaseURL,
+		SessionSecret: cfg.SessionSecret,
+		Disabled:      cfg.AuthDisabled,
+	})
+	if err != nil {
+		slog.Error("failed to initialize OAuth handler", "error", err)
+		os.Exit(1)
+	}
+
 	// Auth middleware
 	authMiddleware, err := auth.NewMiddleware(ctx, auth.Config{
 		IssuerURL: cfg.OIDCIssuer,
@@ -76,6 +92,10 @@ func main() {
 		slog.Error("failed to initialize auth", "error", err)
 		os.Exit(1)
 	}
+
+	// Link OAuth handler to middleware for cookie-based auth
+	authMiddleware.SetOAuthHandler(oauthHandler)
+
 	if cfg.AuthDisabled {
 		slog.Warn("authentication is disabled")
 	} else {
@@ -133,6 +153,14 @@ func main() {
 	r.Get("/api/docs", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(swaggerUIHTML))
+	})
+
+	// Auth routes (no auth required)
+	r.Route("/auth", func(r chi.Router) {
+		r.Get("/login", oauthHandler.Login)
+		r.Get("/callback", oauthHandler.Callback)
+		r.Get("/logout", oauthHandler.Logout)
+		r.Get("/session", oauthHandler.GetSession)
 	})
 
 	// API routes (auth required)
@@ -214,6 +242,9 @@ func main() {
 		r.Get("/warranties/expiring", h.ListExpiringWarranties)
 	})
 
+	// Serve embedded frontend for all non-API routes
+	r.Handle("/*", spaHandler())
+
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      r,
@@ -227,7 +258,7 @@ func main() {
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		slog.Info("starting server", "port", cfg.Port)
+		slog.Info("starting server", "port", cfg.Port, "version", Version)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("server error", "error", err)
 			os.Exit(1)

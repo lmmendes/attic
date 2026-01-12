@@ -1,0 +1,21 @@
+# Build outputs
+backend/bin/
+backend/cmd/server/.output/
+
+# Backend embedded frontend (built from frontend/)
+backend/cmd/server/dist/*
+!backend/cmd/server/dist/.gitkeep
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

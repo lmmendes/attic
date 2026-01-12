@@ -2,9 +2,11 @@
 export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
-    '@nuxt/ui',
-    'nuxt-oidc-auth'
+    '@nuxt/ui'
   ],
+
+  // SPA mode - disable SSR for embedding in Go binary
+  ssr: false,
 
   devtools: {
     enabled: true
@@ -12,41 +14,19 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  routeRules: {
-    '/': { prerender: false }
-  },
-
   compatibilityDate: '2025-01-15',
+
+  // Output static files to backend for embedding
+  nitro: {
+    output: {
+      dir: '../backend/cmd/server/.output',
+      publicDir: '../backend/cmd/server/dist'
+    }
+  },
 
   runtimeConfig: {
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080'
-    }
-  },
-
-  oidc: {
-    enabled: true,
-    defaultProvider: 'keycloak',
-    providers: {
-      keycloak: {
-        clientId: process.env.NUXT_OIDC_CLIENT_ID || 'attic-web',
-        clientSecret: '', // Public client, no secret needed
-        redirectUri: process.env.NUXT_OIDC_REDIRECT_URI || 'http://localhost:3000/auth/keycloak/callback',
-        baseUrl: process.env.NUXT_OIDC_ISSUER || 'http://localhost:8180/realms/attic',
-        scope: ['openid', 'profile', 'email'],
-        pkce: true,
-        state: true,
-        nonce: true,
-        exposeAccessToken: true
-      }
-    },
-    session: {
-      automaticRefresh: true,
-      expirationCheck: true
-    },
-    middleware: {
-      globalMiddlewareEnabled: false,
-      customLoginPage: false
     }
   },
 
