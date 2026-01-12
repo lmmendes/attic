@@ -5,6 +5,14 @@ definePageMeta({
   middleware: 'auth'
 })
 
+const router = useRouter()
+const importModalOpen = ref(false)
+
+function onImported(assetId: string) {
+  // Navigate to the newly imported asset's edit page
+  router.push(`/assets/${assetId}/edit`)
+}
+
 const filters = reactive<AssetFilters>({
   q: '',
   category_id: undefined,
@@ -79,12 +87,21 @@ const totalPages = computed(() =>
     <div class="py-8">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold">Assets</h1>
-        <UButton
-          to="/assets/new"
-          icon="i-lucide-plus"
-        >
-          Add Asset
-        </UButton>
+        <div class="flex gap-2">
+          <UButton
+            variant="outline"
+            icon="i-lucide-download"
+            @click="importModalOpen = true"
+          >
+            Import
+          </UButton>
+          <UButton
+            to="/assets/new"
+            icon="i-lucide-plus"
+          >
+            Add Asset
+          </UButton>
+        </div>
       </div>
 
       <!-- Filters -->
@@ -166,6 +183,12 @@ const totalPages = computed(() =>
           </div>
         </template>
       </UCard>
+
+      <!-- Import Modal -->
+      <ImportModal
+        v-model:open="importModalOpen"
+        @imported="onImported"
+      />
     </div>
   </UContainer>
 </template>

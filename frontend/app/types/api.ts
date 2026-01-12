@@ -97,10 +97,11 @@ export interface Warranty {
 export interface Attachment {
   id: string
   asset_id: string
-  filename: string
-  content_type: string
-  size: number
-  storage_key: string
+  file_name: string
+  file_size: number
+  file_key: string
+  content_type?: string
+  description?: string
   created_at: string
 }
 
@@ -125,4 +126,48 @@ export interface AssetFilters {
   condition_id?: string
   limit?: number
   offset?: number
+}
+
+// Import Plugin Types
+
+export interface PluginSearchField {
+  key: string
+  label: string
+}
+
+export interface PluginAttribute {
+  key: string
+  name: string
+  data_type: AttributeDataType
+  required: boolean
+}
+
+export interface Plugin {
+  id: string
+  name: string
+  description: string
+  category_name: string
+  category_description: string
+  search_fields: PluginSearchField[]
+  attributes: PluginAttribute[]
+  category_id?: string
+}
+
+export interface PluginsResponse {
+  plugins: Plugin[]
+}
+
+export interface PluginSearchResult {
+  external_id: string
+  title: string
+  subtitle: string
+  image_url?: string
+}
+
+export interface PluginSearchResponse {
+  results: PluginSearchResult[]
+}
+
+export interface PluginImportResponse {
+  asset: Asset
 }

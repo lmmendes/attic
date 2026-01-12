@@ -19,6 +19,8 @@ import (
 	"github.com/mendelui/attic/internal/config"
 	"github.com/mendelui/attic/internal/database"
 	"github.com/mendelui/attic/internal/handler"
+	"github.com/mendelui/attic/internal/plugin"
+	"github.com/mendelui/attic/internal/plugin/googlebooks"
 	"github.com/mendelui/attic/internal/repository"
 	"github.com/mendelui/attic/internal/storage"
 )
@@ -119,8 +121,16 @@ func main() {
 	// User provisioner
 	userProvisioner := auth.NewUserProvisioner(userRepo, defaultOrgID)
 
+	// Initialize plugin registry
+	pluginRegistry := plugin.NewRegistry()
+	if err := pluginRegistry.Register(googlebooks.New()); err != nil {
+		slog.Error("failed to register Google Books plugin", "error", err)
+	}
+	slog.Info("registered plugins", "count", len(pluginRegistry.List()))
+
 	// Initialize handlers
 	h := handler.New(db, repos, s3Client)
+	pluginHandler := handler.NewPluginHandler(pluginRegistry, repos, s3Client)
 
 	r := chi.NewRouter()
 
@@ -240,6 +250,14 @@ func main() {
 
 		// Warranties overview
 		r.Get("/warranties/expiring", h.ListExpiringWarranties)
+
+		// Import Plugins
+		r.Route("/plugins", func(r chi.Router) {
+			r.Get("/", pluginHandler.ListPlugins)
+			r.Get("/{pluginId}", pluginHandler.GetPlugin)
+			r.Get("/{pluginId}/search", pluginHandler.Search)
+			r.Post("/{pluginId}/import", pluginHandler.Import)
+		})
 	})
 
 	// Serve embedded frontend for all non-API routes

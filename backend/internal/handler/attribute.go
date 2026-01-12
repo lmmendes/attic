@@ -168,6 +168,12 @@ func (h *Handler) DeleteAttribute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Prevent deleting plugin-owned attributes
+	if existing.PluginID != nil {
+		writeError(w, http.StatusForbidden, "cannot delete plugin-owned attribute")
+		return
+	}
+
 	if err := h.repos.Attributes.Delete(r.Context(), id); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete attribute")
 		return

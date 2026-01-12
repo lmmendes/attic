@@ -20,13 +20,13 @@ func NewCategoryRepository(pool *pgxpool.Pool) *CategoryRepository {
 
 func (r *CategoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Category, error) {
 	query := `
-		SELECT id, organization_id, parent_id, name, description, created_at, updated_at
+		SELECT id, organization_id, parent_id, plugin_id, name, description, created_at, updated_at
 		FROM categories
 		WHERE id = $1 AND deleted_at IS NULL
 	`
 	var c domain.Category
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&c.ID, &c.OrganizationID, &c.ParentID, &c.Name, &c.Description,
+		&c.ID, &c.OrganizationID, &c.ParentID, &c.PluginID, &c.Name, &c.Description,
 		&c.CreatedAt, &c.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -75,7 +75,7 @@ func (r *CategoryRepository) GetByIDWithAttributes(ctx context.Context, id uuid.
 
 func (r *CategoryRepository) List(ctx context.Context, orgID uuid.UUID) ([]domain.Category, error) {
 	query := `
-		SELECT id, organization_id, parent_id, name, description, created_at, updated_at
+		SELECT id, organization_id, parent_id, plugin_id, name, description, created_at, updated_at
 		FROM categories
 		WHERE organization_id = $1 AND deleted_at IS NULL
 		ORDER BY name
@@ -90,7 +90,7 @@ func (r *CategoryRepository) List(ctx context.Context, orgID uuid.UUID) ([]domai
 	for rows.Next() {
 		var c domain.Category
 		if err := rows.Scan(
-			&c.ID, &c.OrganizationID, &c.ParentID, &c.Name, &c.Description,
+			&c.ID, &c.OrganizationID, &c.ParentID, &c.PluginID, &c.Name, &c.Description,
 			&c.CreatedAt, &c.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -128,16 +128,36 @@ func buildCategoryTree(categories []domain.Category) []domain.Category {
 
 func (r *CategoryRepository) Create(ctx context.Context, c *domain.Category) error {
 	query := `
-		INSERT INTO categories (id, organization_id, parent_id, name, description)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO categories (id, organization_id, parent_id, plugin_id, name, description)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING created_at, updated_at
 	`
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()
 	}
 	return r.pool.QueryRow(ctx, query,
-		c.ID, c.OrganizationID, c.ParentID, c.Name, c.Description,
+		c.ID, c.OrganizationID, c.ParentID, c.PluginID, c.Name, c.Description,
 	).Scan(&c.CreatedAt, &c.UpdatedAt)
+}
+
+func (r *CategoryRepository) GetByPluginID(ctx context.Context, orgID uuid.UUID, pluginID string) (*domain.Category, error) {
+	query := `
+		SELECT id, organization_id, parent_id, plugin_id, name, description, created_at, updated_at
+		FROM categories
+		WHERE organization_id = $1 AND plugin_id = $2 AND deleted_at IS NULL
+	`
+	var c domain.Category
+	err := r.pool.QueryRow(ctx, query, orgID, pluginID).Scan(
+		&c.ID, &c.OrganizationID, &c.ParentID, &c.PluginID, &c.Name, &c.Description,
+		&c.CreatedAt, &c.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
 }
 
 func (r *CategoryRepository) Update(ctx context.Context, c *domain.Category) error {

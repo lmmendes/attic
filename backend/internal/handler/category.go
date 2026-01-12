@@ -197,6 +197,21 @@ func (h *Handler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if category exists and is not plugin-managed
+	cat, err := h.repos.Categories.GetByID(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get category")
+		return
+	}
+	if cat == nil {
+		writeError(w, http.StatusNotFound, "category not found")
+		return
+	}
+	if cat.PluginID != nil {
+		writeError(w, http.StatusForbidden, "cannot delete plugin-managed category")
+		return
+	}
+
 	if err := h.repos.Categories.Delete(r.Context(), id); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete category")
 		return

@@ -131,7 +131,7 @@ async function downloadAttachment(attachment: Attachment) {
 }
 
 async function deleteAttachment(attachment: Attachment) {
-  if (!confirm(`Delete "${attachment.filename}"?`)) return
+  if (!confirm(`Delete "${attachment.file_name}"?`)) return
   try {
     await apiFetch(`/api/attachments/${attachment.id}`, {
       method: 'DELETE'
@@ -319,8 +319,8 @@ const warrantyStatus = computed(() => {
                 <div class="flex items-center gap-3">
                   <UIcon name="i-lucide-file" class="w-5 h-5 text-muted" />
                   <div>
-                    <p class="font-medium">{{ attachment.filename }}</p>
-                    <p class="text-xs text-muted">{{ formatBytes(attachment.size) }}</p>
+                    <p class="font-medium">{{ attachment.file_name }}</p>
+                    <p class="text-xs text-muted">{{ formatBytes(attachment.file_size) }}</p>
                   </div>
                 </div>
                 <div class="flex gap-1">

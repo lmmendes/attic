@@ -23,14 +23,16 @@ func NewAssetRepository(pool *pgxpool.Pool) *AssetRepository {
 func (r *AssetRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Asset, error) {
 	query := `
 		SELECT id, organization_id, category_id, location_id, condition_id, collection_id,
-		       name, description, quantity, attributes, purchase_at, purchase_note, created_at, updated_at
+		       name, description, quantity, attributes, purchase_at, purchase_note,
+		       import_plugin_id, import_external_id, created_at, updated_at
 		FROM assets
 		WHERE id = $1 AND deleted_at IS NULL
 	`
 	var a domain.Asset
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&a.ID, &a.OrganizationID, &a.CategoryID, &a.LocationID, &a.ConditionID, &a.CollectionID,
-		&a.Name, &a.Description, &a.Quantity, &a.Attributes, &a.PurchaseAt, &a.PurchaseNote, &a.CreatedAt, &a.UpdatedAt,
+		&a.Name, &a.Description, &a.Quantity, &a.Attributes, &a.PurchaseAt, &a.PurchaseNote,
+		&a.ImportPluginID, &a.ImportExternalID, &a.CreatedAt, &a.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -228,8 +230,10 @@ func (r *AssetRepository) Search(ctx context.Context, orgID uuid.UUID, query str
 
 func (r *AssetRepository) Create(ctx context.Context, a *domain.Asset) error {
 	query := `
-		INSERT INTO assets (id, organization_id, category_id, location_id, condition_id, collection_id, name, description, quantity, attributes, purchase_at, purchase_note)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		INSERT INTO assets (id, organization_id, category_id, location_id, condition_id, collection_id,
+		                    name, description, quantity, attributes, purchase_at, purchase_note,
+		                    import_plugin_id, import_external_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING created_at, updated_at
 	`
 	if a.ID == uuid.Nil {
@@ -241,6 +245,7 @@ func (r *AssetRepository) Create(ctx context.Context, a *domain.Asset) error {
 	return r.pool.QueryRow(ctx, query,
 		a.ID, a.OrganizationID, a.CategoryID, a.LocationID, a.ConditionID, a.CollectionID,
 		a.Name, a.Description, a.Quantity, a.Attributes, a.PurchaseAt, a.PurchaseNote,
+		a.ImportPluginID, a.ImportExternalID,
 	).Scan(&a.CreatedAt, &a.UpdatedAt)
 }
 

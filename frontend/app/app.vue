@@ -35,7 +35,8 @@ const navigation = [
   { label: 'Attributes', to: '/attributes', icon: 'i-lucide-tags' },
   { label: 'Locations', to: '/locations', icon: 'i-lucide-map-pin' },
   { label: 'Conditions', to: '/conditions', icon: 'i-lucide-activity' },
-  { label: 'Warranties', to: '/warranties', icon: 'i-lucide-shield-check' }
+  { label: 'Warranties', to: '/warranties', icon: 'i-lucide-shield-check' },
+  { label: 'Plugins', to: '/plugins', icon: 'i-lucide-puzzle' }
 ]
 
 const userMenuItems = computed(() => [

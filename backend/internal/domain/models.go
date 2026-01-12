@@ -47,6 +47,7 @@ type Category struct {
 	ID             uuid.UUID  `json:"id"`
 	OrganizationID uuid.UUID  `json:"organization_id"`
 	ParentID       *uuid.UUID `json:"parent_id,omitempty"`
+	PluginID       *string    `json:"plugin_id,omitempty"` // nil = user-created, non-nil = plugin-managed
 	Name           string     `json:"name"`
 	Description    *string    `json:"description,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
@@ -73,6 +74,7 @@ const (
 type Attribute struct {
 	ID             uuid.UUID         `json:"id"`
 	OrganizationID uuid.UUID         `json:"organization_id"`
+	PluginID       *string           `json:"plugin_id,omitempty"` // nil = user-defined/reusable, non-nil = plugin-owned
 	Name           string            `json:"name"`
 	Key            string            `json:"key"`
 	DataType       AttributeDataType `json:"data_type"`
@@ -111,28 +113,30 @@ type Location struct {
 
 // Asset represents a tracked item
 type Asset struct {
-	ID             uuid.UUID       `json:"id"`
-	OrganizationID uuid.UUID       `json:"organization_id"`
-	CategoryID     uuid.UUID       `json:"category_id"`
-	LocationID     *uuid.UUID      `json:"location_id,omitempty"`
-	ConditionID    *uuid.UUID      `json:"condition_id,omitempty"`
-	CollectionID   *uuid.UUID      `json:"collection_id,omitempty"`
-	Name           string          `json:"name"`
-	Description    *string         `json:"description,omitempty"`
-	Quantity       int             `json:"quantity"`
-	Attributes     json.RawMessage `json:"attributes"`
-	PurchaseAt     *time.Time      `json:"purchase_at,omitempty"`
-	PurchaseNote   *string         `json:"purchase_note,omitempty"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
-	DeletedAt      *time.Time      `json:"-"`
+	ID               uuid.UUID       `json:"id"`
+	OrganizationID   uuid.UUID       `json:"organization_id"`
+	CategoryID       uuid.UUID       `json:"category_id"`
+	LocationID       *uuid.UUID      `json:"location_id,omitempty"`
+	ConditionID      *uuid.UUID      `json:"condition_id,omitempty"`
+	CollectionID     *uuid.UUID      `json:"collection_id,omitempty"`
+	Name             string          `json:"name"`
+	Description      *string         `json:"description,omitempty"`
+	Quantity         int             `json:"quantity"`
+	Attributes       json.RawMessage `json:"attributes"`
+	PurchaseAt       *time.Time      `json:"purchase_at,omitempty"`
+	PurchaseNote     *string         `json:"purchase_note,omitempty"`
+	ImportPluginID   *string         `json:"import_plugin_id,omitempty"`   // Plugin that imported this asset
+	ImportExternalID *string         `json:"import_external_id,omitempty"` // External ID for re-fetching
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+	DeletedAt        *time.Time      `json:"-"`
 
 	// Populated by queries
-	Category   *Category   `json:"category,omitempty"`
-	Location   *Location   `json:"location,omitempty"`
-	Condition  *Condition  `json:"condition,omitempty"`
-	Tags       []Tag       `json:"tags,omitempty"`
-	Warranty   *Warranty   `json:"warranty,omitempty"`
+	Category  *Category  `json:"category,omitempty"`
+	Location  *Location  `json:"location,omitempty"`
+	Condition *Condition `json:"condition,omitempty"`
+	Tags      []Tag      `json:"tags,omitempty"`
+	Warranty  *Warranty  `json:"warranty,omitempty"`
 }
 
 // Tag represents a free-form tag

@@ -20,13 +20,13 @@ func NewAttributeRepository(pool *pgxpool.Pool) *AttributeRepository {
 
 func (r *AttributeRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Attribute, error) {
 	query := `
-		SELECT id, organization_id, name, key, data_type, created_at, updated_at
+		SELECT id, organization_id, plugin_id, name, key, data_type, created_at, updated_at
 		FROM attributes
 		WHERE id = $1 AND deleted_at IS NULL
 	`
 	var a domain.Attribute
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&a.ID, &a.OrganizationID, &a.Name, &a.Key, &a.DataType,
+		&a.ID, &a.OrganizationID, &a.PluginID, &a.Name, &a.Key, &a.DataType,
 		&a.CreatedAt, &a.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -40,7 +40,7 @@ func (r *AttributeRepository) GetByID(ctx context.Context, id uuid.UUID) (*domai
 
 func (r *AttributeRepository) List(ctx context.Context, orgID uuid.UUID) ([]domain.Attribute, error) {
 	query := `
-		SELECT id, organization_id, name, key, data_type, created_at, updated_at
+		SELECT id, organization_id, plugin_id, name, key, data_type, created_at, updated_at
 		FROM attributes
 		WHERE organization_id = $1 AND deleted_at IS NULL
 		ORDER BY name
@@ -55,7 +55,7 @@ func (r *AttributeRepository) List(ctx context.Context, orgID uuid.UUID) ([]doma
 	for rows.Next() {
 		var a domain.Attribute
 		if err := rows.Scan(
-			&a.ID, &a.OrganizationID, &a.Name, &a.Key, &a.DataType,
+			&a.ID, &a.OrganizationID, &a.PluginID, &a.Name, &a.Key, &a.DataType,
 			&a.CreatedAt, &a.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -67,16 +67,63 @@ func (r *AttributeRepository) List(ctx context.Context, orgID uuid.UUID) ([]doma
 
 func (r *AttributeRepository) Create(ctx context.Context, a *domain.Attribute) error {
 	query := `
-		INSERT INTO attributes (id, organization_id, name, key, data_type)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO attributes (id, organization_id, plugin_id, name, key, data_type)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING created_at, updated_at
 	`
 	if a.ID == uuid.Nil {
 		a.ID = uuid.New()
 	}
 	return r.pool.QueryRow(ctx, query,
-		a.ID, a.OrganizationID, a.Name, a.Key, a.DataType,
+		a.ID, a.OrganizationID, a.PluginID, a.Name, a.Key, a.DataType,
 	).Scan(&a.CreatedAt, &a.UpdatedAt)
+}
+
+func (r *AttributeRepository) GetByKey(ctx context.Context, orgID uuid.UUID, key string) (*domain.Attribute, error) {
+	query := `
+		SELECT id, organization_id, plugin_id, name, key, data_type, created_at, updated_at
+		FROM attributes
+		WHERE organization_id = $1 AND key = $2 AND deleted_at IS NULL
+	`
+	var a domain.Attribute
+	err := r.pool.QueryRow(ctx, query, orgID, key).Scan(
+		&a.ID, &a.OrganizationID, &a.PluginID, &a.Name, &a.Key, &a.DataType,
+		&a.CreatedAt, &a.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+func (r *AttributeRepository) ListByPluginID(ctx context.Context, orgID uuid.UUID, pluginID string) ([]domain.Attribute, error) {
+	query := `
+		SELECT id, organization_id, plugin_id, name, key, data_type, created_at, updated_at
+		FROM attributes
+		WHERE organization_id = $1 AND plugin_id = $2 AND deleted_at IS NULL
+		ORDER BY name
+	`
+	rows, err := r.pool.Query(ctx, query, orgID, pluginID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var attributes []domain.Attribute
+	for rows.Next() {
+		var a domain.Attribute
+		if err := rows.Scan(
+			&a.ID, &a.OrganizationID, &a.PluginID, &a.Name, &a.Key, &a.DataType,
+			&a.CreatedAt, &a.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		attributes = append(attributes, a)
+	}
+	return attributes, rows.Err()
 }
 
 func (r *AttributeRepository) Update(ctx context.Context, a *domain.Attribute) error {
