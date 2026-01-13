@@ -178,7 +178,22 @@ async function handleFileUpload(event: Event) {
 
 function formatDate(dateStr?: string) {
   if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString()
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
+}
+
+function formatDateTime(dateStr?: string) {
+  if (!dateStr) return '-'
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 function formatBytes(bytes: number) {
@@ -212,252 +227,280 @@ const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', te
   if (days <= 30) return { color: 'warning', text: `${days} days left` }
   return { color: 'success', text: `${days} days left` }
 })
+
+// Generate short ID
+function getShortId(): string {
+  if (!asset.value?.id) return ''
+  return `ATC-${asset.value.id.slice(0, 4).toUpperCase()}`
+}
 </script>
 
 <template>
-  <UContainer>
-    <div class="py-8">
-      <!-- Header -->
-      <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-4">
-          <UButton
-            to="/assets"
-            variant="ghost"
-            icon="i-lucide-arrow-left"
-          />
-          <h1 class="text-2xl font-bold">
-            {{ asset?.name || 'Loading...' }}
-          </h1>
+  <div class="max-w-[1200px] mx-auto">
+    <!-- Breadcrumbs -->
+    <nav class="flex items-center gap-2 mb-8 text-gray-500 dark:text-gray-400 text-sm font-medium">
+      <NuxtLink
+        to="/"
+        class="hover:text-attic-500 transition-colors"
+      >
+        Home
+      </NuxtLink>
+      <UIcon
+        name="i-lucide-chevron-right"
+        class="w-4 h-4"
+      />
+      <NuxtLink
+        to="/assets"
+        class="hover:text-attic-500 transition-colors"
+      >
+        Assets
+      </NuxtLink>
+      <UIcon
+        name="i-lucide-chevron-right"
+        class="w-4 h-4"
+      />
+      <span class="text-mist-950 dark:text-white">{{ asset?.name || 'Loading...' }}</span>
+    </nav>
+
+    <div
+      v-if="asset"
+      class="grid grid-cols-1 lg:grid-cols-12 gap-10"
+    >
+      <!-- Left Column: Visual Anchor -->
+      <div class="lg:col-span-4 flex flex-col gap-6">
+        <!-- Main Image / Placeholder -->
+        <div class="relative group">
+          <div class="aspect-[3/4] rounded-xl overflow-hidden shadow-2xl bg-white dark:bg-gray-800 ring-1 ring-black/5 flex items-center justify-center">
+            <div class="text-center p-8">
+              <UIcon
+                name="i-lucide-package"
+                class="w-24 h-24 text-gray-200 dark:text-gray-600 mx-auto mb-4"
+              />
+              <p class="text-sm text-gray-400">No image available</p>
+            </div>
+          </div>
         </div>
-        <div class="flex gap-2">
+
+        <!-- Asset Intelligence Card -->
+        <div class="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700">
+          <div class="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 mb-2">
+            <UIcon
+              name="i-lucide-info"
+              class="w-5 h-5 text-attic-500"
+            />
+            <span>Asset Information</span>
+          </div>
+          <p class="text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+            Asset ID: <span class="font-bold text-attic-500 font-mono">{{ getShortId() }}</span>
+          </p>
+          <div class="mt-4 pt-4 border-t border-dashed border-gray-200 dark:border-gray-700">
+            <p class="text-[11px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">Last Updated</p>
+            <p class="text-sm font-medium text-mist-950 dark:text-white">{{ formatDateTime(asset.updated_at) }}</p>
+          </div>
+        </div>
+
+        <!-- Quick Actions (Mobile) -->
+        <div class="lg:hidden flex gap-3">
           <UButton
             :to="`/assets/${route.params.id}/edit`"
-            variant="soft"
-            icon="i-lucide-edit"
+            variant="outline"
+            class="flex-1"
+            icon="i-lucide-pencil"
           >
-            Edit
+            Edit Asset
           </UButton>
           <UButton
             color="error"
             variant="soft"
             icon="i-lucide-trash-2"
             @click="deleteModalOpen = true"
-          >
-            Delete
-          </UButton>
+          />
         </div>
       </div>
 
-      <div
-        v-if="asset"
-        class="grid grid-cols-1 lg:grid-cols-3 gap-6"
-      >
-        <!-- Main Info -->
-        <div class="lg:col-span-2 space-y-6">
-          <UCard>
-            <template #header>
-              <h2 class="font-semibold">
-                Details
-              </h2>
-            </template>
-
-            <dl class="grid grid-cols-2 gap-4">
-              <div>
-                <dt class="text-sm text-muted">
-                  Category
-                </dt>
-                <dd class="font-medium">
-                  {{ asset.category?.name || '-' }}
-                </dd>
-              </div>
-              <div>
-                <dt class="text-sm text-muted">
-                  Location
-                </dt>
-                <dd class="font-medium">
-                  {{ asset.location?.name || '-' }}
-                </dd>
-              </div>
-              <div>
-                <dt class="text-sm text-muted">
-                  Condition
-                </dt>
-                <dd class="font-medium">
-                  {{ asset.condition?.label || '-' }}
-                </dd>
-              </div>
-              <div>
-                <dt class="text-sm text-muted">
-                  Quantity
-                </dt>
-                <dd class="font-medium">
-                  {{ asset.quantity }}
-                </dd>
-              </div>
-              <div class="col-span-2">
-                <dt class="text-sm text-muted">
-                  Description
-                </dt>
-                <dd class="font-medium">
-                  {{ asset.description || '-' }}
-                </dd>
-              </div>
-            </dl>
-          </UCard>
-
-          <!-- Attributes -->
-          <UCard v-if="categoryWithAttrs?.attributes?.length">
-            <template #header>
-              <h2 class="font-semibold">
-                {{ categoryWithAttrs.name }} Attributes
-              </h2>
-            </template>
-
-            <dl class="grid grid-cols-2 gap-4">
-              <div
-                v-for="ca in categoryWithAttrs.attributes"
-                :key="ca.attribute_id"
-              >
-                <dt class="text-sm text-muted">
-                  {{ ca.attribute?.name || ca.attribute_id }}
-                  <span
-                    v-if="ca.required"
-                    class="text-error"
-                  >*</span>
-                </dt>
-                <dd class="font-medium">
-                  {{ getAttributeValue(ca.attribute?.key || '') }}
-                </dd>
-              </div>
-            </dl>
-          </UCard>
-
-          <!-- Attachments -->
-          <UCard>
-            <template #header>
-              <div class="flex items-center justify-between">
-                <h2 class="font-semibold">
-                  Attachments
-                </h2>
-                <UButton
-                  variant="soft"
-                  size="sm"
-                  icon="i-lucide-upload"
-                  :loading="uploading"
-                  @click="triggerUpload"
-                >
-                  Upload
-                </UButton>
-                <input
-                  ref="fileInput"
-                  type="file"
-                  class="hidden"
-                  @change="handleFileUpload"
-                >
-              </div>
-            </template>
-
-            <div
-              v-if="attachments?.length"
-              class="space-y-2"
-            >
-              <div
-                v-for="attachment in attachments"
-                :key="attachment.id"
-                class="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-              >
-                <div class="flex items-center gap-3">
-                  <UIcon
-                    name="i-lucide-file"
-                    class="w-5 h-5 text-muted"
-                  />
-                  <div>
-                    <p class="font-medium">
-                      {{ attachment.file_name }}
-                    </p>
-                    <p class="text-xs text-muted">
-                      {{ formatBytes(attachment.file_size) }}
-                    </p>
-                  </div>
-                </div>
-                <div class="flex gap-1">
-                  <UButton
-                    variant="ghost"
-                    icon="i-lucide-download"
-                    size="sm"
-                    @click="downloadAttachment(attachment)"
-                  />
-                  <UButton
-                    variant="ghost"
-                    icon="i-lucide-trash-2"
-                    size="sm"
-                    color="error"
-                    @click="deleteAttachment(attachment)"
-                  />
-                </div>
-              </div>
-            </div>
-            <p
-              v-else
-              class="text-muted text-center py-4"
-            >
-              No attachments yet
+      <!-- Right Column: Content & Metadata -->
+      <div class="lg:col-span-8 space-y-8">
+        <!-- Header & Title -->
+        <div class="flex flex-col md:flex-row justify-between items-start gap-4">
+          <div class="space-y-1">
+            <h1 class="text-4xl font-extrabold tracking-tight text-mist-950 dark:text-white">
+              {{ asset.name }}
+            </h1>
+            <p class="text-xl text-attic-500 font-medium">
+              {{ asset.category?.name || 'Uncategorized' }}
             </p>
-          </UCard>
+          </div>
+          <div class="hidden lg:flex gap-3 shrink-0">
+            <UButton
+              :to="`/assets/${route.params.id}/edit`"
+              variant="outline"
+              class="font-bold"
+              icon="i-lucide-pencil"
+            >
+              Edit Asset
+            </UButton>
+            <UButton
+              color="error"
+              variant="soft"
+              icon="i-lucide-trash-2"
+              @click="deleteModalOpen = true"
+            >
+              Delete
+            </UButton>
+          </div>
         </div>
 
-        <!-- Sidebar -->
-        <div class="space-y-6">
-          <!-- Warranty -->
-          <UCard>
-            <template #header>
-              <div class="flex items-center justify-between">
-                <h2 class="font-semibold">
-                  Warranty
-                </h2>
-                <UButton
-                  variant="ghost"
-                  size="sm"
-                  :icon="warranty ? 'i-lucide-edit' : 'i-lucide-plus'"
-                  @click="openWarrantyModal"
-                >
-                  {{ warranty ? 'Edit' : 'Add' }}
-                </UButton>
-              </div>
-            </template>
+        <!-- Description (if present) -->
+        <section
+          v-if="asset.description"
+          class="space-y-4"
+        >
+          <div class="flex items-center justify-between px-2">
+            <h3 class="text-xl font-bold tracking-tight text-mist-950 dark:text-white">Personal Notes</h3>
+            <NuxtLink
+              :to="`/assets/${route.params.id}/edit`"
+              class="text-attic-500 text-sm font-bold hover:underline flex items-center gap-1"
+            >
+              <UIcon
+                name="i-lucide-edit"
+                class="w-4 h-4"
+              />
+              Edit Notes
+            </NuxtLink>
+          </div>
+          <div class="bg-amber-50/50 dark:bg-gray-800 p-6 rounded-xl border-l-4 border-attic-500 shadow-sm min-h-[120px]">
+            <p class="text-mist-950 dark:text-gray-300 leading-relaxed italic">
+              "{{ asset.description }}"
+            </p>
+          </div>
+        </section>
 
-            <div v-if="warranty">
-              <dl class="space-y-3">
-                <div>
-                  <dt class="text-sm text-muted">
-                    Provider
-                  </dt>
-                  <dd class="font-medium">
-                    {{ warranty.provider || '-' }}
-                  </dd>
+        <!-- Structured Attributes List -->
+        <section class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
+            <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
+              <UIcon
+                name="i-lucide-clipboard-list"
+                class="w-5 h-5 text-attic-500"
+              />
+              Asset Details
+            </h3>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 divide-y divide-x-0 md:divide-x md:divide-y-0 divide-gray-100 dark:divide-gray-700">
+            <div class="divide-y divide-gray-100 dark:divide-gray-700">
+              <div class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Location</span>
+                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ asset.location?.name || '-' }}</span>
+              </div>
+              <div class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Condition</span>
+                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ asset.condition?.label || '-' }}</span>
+              </div>
+              <div class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Quantity</span>
+                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ asset.quantity }}</span>
+              </div>
+            </div>
+            <div class="divide-y divide-gray-100 dark:divide-gray-700">
+              <div class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Purchase Date</span>
+                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ formatDate(asset.purchase_at) }}</span>
+              </div>
+              <div class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Purchase Price</span>
+                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ formatCurrency(asset.purchase_price) }}</span>
+              </div>
+              <div class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Created</span>
+                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ formatDate(asset.created_at) }}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Category Attributes -->
+        <section
+          v-if="categoryWithAttrs?.attributes?.length"
+          class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm"
+        >
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
+            <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
+              <UIcon
+                name="i-lucide-sliders-horizontal"
+                class="w-5 h-5 text-attic-500"
+              />
+              {{ categoryWithAttrs.name }} Attributes
+            </h3>
+            <span class="text-[10px] px-2 py-0.5 bg-attic-500/10 text-attic-500 rounded-full font-bold uppercase tracking-widest">
+              Custom Data
+            </span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 divide-y divide-x-0 md:divide-x md:divide-y-0 divide-gray-100 dark:divide-gray-700">
+            <div class="divide-y divide-gray-100 dark:divide-gray-700">
+              <div
+                v-for="(ca, index) in categoryWithAttrs.attributes.filter((_, i) => i % 2 === 0)"
+                :key="ca.attribute_id"
+                class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              >
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ ca.attribute?.name }}</span>
+                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ getAttributeValue(ca.attribute?.key || '') }}</span>
+              </div>
+            </div>
+            <div class="divide-y divide-gray-100 dark:divide-gray-700">
+              <div
+                v-for="(ca, index) in categoryWithAttrs.attributes.filter((_, i) => i % 2 === 1)"
+                :key="ca.attribute_id"
+                class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              >
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ ca.attribute?.name }}</span>
+                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ getAttributeValue(ca.attribute?.key || '') }}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Warranty Section -->
+        <section class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
+            <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
+              <UIcon
+                name="i-lucide-shield-check"
+                class="w-5 h-5 text-attic-500"
+              />
+              Warranty Information
+            </h3>
+            <button
+              class="text-attic-500 text-sm font-bold hover:underline flex items-center gap-1"
+              @click="openWarrantyModal"
+            >
+              <UIcon
+                :name="warranty ? 'i-lucide-pencil' : 'i-lucide-plus'"
+                class="w-4 h-4"
+              />
+              {{ warranty ? 'Edit' : 'Add Warranty' }}
+            </button>
+          </div>
+          <div v-if="warranty">
+            <div class="grid grid-cols-1 md:grid-cols-2 divide-y divide-x-0 md:divide-x md:divide-y-0 divide-gray-100 dark:divide-gray-700">
+              <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                <div class="p-5 flex justify-between items-center">
+                  <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Provider</span>
+                  <span class="text-sm font-bold text-mist-950 dark:text-white">{{ warranty.provider || '-' }}</span>
                 </div>
-                <div>
-                  <dt class="text-sm text-muted">
-                    Policy Number
-                  </dt>
-                  <dd class="font-medium">
-                    {{ warranty.policy_number || '-' }}
-                  </dd>
+                <div class="p-5 flex justify-between items-center">
+                  <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Policy Number</span>
+                  <span class="text-sm font-bold font-mono text-mist-950 dark:text-white">{{ warranty.policy_number || '-' }}</span>
                 </div>
-                <div>
-                  <dt class="text-sm text-muted">
-                    Start Date
-                  </dt>
-                  <dd class="font-medium">
-                    {{ formatDate(warranty.start_date) }}
-                  </dd>
+              </div>
+              <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                <div class="p-5 flex justify-between items-center">
+                  <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Start Date</span>
+                  <span class="text-sm font-bold text-mist-950 dark:text-white">{{ formatDate(warranty.start_date) }}</span>
                 </div>
-                <div>
-                  <dt class="text-sm text-muted">
-                    End Date
-                  </dt>
-                  <dd class="font-medium flex items-center gap-2">
-                    {{ formatDate(warranty.end_date) }}
+                <div class="p-5 flex justify-between items-center">
+                  <span class="text-sm font-medium text-gray-500 dark:text-gray-400">End Date</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-mist-950 dark:text-white">{{ formatDate(warranty.end_date) }}</span>
                     <UBadge
                       v-if="warrantyStatus"
                       :color="warrantyStatus.color"
@@ -465,209 +508,306 @@ const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', te
                     >
                       {{ warrantyStatus.text }}
                     </UBadge>
-                  </dd>
+                  </div>
                 </div>
-                <div v-if="warranty.notes">
-                  <dt class="text-sm text-muted">
-                    Notes
-                  </dt>
-                  <dd class="font-medium">
-                    {{ warranty.notes }}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-            <p
-              v-else
-              class="text-muted text-center py-4"
-            >
-              No warranty information
-            </p>
-          </UCard>
-
-          <!-- Purchase Information -->
-          <UCard>
-            <template #header>
-              <h2 class="font-semibold">
-                Purchase Information
-              </h2>
-            </template>
-
-            <div v-if="asset.purchase_at || asset.purchase_price || asset.purchase_note">
-              <dl class="space-y-3">
-                <div>
-                  <dt class="text-sm text-muted">
-                    Purchase Date
-                  </dt>
-                  <dd class="font-medium">
-                    {{ formatDate(asset.purchase_at) }}
-                  </dd>
-                </div>
-                <div>
-                  <dt class="text-sm text-muted">
-                    Purchase Price
-                  </dt>
-                  <dd class="font-medium">
-                    {{ formatCurrency(asset.purchase_price) }}
-                  </dd>
-                </div>
-                <div v-if="asset.purchase_note">
-                  <dt class="text-sm text-muted">
-                    Notes
-                  </dt>
-                  <dd class="font-medium">
-                    {{ asset.purchase_note }}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-            <p
-              v-else
-              class="text-muted text-center py-4"
-            >
-              No purchase information
-            </p>
-          </UCard>
-
-          <!-- Metadata -->
-          <UCard>
-            <template #header>
-              <h2 class="font-semibold">
-                Metadata
-              </h2>
-            </template>
-
-            <dl class="space-y-3">
-              <div>
-                <dt class="text-sm text-muted">
-                  Created
-                </dt>
-                <dd class="font-medium">
-                  {{ formatDate(asset.created_at) }}
-                </dd>
               </div>
-              <div>
-                <dt class="text-sm text-muted">
-                  Last Updated
-                </dt>
-                <dd class="font-medium">
-                  {{ formatDate(asset.updated_at) }}
-                </dd>
+            </div>
+            <div
+              v-if="warranty.notes"
+              class="p-5 border-t border-gray-100 dark:border-gray-700"
+            >
+              <span class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-1">Notes</span>
+              <p class="text-sm text-mist-950 dark:text-white">{{ warranty.notes }}</p>
+            </div>
+          </div>
+          <div
+            v-else
+            class="p-8 text-center"
+          >
+            <UIcon
+              name="i-lucide-shield-off"
+              class="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3"
+            />
+            <p class="text-gray-500 dark:text-gray-400 mb-4">No warranty information</p>
+            <UButton
+              variant="soft"
+              size="sm"
+              @click="openWarrantyModal"
+            >
+              Add Warranty
+            </UButton>
+          </div>
+        </section>
+
+        <!-- Attachments Section -->
+        <section class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
+            <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
+              <UIcon
+                name="i-lucide-paperclip"
+                class="w-5 h-5 text-attic-500"
+              />
+              Attachments
+            </h3>
+            <button
+              class="text-attic-500 text-sm font-bold hover:underline flex items-center gap-1"
+              :disabled="uploading"
+              @click="triggerUpload"
+            >
+              <UIcon
+                name="i-lucide-upload"
+                class="w-4 h-4"
+              />
+              Upload File
+            </button>
+            <input
+              ref="fileInput"
+              type="file"
+              class="hidden"
+              @change="handleFileUpload"
+            >
+          </div>
+          <div
+            v-if="attachments?.length"
+            class="divide-y divide-gray-100 dark:divide-gray-700"
+          >
+            <div
+              v-for="attachment in attachments"
+              :key="attachment.id"
+              class="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                  <UIcon
+                    name="i-lucide-file"
+                    class="w-5 h-5 text-gray-400"
+                  />
+                </div>
+                <div>
+                  <p class="font-medium text-sm text-mist-950 dark:text-white">{{ attachment.file_name }}</p>
+                  <p class="text-xs text-gray-500">{{ formatBytes(attachment.file_size) }}</p>
+                </div>
               </div>
-            </dl>
-          </UCard>
-        </div>
+              <div class="flex gap-1">
+                <UButton
+                  variant="ghost"
+                  color="neutral"
+                  icon="i-lucide-download"
+                  size="sm"
+                  @click="downloadAttachment(attachment)"
+                />
+                <UButton
+                  variant="ghost"
+                  color="error"
+                  icon="i-lucide-trash-2"
+                  size="sm"
+                  @click="deleteAttachment(attachment)"
+                />
+              </div>
+            </div>
+          </div>
+          <div
+            v-else
+            class="p-8 text-center"
+          >
+            <UIcon
+              name="i-lucide-file-x"
+              class="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3"
+            />
+            <p class="text-gray-500 dark:text-gray-400 mb-4">No attachments yet</p>
+            <UButton
+              variant="soft"
+              size="sm"
+              :loading="uploading"
+              @click="triggerUpload"
+            >
+              Upload File
+            </UButton>
+          </div>
+        </section>
+
+        <!-- Asset History -->
+        <section class="space-y-4 pb-12">
+          <h3 class="text-xl font-bold tracking-tight px-2 text-mist-950 dark:text-white">Asset History</h3>
+          <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <ul class="relative border-l-2 border-gray-200 dark:border-gray-700 ml-8 my-6 space-y-8">
+              <!-- History Item: Updated -->
+              <li class="relative pl-8">
+                <span class="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-attic-500 ring-4 ring-white dark:ring-gray-800 shadow-sm" />
+                <div class="flex flex-col gap-1">
+                  <div class="flex items-center justify-between">
+                    <p class="text-sm font-bold text-mist-950 dark:text-white">Last Updated</p>
+                    <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">{{ formatDateTime(asset.updated_at) }}</span>
+                  </div>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Asset details were modified.</p>
+                </div>
+              </li>
+              <!-- History Item: Created -->
+              <li class="relative pl-8">
+                <span class="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-gray-200 dark:bg-gray-600 ring-4 ring-white dark:ring-gray-800 shadow-sm" />
+                <div class="flex flex-col gap-1">
+                  <div class="flex items-center justify-between">
+                    <p class="text-sm font-bold text-mist-950 dark:text-white">Asset Created</p>
+                    <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">{{ formatDateTime(asset.created_at) }}</span>
+                  </div>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Initial entry created.</p>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </section>
       </div>
-
-      <!-- Delete Asset Modal -->
-      <UModal v-model:open="deleteModalOpen">
-        <template #content>
-          <UCard>
-            <template #header>
-              <h3 class="font-semibold">
-                Delete Asset
-              </h3>
-            </template>
-            <p>Are you sure you want to delete "{{ asset?.name }}"? This action cannot be undone.</p>
-            <template #footer>
-              <div class="flex justify-end gap-2">
-                <UButton
-                  variant="ghost"
-                  @click="deleteModalOpen = false"
-                >
-                  Cancel
-                </UButton>
-                <UButton
-                  color="error"
-                  @click="deleteAsset"
-                >
-                  Delete
-                </UButton>
-              </div>
-            </template>
-          </UCard>
-        </template>
-      </UModal>
-
-      <!-- Warranty Modal -->
-      <UModal v-model:open="warrantyModalOpen">
-        <template #content>
-          <UCard>
-            <template #header>
-              <h3 class="font-semibold">
-                {{ warranty ? 'Edit Warranty' : 'Add Warranty' }}
-              </h3>
-            </template>
-
-            <form
-              class="space-y-4"
-              @submit.prevent="saveWarranty"
-            >
-              <UFormField label="Provider">
-                <UInput
-                  v-model="warrantyForm.provider"
-                  placeholder="Warranty provider"
-                />
-              </UFormField>
-
-              <UFormField label="Policy Number">
-                <UInput
-                  v-model="warrantyForm.policy_number"
-                  placeholder="Policy number"
-                />
-              </UFormField>
-
-              <div class="grid grid-cols-2 gap-4">
-                <UFormField label="Start Date">
-                  <UInput
-                    v-model="warrantyForm.start_date"
-                    type="date"
-                  />
-                </UFormField>
-
-                <UFormField label="End Date">
-                  <UInput
-                    v-model="warrantyForm.end_date"
-                    type="date"
-                  />
-                </UFormField>
-              </div>
-
-              <UFormField label="Notes">
-                <UTextarea
-                  v-model="warrantyForm.notes"
-                  placeholder="Additional notes"
-                  :rows="3"
-                />
-              </UFormField>
-            </form>
-
-            <template #footer>
-              <div class="flex justify-between">
-                <UButton
-                  v-if="warranty"
-                  variant="ghost"
-                  color="error"
-                  @click="deleteWarranty(); warrantyModalOpen = false"
-                >
-                  Delete
-                </UButton>
-                <div class="flex gap-2 ml-auto">
-                  <UButton
-                    variant="ghost"
-                    @click="warrantyModalOpen = false"
-                  >
-                    Cancel
-                  </UButton>
-                  <UButton @click="saveWarranty">
-                    Save
-                  </UButton>
-                </div>
-              </div>
-            </template>
-          </UCard>
-        </template>
-      </UModal>
     </div>
-  </UContainer>
+
+    <!-- Loading State -->
+    <div
+      v-else
+      class="flex items-center justify-center py-24"
+    >
+      <div class="text-center">
+        <UIcon
+          name="i-lucide-loader-2"
+          class="w-12 h-12 animate-spin text-attic-500 mx-auto mb-4"
+        />
+        <p class="text-gray-500">Loading asset...</p>
+      </div>
+    </div>
+
+    <!-- Delete Asset Modal -->
+    <UModal v-model:open="deleteModalOpen">
+      <template #content>
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-6">
+          <div class="flex items-center gap-4 mb-4">
+            <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <UIcon
+                name="i-lucide-alert-triangle"
+                class="w-6 h-6 text-red-500"
+              />
+            </div>
+            <div>
+              <h3 class="font-bold text-lg text-mist-950 dark:text-white">Delete Asset</h3>
+              <p class="text-sm text-gray-500">This action cannot be undone.</p>
+            </div>
+          </div>
+          <p class="text-gray-600 dark:text-gray-300 mb-6">
+            Are you sure you want to delete "<strong>{{ asset?.name }}</strong>"? All associated data will be permanently removed.
+          </p>
+          <div class="flex justify-end gap-3">
+            <UButton
+              variant="ghost"
+              @click="deleteModalOpen = false"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="error"
+              @click="deleteAsset"
+            >
+              Delete Asset
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Warranty Modal -->
+    <UModal v-model:open="warrantyModalOpen">
+      <template #content>
+        <div class="bg-white dark:bg-gray-800 rounded-xl overflow-hidden">
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <h3 class="font-bold text-lg text-mist-950 dark:text-white">
+              {{ warranty ? 'Edit Warranty' : 'Add Warranty' }}
+            </h3>
+          </div>
+
+          <form
+            class="p-6 space-y-4"
+            @submit.prevent="saveWarranty"
+          >
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Provider
+              </label>
+              <input
+                v-model="warrantyForm.provider"
+                type="text"
+                placeholder="Warranty provider"
+                class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm"
+              >
+            </div>
+
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Policy Number
+              </label>
+              <input
+                v-model="warrantyForm.policy_number"
+                type="text"
+                placeholder="Policy number"
+                class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm"
+              >
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Start Date
+                </label>
+                <input
+                  v-model="warrantyForm.start_date"
+                  type="date"
+                  class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm"
+                >
+              </div>
+
+              <div class="space-y-2">
+                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  End Date
+                </label>
+                <input
+                  v-model="warrantyForm.end_date"
+                  type="date"
+                  class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm"
+                >
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Notes
+              </label>
+              <textarea
+                v-model="warrantyForm.notes"
+                rows="3"
+                placeholder="Additional notes"
+                class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm resize-none"
+              />
+            </div>
+          </form>
+
+          <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between">
+            <UButton
+              v-if="warranty"
+              variant="ghost"
+              color="error"
+              @click="deleteWarranty(); warrantyModalOpen = false"
+            >
+              Delete
+            </UButton>
+            <div class="flex gap-3 ml-auto">
+              <UButton
+                variant="ghost"
+                @click="warrantyModalOpen = false"
+              >
+                Cancel
+              </UButton>
+              <UButton @click="saveWarranty">
+                Save
+              </UButton>
+            </div>
+          </div>
+        </div>
+      </template>
+    </UModal>
+  </div>
 </template>
