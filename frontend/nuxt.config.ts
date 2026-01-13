@@ -2,7 +2,8 @@
 export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
-    '@nuxt/ui'
+    '@nuxt/ui',
+    '@nuxt/fonts'
   ],
 
   // SPA mode - disable SSR for embedding in Go binary
@@ -13,6 +14,17 @@ export default defineNuxtConfig({
   },
 
   css: ['~/assets/css/main.css'],
+
+  // Font configuration
+  fonts: {
+    families: [
+      {
+        name: 'Manrope',
+        provider: 'google',
+        weights: [200, 300, 400, 500, 600, 700, 800]
+      }
+    ]
+  },
 
   runtimeConfig: {
     public: {
