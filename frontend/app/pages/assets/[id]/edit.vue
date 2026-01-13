@@ -1,128 +1,153 @@
 <script setup lang="ts">
-import type { Asset, Category, Location, Condition } from '~/types/api'
+import type { Asset, Category, Location, Condition } from "~/types/api";
 
 definePageMeta({
-  middleware: 'auth'
-})
+  middleware: "auth",
+});
 
-const route = useRoute()
-const router = useRouter()
-const toast = useToast()
-const apiFetch = useApiFetch()
+const route = useRoute();
+const router = useRouter();
+const toast = useToast();
+const apiFetch = useApiFetch();
 
-const { data: asset, status: assetStatus } = useApi<Asset>(() => `/api/assets/${route.params.id}`)
-const { data: categories } = useApi<Category[]>('/api/categories')
-const { data: locations } = useApi<Location[]>('/api/locations')
-const { data: conditions } = useApi<Condition[]>('/api/conditions')
+const { data: asset, status: assetStatus } = useApi<Asset>(
+  () => `/api/assets/${route.params.id}`,
+);
+const { data: categories } = useApi<Category[]>("/api/categories");
+const { data: locations } = useApi<Location[]>("/api/locations");
+const { data: conditions } = useApi<Condition[]>("/api/conditions");
 
-const loading = ref(false)
-const selectedCategory = ref<Category | null>(null)
+const loading = ref(false);
+const selectedCategory = ref<Category | null>(null);
 const form = reactive({
-  name: '',
-  description: '',
+  name: "",
+  description: "",
   category_id: undefined as string | undefined,
   location_id: undefined as string | undefined,
   condition_id: undefined as string | undefined,
   quantity: 1,
   attributes: {} as Record<string, string | number | boolean>,
-  purchase_at: '',
+  purchase_at: "",
   purchase_price: undefined as number | undefined,
-  purchase_note: ''
-})
+  purchase_note: "",
+});
 
 // Initialize form when asset loads
-watch(asset, async (newAsset) => {
-  if (newAsset) {
-    form.name = newAsset.name
-    form.description = newAsset.description || ''
-    form.category_id = newAsset.category_id
-    form.location_id = newAsset.location_id || undefined
-    form.condition_id = newAsset.condition_id || undefined
-    form.quantity = newAsset.quantity
-    form.attributes = newAsset.attributes
-      ? Object.fromEntries(
-          Object.entries(newAsset.attributes).map(([k, v]) => [k, v as string | number | boolean])
-        )
-      : {}
-    form.purchase_at = newAsset.purchase_at?.split('T')[0] || ''
-    form.purchase_price = newAsset.purchase_price || undefined
-    form.purchase_note = newAsset.purchase_note || ''
+watch(
+  asset,
+  async (newAsset) => {
+    if (newAsset) {
+      form.name = newAsset.name;
+      form.description = newAsset.description || "";
+      form.category_id = newAsset.category_id;
+      form.location_id = newAsset.location_id || undefined;
+      form.condition_id = newAsset.condition_id || undefined;
+      form.quantity = newAsset.quantity;
+      form.attributes = newAsset.attributes
+        ? Object.fromEntries(
+            Object.entries(newAsset.attributes).map(([k, v]) => [
+              k,
+              v as string | number | boolean,
+            ]),
+          )
+        : {};
+      form.purchase_at = newAsset.purchase_at?.split("T")[0] || "";
+      form.purchase_price = newAsset.purchase_price || undefined;
+      form.purchase_note = newAsset.purchase_note || "";
 
-    // Load category with attributes
-    if (newAsset.category_id) {
-      try {
-        selectedCategory.value = await apiFetch<Category>(`/api/categories/${newAsset.category_id}`)
-      } catch {
-        selectedCategory.value = null
+      // Load category with attributes
+      if (newAsset.category_id) {
+        try {
+          selectedCategory.value = await apiFetch<Category>(
+            `/api/categories/${newAsset.category_id}`,
+          );
+        } catch {
+          selectedCategory.value = null;
+        }
       }
     }
-  }
-}, { immediate: true })
+  },
+  { immediate: true },
+);
 
 // Fetch category with attributes when category changes
-watch(() => form.category_id, async (categoryId, oldCategoryId) => {
-  // Skip if this is the initial load (handled by asset watch)
-  if (!oldCategoryId) return
+watch(
+  () => form.category_id,
+  async (categoryId, oldCategoryId) => {
+    // Skip if this is the initial load (handled by asset watch)
+    if (!oldCategoryId) return;
 
-  if (categoryId) {
-    try {
-      selectedCategory.value = await apiFetch<Category>(`/api/categories/${categoryId}`)
-      // Initialize attribute values for new category
-      const newAttributes: Record<string, string | number | boolean> = {}
-      selectedCategory.value?.attributes?.forEach((ca) => {
-        if (ca.attribute) {
-          // Preserve existing value if key exists
-          newAttributes[ca.attribute.key] = form.attributes[ca.attribute.key] ?? getDefaultValue(ca.attribute.data_type)
-        }
-      })
-      form.attributes = newAttributes
-    } catch {
-      selectedCategory.value = null
+    if (categoryId) {
+      try {
+        selectedCategory.value = await apiFetch<Category>(
+          `/api/categories/${categoryId}`,
+        );
+        // Initialize attribute values for new category
+        const newAttributes: Record<string, string | number | boolean> = {};
+        selectedCategory.value?.attributes?.forEach((ca) => {
+          if (ca.attribute) {
+            // Preserve existing value if key exists
+            newAttributes[ca.attribute.key] =
+              form.attributes[ca.attribute.key] ??
+              getDefaultValue(ca.attribute.data_type);
+          }
+        });
+        form.attributes = newAttributes;
+      } catch {
+        selectedCategory.value = null;
+      }
+    } else {
+      selectedCategory.value = null;
+      form.attributes = {};
     }
-  } else {
-    selectedCategory.value = null
-    form.attributes = {}
-  }
-})
+  },
+);
 
 function getDefaultValue(dataType: string): string | number | boolean {
   switch (dataType) {
-    case 'number': return 0
-    case 'boolean': return false
-    default: return ''
+    case "number":
+      return 0;
+    case "boolean":
+      return false;
+    default:
+      return "";
   }
 }
 
 function getInputType(dataType: string): string {
   switch (dataType) {
-    case 'number': return 'number'
-    case 'date': return 'date'
-    case 'boolean': return 'checkbox'
-    default: return 'text'
+    case "number":
+      return "number";
+    case "date":
+      return "date";
+    case "boolean":
+      return "checkbox";
+    default:
+      return "text";
   }
 }
 
-const categoryOptions = computed(() =>
-  categories.value?.map(c => ({ label: c.name, value: c.id })) || []
-)
+const categoryOptions = computed(
+  () => categories.value?.map((c) => ({ label: c.name, value: c.id })) || [],
+);
 
 const locationOptions = computed(() => [
-  { label: 'No location', value: undefined },
-  ...(locations.value?.map(l => ({ label: l.name, value: l.id })) || [])
-])
+  { label: "No location", value: undefined },
+  ...(locations.value?.map((l) => ({ label: l.name, value: l.id })) || []),
+]);
 
 const conditionOptions = computed(() => [
-  { label: 'No condition', value: undefined },
-  ...(conditions.value?.map(c => ({ label: c.label, value: c.id })) || [])
-])
+  { label: "No condition", value: undefined },
+  ...(conditions.value?.map((c) => ({ label: c.label, value: c.id })) || []),
+]);
 
 async function submitForm() {
   if (!form.name || !form.category_id) {
-    toast.add({ title: 'Name and category are required', color: 'error' })
-    return
+    toast.add({ title: "Name and category are required", color: "error" });
+    return;
   }
 
-  loading.value = true
+  loading.value = true;
   try {
     const payload = {
       name: form.name,
@@ -131,24 +156,28 @@ async function submitForm() {
       location_id: form.location_id || undefined,
       condition_id: form.condition_id || undefined,
       quantity: form.quantity,
-      attributes: Object.keys(form.attributes).length > 0 ? form.attributes : undefined,
+      attributes:
+        Object.keys(form.attributes).length > 0 ? form.attributes : undefined,
       purchase_at: form.purchase_at || undefined,
       purchase_price: form.purchase_price || undefined,
-      purchase_note: form.purchase_note || undefined
-    }
+      purchase_note: form.purchase_note || undefined,
+    };
 
     await apiFetch(`/api/assets/${route.params.id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload)
-    })
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
 
-    toast.add({ title: 'Asset updated successfully', color: 'success' })
-    router.push(`/assets/${route.params.id}`)
+    toast.add({ title: "Asset updated successfully", color: "success" });
+    router.push(`/assets/${route.params.id}`);
   } catch (err: unknown) {
-    const error = err as { message?: string }
-    toast.add({ title: error?.message || 'Failed to update asset', color: 'error' })
+    const error = err as { message?: string };
+    toast.add({
+      title: error?.message || "Failed to update asset",
+      color: "error",
+    });
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 </script>
@@ -162,44 +191,26 @@ async function submitForm() {
           variant="ghost"
           icon="i-lucide-arrow-left"
         />
-        <h1 class="text-2xl font-bold">
-          Edit Asset
-        </h1>
+        <h1 class="text-2xl font-bold">Edit Asset</h1>
       </div>
 
-      <div
-        v-if="assetStatus === 'pending'"
-        class="text-center py-12"
-      >
+      <div v-if="assetStatus === 'pending'" class="text-center py-12">
         <UIcon
           name="i-lucide-loader-2"
           class="w-8 h-8 animate-spin mx-auto text-muted"
         />
-        <p class="mt-2 text-muted">
-          Loading asset...
-        </p>
+        <p class="mt-2 text-muted">Loading asset...</p>
       </div>
 
-      <form
-        v-else
-        @submit.prevent="submitForm"
-      >
+      <form v-else @submit.prevent="submitForm">
         <UCard>
           <div class="space-y-6">
             <!-- Basic Info -->
             <div class="space-y-4">
-              <h3 class="font-medium text-lg">
-                Basic Information
-              </h3>
+              <h3 class="font-medium text-lg">Basic Information</h3>
 
-              <UFormField
-                label="Name"
-                required
-              >
-                <UInput
-                  v-model="form.name"
-                  placeholder="Enter asset name"
-                />
+              <UFormField label="Name" required>
+                <UInput v-model="form.name" placeholder="Enter asset name" />
               </UFormField>
 
               <UFormField label="Description">
@@ -211,10 +222,7 @@ async function submitForm() {
               </UFormField>
 
               <div class="grid grid-cols-2 gap-4">
-                <UFormField
-                  label="Category"
-                  required
-                >
+                <UFormField label="Category" required>
                   <USelectMenu
                     v-model="form.category_id"
                     :items="categoryOptions"
@@ -254,10 +262,7 @@ async function submitForm() {
             </div>
 
             <!-- Category Attributes -->
-            <div
-              v-if="selectedCategory?.attributes?.length"
-              class="space-y-4"
-            >
+            <div v-if="selectedCategory?.attributes?.length" class="space-y-4">
               <USeparator />
               <h3 class="font-medium text-lg">
                 {{ selectedCategory.name }} Attributes
@@ -276,9 +281,13 @@ async function submitForm() {
                     <!-- Boolean type: checkbox -->
                     <UCheckbox
                       v-if="ca.attribute.data_type === 'boolean'"
-                      :model-value="form.attributes[ca.attribute.key] as boolean"
+                      :model-value="
+                        form.attributes[ca.attribute.key] as boolean
+                      "
                       :label="ca.attribute.name"
-                      @update:model-value="form.attributes[ca.attribute.key] = $event"
+                      @update:model-value="
+                        form.attributes[ca.attribute.key] = $event
+                      "
                     />
                     <!-- Text (long) type: textarea -->
                     <UTextarea
@@ -286,7 +295,9 @@ async function submitForm() {
                       :model-value="form.attributes[ca.attribute.key] as string"
                       :placeholder="`Enter ${ca.attribute.name.toLowerCase()}`"
                       :rows="3"
-                      @update:model-value="form.attributes[ca.attribute.key] = $event"
+                      @update:model-value="
+                        form.attributes[ca.attribute.key] = $event
+                      "
                     />
                     <!-- Other types: input -->
                     <UInput
@@ -310,16 +321,11 @@ async function submitForm() {
             <!-- Purchase Information -->
             <div class="space-y-4">
               <USeparator />
-              <h3 class="font-medium text-lg">
-                Purchase Information
-              </h3>
+              <h3 class="font-medium text-lg">Purchase Information</h3>
 
               <div class="grid grid-cols-2 gap-4">
                 <UFormField label="Purchase Date">
-                  <UInput
-                    v-model="form.purchase_at"
-                    type="date"
-                  />
+                  <UInput v-model="form.purchase_at" type="date" />
                 </UFormField>
 
                 <UFormField label="Purchase Price">
@@ -349,16 +355,10 @@ async function submitForm() {
 
           <template #footer>
             <div class="flex justify-end gap-2">
-              <UButton
-                :to="`/assets/${route.params.id}`"
-                variant="ghost"
-              >
+              <UButton :to="`/assets/${route.params.id}`" variant="ghost">
                 Cancel
               </UButton>
-              <UButton
-                :loading="loading"
-                @click="submitForm"
-              >
+              <UButton :loading="loading" @click="submitForm">
                 Save Changes
               </UButton>
             </div>

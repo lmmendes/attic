@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/mendelui/attic/internal/domain"
 )
 
 type contextKey string
@@ -23,18 +24,21 @@ type Claims struct {
 	DisplayName string `json:"preferred_username"`
 }
 
-// Middleware handles JWT validation
+// Middleware handles authentication (both OIDC and local)
 type Middleware struct {
-	verifier *oidc.IDTokenVerifier
-	disabled bool
-	oauth    *OAuthHandler
+	verifier       *oidc.IDTokenVerifier
+	disabled       bool
+	oidcEnabled    bool
+	oauth          *OAuthHandler
+	sessionManager *SessionManager
 }
 
 // Config for auth middleware
 type Config struct {
-	IssuerURL string
-	ClientID  string
-	Disabled  bool // For development without auth
+	IssuerURL   string
+	ClientID    string
+	Disabled    bool // For development without auth
+	OIDCEnabled bool // Whether OIDC is the auth method
 }
 
 // NewMiddleware creates a new auth middleware
@@ -44,28 +48,41 @@ func NewMiddleware(ctx context.Context, cfg Config) (*Middleware, error) {
 		return &Middleware{disabled: true}, nil
 	}
 
-	provider, err := oidc.NewProvider(ctx, cfg.IssuerURL)
-	if err != nil {
-		return nil, err
+	m := &Middleware{
+		oidcEnabled: cfg.OIDCEnabled,
 	}
 
-	verifier := provider.Verifier(&oidc.Config{
-		ClientID:                   cfg.ClientID,
-		SkipClientIDCheck:          true, // Keycloak access tokens use 'azp' not 'aud'
-		SkipExpiryCheck:            false,
-		SkipIssuerCheck:            false,
-		InsecureSkipSignatureCheck: false,
-	})
+	// Only initialize OIDC if enabled
+	if cfg.OIDCEnabled {
+		provider, err := oidc.NewProvider(ctx, cfg.IssuerURL)
+		if err != nil {
+			return nil, err
+		}
 
-	return &Middleware{verifier: verifier}, nil
+		verifier := provider.Verifier(&oidc.Config{
+			ClientID:                   cfg.ClientID,
+			SkipClientIDCheck:          true, // Keycloak access tokens use 'azp' not 'aud'
+			SkipExpiryCheck:            false,
+			SkipIssuerCheck:            false,
+			InsecureSkipSignatureCheck: false,
+		})
+		m.verifier = verifier
+	}
+
+	return m, nil
 }
 
-// SetOAuthHandler sets the OAuth handler for cookie-based auth
+// SetOAuthHandler sets the OAuth handler for cookie-based auth (OIDC mode)
 func (m *Middleware) SetOAuthHandler(oauth *OAuthHandler) {
 	m.oauth = oauth
 }
 
-// Authenticate is HTTP middleware that validates JWT tokens
+// SetSessionManager sets the session manager for local auth
+func (m *Middleware) SetSessionManager(sm *SessionManager) {
+	m.sessionManager = sm
+}
+
+// Authenticate is HTTP middleware that validates authentication
 func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if m.disabled {
@@ -81,49 +98,86 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		var tokenString string
-
-		// First, try Authorization header
-		authHeader := r.Header.Get("Authorization")
-		if authHeader != "" {
-			parts := strings.SplitN(authHeader, " ", 2)
-			if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
-				tokenString = parts[1]
-			}
+		if m.oidcEnabled {
+			// OIDC authentication
+			m.authenticateOIDC(w, r, next)
+		} else {
+			// Local (email/password) authentication
+			m.authenticateLocal(w, r, next)
 		}
-
-		// If no header, try session cookie
-		if tokenString == "" && m.oauth != nil {
-			tokenString = m.oauth.GetAccessToken(r)
-		}
-
-		if tokenString == "" {
-			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
-			return
-		}
-
-		// Verify the token
-		idToken, err := m.verifier.Verify(r.Context(), tokenString)
-		if err != nil {
-			slog.Error("token verification failed", "error", err)
-			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
-			return
-		}
-
-		// Extract claims
-		var claims Claims
-		if err := idToken.Claims(&claims); err != nil {
-			slog.Error("failed to parse claims", "error", err)
-			http.Error(w, `{"error":"invalid token claims"}`, http.StatusUnauthorized)
-			return
-		}
-
-		claims.Subject = idToken.Subject
-
-		// Add claims to context
-		ctx := context.WithValue(r.Context(), UserContextKey, &claims)
-		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// authenticateOIDC handles OIDC-based authentication
+func (m *Middleware) authenticateOIDC(w http.ResponseWriter, r *http.Request, next http.Handler) {
+	var tokenString string
+
+	// First, try Authorization header
+	authHeader := r.Header.Get("Authorization")
+	if authHeader != "" {
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
+			tokenString = parts[1]
+		}
+	}
+
+	// If no header, try session cookie
+	if tokenString == "" && m.oauth != nil {
+		tokenString = m.oauth.GetAccessToken(r)
+	}
+
+	if tokenString == "" {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Verify the token
+	idToken, err := m.verifier.Verify(r.Context(), tokenString)
+	if err != nil {
+		slog.Error("token verification failed", "error", err)
+		http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Extract claims
+	var claims Claims
+	if err := idToken.Claims(&claims); err != nil {
+		slog.Error("failed to parse claims", "error", err)
+		http.Error(w, `{"error":"invalid token claims"}`, http.StatusUnauthorized)
+		return
+	}
+
+	claims.Subject = idToken.Subject
+
+	// Add claims to context
+	ctx := context.WithValue(r.Context(), UserContextKey, &claims)
+	next.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// authenticateLocal handles local (email/password) authentication
+func (m *Middleware) authenticateLocal(w http.ResponseWriter, r *http.Request, next http.Handler) {
+	if m.sessionManager == nil {
+		http.Error(w, `{"error":"session manager not configured"}`, http.StatusInternalServerError)
+		return
+	}
+
+	session, err := m.sessionManager.GetSession(r)
+	if err != nil {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Convert local session to claims for compatibility
+	claims := &Claims{
+		Subject:     session.UserID.String(),
+		Email:       session.Email,
+		Name:        session.Name,
+		DisplayName: session.Name,
+	}
+
+	// Add claims to context
+	ctx := context.WithValue(r.Context(), UserContextKey, claims)
+	next.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // GetClaims extracts claims from context
@@ -147,4 +201,24 @@ func (m *Middleware) Optional(next http.Handler) http.Handler {
 		// If header is present, validate it
 		m.Authenticate(next).ServeHTTP(w, r)
 	})
+}
+
+// RequireAdmin middleware checks if the user has admin role
+func RequireAdmin(sessionManager *SessionManager) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			session, err := sessionManager.GetSession(r)
+			if err != nil {
+				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+				return
+			}
+
+			if session.Role != domain.UserRoleAdmin {
+				http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

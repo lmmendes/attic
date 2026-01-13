@@ -363,28 +363,3 @@ Potential plugins for future implementation:
 ### 4. Preview Before Import
 
 **Rejected**: Adds UI complexity. Direct import with edit-after is simpler and achieves the same goal.
-
----
-
-## Implementation Plan
-
-### Phase 1: Backend Foundation
-- [ ] Database migrations (add columns to assets, attributes, categories)
-- [ ] Plugin interface and registry
-- [ ] Plugin API endpoints (list, search, import)
-
-### Phase 2: Google Books Plugin
-- [ ] Implement Google Books plugin
-- [ ] Search by title, ISBN, author
-- [ ] Fetch and map book data to attributes
-
-### Phase 3: Frontend
-- [ ] Import button and modal
-- [ ] Plugin selection
-- [ ] Search interface
-- [ ] Results display with import action
-
-### Phase 4: Polish
-- [ ] Image download and S3 storage
-- [ ] Error handling and user feedback
-- [ ] Plugin enable/disable management

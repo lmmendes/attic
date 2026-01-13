@@ -21,14 +21,14 @@ useSeoMeta({
   ogDescription: description
 })
 
-const { isAuthenticated: loggedIn, user, login, logout, fetchSession } = useAuth()
+const { isAuthenticated: loggedIn, user, isAdmin, login, logout, fetchSession, isOIDCEnabled } = useAuth()
 
 // Fetch session on app load
 onMounted(() => {
   fetchSession()
 })
 
-const navigation = [
+const baseNavigation = [
   { label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' },
   { label: 'Assets', to: '/assets', icon: 'i-lucide-box' },
   { label: 'Categories', to: '/categories', icon: 'i-lucide-folder-tree' },
@@ -39,18 +39,48 @@ const navigation = [
   { label: 'Plugins', to: '/plugins', icon: 'i-lucide-puzzle' }
 ]
 
-const userMenuItems = computed(() => [
-  [{
-    label: user.value?.email || 'User',
-    slot: 'account',
-    disabled: true
-  }],
-  [{
+const navigation = computed(() => {
+  const items = [...baseNavigation]
+  if (isAdmin.value) {
+    items.push({ label: 'Users', to: '/users', icon: 'i-lucide-users' })
+  }
+  return items
+})
+
+type DropdownMenuItem = {
+  label: string
+  slot?: string
+  disabled?: boolean
+  icon?: string
+  click?: () => void
+}
+
+const userMenuItems = computed(() => {
+  const items: DropdownMenuItem[][] = [
+    [{
+      label: user.value?.email || 'User',
+      slot: 'account',
+      disabled: true
+    }]
+  ]
+
+  // Add change password option if not using OIDC
+  if (!isOIDCEnabled.value) {
+    items.push([{
+      label: 'Change Password',
+      icon: 'i-lucide-key',
+      click: () => navigateTo('/settings')
+    }])
+  }
+
+  items.push([{
     label: 'Sign out',
     icon: 'i-lucide-log-out',
     click: () => logout()
-  }]
-])
+  }])
+
+  return items
+})
 </script>
 
 <template>

@@ -46,6 +46,12 @@ services:
       timeout: 5s
       retries: 10
 
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8090:8080
+
 volumes:
   postgres_data:
   localstack_data:

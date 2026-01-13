@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 type Config struct {
@@ -13,15 +14,32 @@ type Config struct {
 	S3Region      string
 	S3AccessKey   string
 	S3SecretKey   string
+	OIDCEnabled   bool
 	OIDCIssuer    string
 	OIDCClientID  string
 	AuthDisabled  bool
 	CORSOrigins   string
 	BaseURL       string
 	SessionSecret string
+
+	// Auth settings
+	AdminEmail           string
+	AdminPassword        string
+	SessionDurationHours int
+	PasswordMinLength    int
 }
 
 func Load() (*Config, error) {
+	sessionHours, _ := strconv.Atoi(getEnv("ATTIC_SESSION_DURATION_HOURS", "24"))
+	if sessionHours <= 0 {
+		sessionHours = 24
+	}
+
+	passwordMinLength, _ := strconv.Atoi(getEnv("ATTIC_PASSWORD_MIN_LENGTH", "8"))
+	if passwordMinLength <= 0 {
+		passwordMinLength = 8
+	}
+
 	cfg := &Config{
 		Port:          getEnv("ATTIC_PORT", "8080"),
 		DatabaseURL:   getEnv("ATTIC_DATABASE_URL", "postgres://attic:attic@localhost:5432/attic?sslmode=disable"),
@@ -30,12 +48,18 @@ func Load() (*Config, error) {
 		S3Region:      getEnv("ATTIC_S3_REGION", "us-east-1"),
 		S3AccessKey:   getEnv("ATTIC_S3_ACCESS_KEY", "test"),
 		S3SecretKey:   getEnv("ATTIC_S3_SECRET_KEY", "test"),
+		OIDCEnabled:   getEnv("ATTIC_OIDC_ENABLED", "false") == "true",
 		OIDCIssuer:    getEnv("ATTIC_OIDC_ISSUER", "http://localhost:8180/realms/attic"),
 		OIDCClientID:  getEnv("ATTIC_OIDC_CLIENT_ID", "attic-web"),
 		AuthDisabled:  getEnv("ATTIC_AUTH_DISABLED", "false") == "true",
 		CORSOrigins:   getEnv("ATTIC_CORS_ORIGINS", "http://localhost:3000"),
 		BaseURL:       getEnv("ATTIC_BASE_URL", "http://localhost:8080"),
 		SessionSecret: getEnv("ATTIC_SESSION_SECRET", "change-me-in-production-32chars!"),
+
+		AdminEmail:           getEnv("ATTIC_ADMIN_EMAIL", "admin"),
+		AdminPassword:        getEnv("ATTIC_ADMIN_PASSWORD", "admin"),
+		SessionDurationHours: sessionHours,
+		PasswordMinLength:    passwordMinLength,
 	}
 
 	if cfg.DatabaseURL == "" {

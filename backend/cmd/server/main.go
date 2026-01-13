@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	_ "embed"
+	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -18,6 +20,7 @@ import (
 	"github.com/mendelui/attic/internal/auth"
 	"github.com/mendelui/attic/internal/config"
 	"github.com/mendelui/attic/internal/database"
+	"github.com/mendelui/attic/internal/domain"
 	"github.com/mendelui/attic/internal/handler"
 	"github.com/mendelui/attic/internal/plugin"
 	"github.com/mendelui/attic/internal/plugin/googlebooks"
@@ -35,6 +38,12 @@ var Version = "dev"
 var defaultOrgID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 func main() {
+	// CLI flags for password reset
+	resetPassword := flag.Bool("reset-password", false, "Reset a user's password")
+	email := flag.String("email", "", "User email for password reset")
+	newPassword := flag.String("new-password", "", "New password for the user")
+	flag.Parse()
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
@@ -55,6 +64,13 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
+
+	// Handle CLI password reset
+	if *resetPassword {
+		handlePasswordReset(ctx, db, cfg, *email, *newPassword)
+		return
+	}
+
 	slog.Info("connected to database")
 
 	// S3 client
@@ -72,39 +88,6 @@ func main() {
 		slog.Info("connected to S3", "bucket", cfg.S3Bucket)
 	}
 
-	// OAuth handler for login flow
-	oauthHandler, err := auth.NewOAuthHandler(ctx, auth.OAuthConfig{
-		IssuerURL:     cfg.OIDCIssuer,
-		ClientID:      cfg.OIDCClientID,
-		BaseURL:       cfg.BaseURL,
-		SessionSecret: cfg.SessionSecret,
-		Disabled:      cfg.AuthDisabled,
-	})
-	if err != nil {
-		slog.Error("failed to initialize OAuth handler", "error", err)
-		os.Exit(1)
-	}
-
-	// Auth middleware
-	authMiddleware, err := auth.NewMiddleware(ctx, auth.Config{
-		IssuerURL: cfg.OIDCIssuer,
-		ClientID:  cfg.OIDCClientID,
-		Disabled:  cfg.AuthDisabled,
-	})
-	if err != nil {
-		slog.Error("failed to initialize auth", "error", err)
-		os.Exit(1)
-	}
-
-	// Link OAuth handler to middleware for cookie-based auth
-	authMiddleware.SetOAuthHandler(oauthHandler)
-
-	if cfg.AuthDisabled {
-		slog.Warn("authentication is disabled")
-	} else {
-		slog.Info("OIDC authentication enabled", "issuer", cfg.OIDCIssuer)
-	}
-
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db.Pool)
 	repos := &handler.Repositories{
@@ -119,8 +102,57 @@ func main() {
 		Attributes:    repository.NewAttributeRepository(db.Pool),
 	}
 
-	// User provisioner
+	// Bootstrap admin user if needed
+	if err := bootstrapAdmin(ctx, userRepo, cfg); err != nil {
+		slog.Error("failed to bootstrap admin", "error", err)
+		os.Exit(1)
+	}
+
+	// Session manager for local auth
+	sessionManager := auth.NewSessionManager(cfg.SessionSecret, cfg.SessionDurationHours)
+
+	// Auth middleware
+	authMiddleware, err := auth.NewMiddleware(ctx, auth.Config{
+		IssuerURL:   cfg.OIDCIssuer,
+		ClientID:    cfg.OIDCClientID,
+		Disabled:    cfg.AuthDisabled,
+		OIDCEnabled: cfg.OIDCEnabled,
+	})
+	if err != nil {
+		slog.Error("failed to initialize auth", "error", err)
+		os.Exit(1)
+	}
+
+	// Set session manager for local auth
+	authMiddleware.SetSessionManager(sessionManager)
+
+	// OAuth handler for OIDC login flow (only if OIDC enabled)
+	var oauthHandler *auth.OAuthHandler
+	if cfg.OIDCEnabled {
+		oauthHandler, err = auth.NewOAuthHandler(ctx, auth.OAuthConfig{
+			IssuerURL:     cfg.OIDCIssuer,
+			ClientID:      cfg.OIDCClientID,
+			BaseURL:       cfg.BaseURL,
+			SessionSecret: cfg.SessionSecret,
+			Disabled:      cfg.AuthDisabled,
+		})
+		if err != nil {
+			slog.Error("failed to initialize OAuth handler", "error", err)
+			os.Exit(1)
+		}
+		authMiddleware.SetOAuthHandler(oauthHandler)
+	}
+
+	// User provisioner (for OIDC mode)
 	userProvisioner := auth.NewUserProvisioner(userRepo, defaultOrgID)
+
+	if cfg.AuthDisabled {
+		slog.Warn("authentication is disabled")
+	} else if cfg.OIDCEnabled {
+		slog.Info("OIDC authentication enabled", "issuer", cfg.OIDCIssuer)
+	} else {
+		slog.Info("local (email/password) authentication enabled")
+	}
 
 	// Initialize plugin registry
 	pluginRegistry := plugin.NewRegistry()
@@ -138,6 +170,8 @@ func main() {
 	// Initialize handlers
 	h := handler.New(db, repos, s3Client)
 	pluginHandler := handler.NewPluginHandler(pluginRegistry, repos, s3Client)
+	authHandler := handler.NewAuthHandler(userRepo, sessionManager, cfg.PasswordMinLength, cfg.OIDCEnabled)
+	userMgmtHandler := handler.NewUserManagementHandler(userRepo, sessionManager, cfg.PasswordMinLength, defaultOrgID)
 
 	r := chi.NewRouter()
 
@@ -174,25 +208,56 @@ func main() {
 
 	// Auth routes (no auth required)
 	r.Route("/auth", func(r chi.Router) {
-		r.Get("/login", oauthHandler.Login)
-		r.Get("/callback", oauthHandler.Callback)
-		r.Get("/logout", oauthHandler.Logout)
-		r.Get("/session", oauthHandler.GetSession)
+		// Local auth endpoints
+		r.Post("/login", authHandler.Login)
+		r.Post("/logout", authHandler.Logout)
+		r.Get("/session", authHandler.GetSession)
+		r.Get("/mode", authHandler.GetAuthMode)
+
+		// OIDC endpoints (only when OIDC enabled)
+		if cfg.OIDCEnabled && oauthHandler != nil {
+			r.Get("/oidc/login", oauthHandler.Login)
+			r.Get("/oidc/callback", oauthHandler.Callback)
+			r.Get("/oidc/logout", oauthHandler.Logout)
+			// Keep old routes for backwards compatibility
+			r.Get("/login", oauthHandler.Login)
+			r.Get("/callback", oauthHandler.Callback)
+		}
 	})
 
 	// API routes (auth required)
 	r.Route("/api", func(r chi.Router) {
 		// Apply auth middleware to all /api routes
 		r.Use(authMiddleware.Authenticate)
-		r.Use(userProvisioner.Provision)
+
+		// Only use user provisioner for OIDC mode
+		if cfg.OIDCEnabled {
+			r.Use(userProvisioner.Provision)
+		}
 
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"status":"ok","version":"0.1.0"}`))
+			w.Write([]byte(`{"status":"ok","version":"` + Version + `"}`))
+		})
+
+		// Auth endpoints (requires authentication)
+		r.Route("/auth", func(r chi.Router) {
+			r.Put("/password", authHandler.ChangePassword)
 		})
 
 		// Current user info
 		r.Get("/me", h.GetCurrentUser)
+
+		// User management (admin only)
+		r.Route("/users", func(r chi.Router) {
+			r.Use(auth.RequireAdmin(sessionManager))
+			r.Get("/", userMgmtHandler.ListUsers)
+			r.Post("/", userMgmtHandler.CreateUser)
+			r.Get("/{id}", userMgmtHandler.GetUser)
+			r.Put("/{id}", userMgmtHandler.UpdateUser)
+			r.Delete("/{id}", userMgmtHandler.DeleteUser)
+			r.Post("/{id}/reset-password", userMgmtHandler.ResetPassword)
+		})
 
 		// Categories
 		r.Route("/categories", func(r chi.Router) {
@@ -303,6 +368,89 @@ func main() {
 	}
 
 	slog.Info("server stopped")
+}
+
+// bootstrapAdmin creates the initial admin user if no users exist
+func bootstrapAdmin(ctx context.Context, userRepo *repository.UserRepository, cfg *config.Config) error {
+	count, err := userRepo.Count(ctx)
+	if err != nil {
+		return fmt.Errorf("counting users: %w", err)
+	}
+
+	if count > 0 {
+		return nil // Users exist, skip bootstrap
+	}
+
+	// Hash the password
+	hash, err := auth.HashPassword(cfg.AdminPassword)
+	if err != nil {
+		return fmt.Errorf("hashing admin password: %w", err)
+	}
+
+	// Create admin user
+	admin := &domain.User{
+		OrganizationID: defaultOrgID,
+		Email:          cfg.AdminEmail,
+		PasswordHash:   &hash,
+		Role:           domain.UserRoleAdmin,
+	}
+	displayName := "Administrator"
+	admin.DisplayName = &displayName
+
+	if err := userRepo.Create(ctx, admin); err != nil {
+		return fmt.Errorf("creating admin user: %w", err)
+	}
+
+	slog.Info("created bootstrap admin user", "email", cfg.AdminEmail)
+
+	// Warn if using default credentials
+	if cfg.AdminEmail == "admin" && cfg.AdminPassword == "admin" {
+		slog.Warn("using default admin credentials - please change them immediately!")
+	}
+
+	return nil
+}
+
+// handlePasswordReset handles the CLI password reset command
+func handlePasswordReset(ctx context.Context, db *database.DB, cfg *config.Config, email, newPassword string) {
+	if email == "" {
+		fmt.Fprintln(os.Stderr, "error: --email is required")
+		os.Exit(1)
+	}
+	if newPassword == "" {
+		fmt.Fprintln(os.Stderr, "error: --new-password is required")
+		os.Exit(1)
+	}
+
+	if err := auth.ValidatePassword(newPassword, cfg.PasswordMinLength); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s\n", err)
+		os.Exit(1)
+	}
+
+	userRepo := repository.NewUserRepository(db.Pool)
+
+	user, err := userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: failed to find user: %s\n", err)
+		os.Exit(1)
+	}
+	if user == nil {
+		fmt.Fprintf(os.Stderr, "error: user with email '%s' not found\n", email)
+		os.Exit(1)
+	}
+
+	hash, err := auth.HashPassword(newPassword)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: failed to hash password: %s\n", err)
+		os.Exit(1)
+	}
+
+	if err := userRepo.UpdatePassword(ctx, user.ID, hash); err != nil {
+		fmt.Fprintf(os.Stderr, "error: failed to update password: %s\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Password updated successfully for user '%s'\n", email)
 }
 
 const swaggerUIHTML = `<!DOCTYPE html>

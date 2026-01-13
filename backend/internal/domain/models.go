@@ -17,16 +17,36 @@ type Organization struct {
 	DeletedAt   *time.Time `json:"-"`
 }
 
-// User represents an OIDC-authenticated user
+// UserRole represents the user's role in the system
+type UserRole string
+
+const (
+	UserRoleUser  UserRole = "user"
+	UserRoleAdmin UserRole = "admin"
+)
+
+// User represents an authenticated user
 type User struct {
 	ID             uuid.UUID  `json:"id"`
 	OrganizationID uuid.UUID  `json:"organization_id"`
-	OIDCSubject    string     `json:"oidc_subject"`
+	OIDCSubject    *string    `json:"oidc_subject,omitempty"`
 	Email          string     `json:"email"`
 	DisplayName    *string    `json:"display_name,omitempty"`
+	PasswordHash   *string    `json:"-"`
+	Role           UserRole   `json:"role"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 	DeletedAt      *time.Time `json:"-"`
+}
+
+// IsAdmin returns true if the user has admin role
+func (u *User) IsAdmin() bool {
+	return u.Role == UserRoleAdmin
+}
+
+// HasPassword returns true if the user has a password set
+func (u *User) HasPassword() bool {
+	return u.PasswordHash != nil && *u.PasswordHash != ""
 }
 
 // Condition represents an asset condition (e.g., NEW, GOOD, FAIR)
