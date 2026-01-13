@@ -41,8 +41,8 @@ backend-run:
 	cd backend && go run ./cmd/server
 
 LDFLAGS := -w -s
-ifdef TMDB_API_KEY
-	LDFLAGS += -X github.com/mendelui/attic/internal/plugin/tmdb.APIKey=$(TMDB_API_KEY)
+ifdef ATTIC_TMDB_API_KEY
+	LDFLAGS += -X github.com/mendelui/attic/internal/plugin/tmdb.APIKey=$(ATTIC_TMDB_API_KEY)
 endif
 
 backend-build:

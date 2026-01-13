@@ -23,7 +23,7 @@ var APIKey = ""
 
 // getAPIKey returns the API key, preferring environment variable over build-time value
 func getAPIKey() string {
-	if key := os.Getenv("TMDB_API_KEY"); key != "" {
+	if key := os.Getenv("ATTIC_TMDB_API_KEY"); key != "" {
 		return key
 	}
 	return APIKey

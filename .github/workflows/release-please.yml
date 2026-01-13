@@ -58,4 +58,4 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          ATTIC_TMDB_API_KEY: ${{ secrets.ATTIC_TMDB_API_KEY }}

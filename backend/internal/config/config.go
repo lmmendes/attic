@@ -23,23 +23,23 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:          getEnv("PORT", "8080"),
-		DatabaseURL:   getEnv("DATABASE_URL", "postgres://attic:attic@localhost:5432/attic?sslmode=disable"),
-		S3Endpoint:    getEnv("S3_ENDPOINT", "http://localhost:4566"),
-		S3Bucket:      getEnv("S3_BUCKET", "attic-attachments"),
-		S3Region:      getEnv("S3_REGION", "us-east-1"),
-		S3AccessKey:   getEnv("S3_ACCESS_KEY", "test"),
-		S3SecretKey:   getEnv("S3_SECRET_KEY", "test"),
-		OIDCIssuer:    getEnv("OIDC_ISSUER", "http://localhost:8180/realms/attic"),
-		OIDCClientID:  getEnv("OIDC_CLIENT_ID", "attic-web"),
-		AuthDisabled:  getEnv("AUTH_DISABLED", "false") == "true",
-		CORSOrigins:   getEnv("CORS_ORIGINS", "http://localhost:3000"),
-		BaseURL:       getEnv("BASE_URL", "http://localhost:8080"),
-		SessionSecret: getEnv("SESSION_SECRET", "change-me-in-production-32chars!"),
+		Port:          getEnv("ATTIC_PORT", "8080"),
+		DatabaseURL:   getEnv("ATTIC_DATABASE_URL", "postgres://attic:attic@localhost:5432/attic?sslmode=disable"),
+		S3Endpoint:    getEnv("ATTIC_S3_ENDPOINT", "http://localhost:4566"),
+		S3Bucket:      getEnv("ATTIC_S3_BUCKET", "attic-attachments"),
+		S3Region:      getEnv("ATTIC_S3_REGION", "us-east-1"),
+		S3AccessKey:   getEnv("ATTIC_S3_ACCESS_KEY", "test"),
+		S3SecretKey:   getEnv("ATTIC_S3_SECRET_KEY", "test"),
+		OIDCIssuer:    getEnv("ATTIC_OIDC_ISSUER", "http://localhost:8180/realms/attic"),
+		OIDCClientID:  getEnv("ATTIC_OIDC_CLIENT_ID", "attic-web"),
+		AuthDisabled:  getEnv("ATTIC_AUTH_DISABLED", "false") == "true",
+		CORSOrigins:   getEnv("ATTIC_CORS_ORIGINS", "http://localhost:3000"),
+		BaseURL:       getEnv("ATTIC_BASE_URL", "http://localhost:8080"),
+		SessionSecret: getEnv("ATTIC_SESSION_SECRET", "change-me-in-production-32chars!"),
 	}
 
 	if cfg.DatabaseURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL is required")
+		return nil, fmt.Errorf("ATTIC_DATABASE_URL is required")
 	}
 
 	return cfg, nil
