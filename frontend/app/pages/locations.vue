@@ -300,8 +300,30 @@ function getLocationIcon(location: Location): string {
 </script>
 
 <template>
-  <div class="flex flex-col lg:flex-row gap-4 min-h-[calc(100vh-10rem)] lg:h-[calc(100vh-10rem)]">
-    <!-- Left Panel: Location Tree -->
+  <div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight text-mist-950 dark:text-white mb-1">
+          Locations
+        </h1>
+        <p class="text-mist-500">
+          Organize where your belongings are stored with a hierarchical structure.
+        </p>
+      </div>
+      <UButton
+        size="lg"
+        icon="i-lucide-plus-circle"
+        class="shadow-lg shadow-attic-500/20"
+        @click="openCreateModal()"
+      >
+        Add Root Location
+      </UButton>
+    </div>
+
+    <!-- Two Panel Layout -->
+    <div class="flex flex-col lg:flex-row gap-4 min-h-[calc(100vh-14rem)] lg:h-[calc(100vh-14rem)]">
+      <!-- Left Panel: Location Tree -->
     <section class="flex flex-col w-full lg:w-[340px] xl:w-[380px] min-h-[400px] lg:min-h-0 bg-white dark:bg-mist-800 rounded-2xl shadow-soft border border-mist-100 dark:border-mist-700 overflow-hidden flex-shrink-0">
       <!-- Tree Header -->
       <div class="p-4 border-b border-mist-100 dark:border-mist-700 flex items-center justify-between bg-white dark:bg-mist-800 sticky top-0 z-10">
@@ -721,6 +743,7 @@ function getLocationIcon(location: Location): string {
         </div>
       </template>
     </section>
+    </div>
 
     <!-- Create/Edit Modal -->
     <UModal v-model:open="modalOpen">

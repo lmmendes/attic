@@ -14,21 +14,6 @@ const { data: attributes } = useApi<Attribute[]>('/api/attributes')
 // Fetch asset counts per category (endpoint may not exist yet, so we handle gracefully)
 const { data: categoryAssetCounts } = useApi<Record<string, number>>('/api/categories/asset-counts')
 
-interface AttributeSelection {
-  attribute_id: string
-  required: boolean
-  sort_order: number
-}
-
-const modalOpen = ref(false)
-const editingCategory = ref<Category | null>(null)
-const form = reactive({
-  name: '',
-  description: '',
-  parent_id: undefined as string | undefined,
-  attributes: [] as AttributeSelection[]
-})
-
 // Delete confirmation modal
 const deleteModalOpen = ref(false)
 const categoryToDelete = ref<Category | null>(null)
@@ -37,34 +22,6 @@ const categoryToDelete = ref<Category | null>(null)
 const attributesModalOpen = ref(false)
 const viewingCategory = ref<Category | null>(null)
 
-function openCreateModal() {
-  editingCategory.value = null
-  form.name = ''
-  form.description = ''
-  form.parent_id = undefined
-  form.attributes = []
-  modalOpen.value = true
-}
-
-async function openEditModal(category: Category) {
-  // Fetch category with attributes
-  try {
-    const fullCategory = await apiFetch<Category>(`/api/categories/${category.id}`)
-    editingCategory.value = fullCategory
-    form.name = fullCategory.name
-    form.description = fullCategory.description || ''
-    form.parent_id = fullCategory.parent_id
-    form.attributes = (fullCategory.attributes || []).map((ca, index) => ({
-      attribute_id: ca.attribute_id,
-      required: ca.required,
-      sort_order: ca.sort_order ?? index
-    }))
-    modalOpen.value = true
-  } catch {
-    toast.add({ title: 'Failed to load category', color: 'error' })
-  }
-}
-
 async function viewAttributes(category: Category) {
   try {
     const fullCategory = await apiFetch<Category>(`/api/categories/${category.id}`)
@@ -72,63 +29,6 @@ async function viewAttributes(category: Category) {
     attributesModalOpen.value = true
   } catch {
     toast.add({ title: 'Failed to load category attributes', color: 'error' })
-  }
-}
-
-function addAttribute() {
-  if (!attributes.value?.length) return
-  const firstUnused = attributes.value.find(
-    a => !form.attributes.some(fa => fa.attribute_id === a.id)
-  )
-  if (firstUnused) {
-    form.attributes.push({
-      attribute_id: firstUnused.id,
-      required: false,
-      sort_order: form.attributes.length
-    })
-  }
-}
-
-function removeAttribute(index: number) {
-  form.attributes.splice(index, 1)
-  // Update sort orders
-  form.attributes.forEach((a, i) => a.sort_order = i)
-}
-
-function getAttributeName(attributeId: string): string {
-  return attributes.value?.find(a => a.id === attributeId)?.name || 'Unknown'
-}
-
-const availableAttributes = computed(() => {
-  return attributes.value?.filter(
-    a => !form.attributes.some(fa => fa.attribute_id === a.id)
-  ) || []
-})
-
-async function saveCategory() {
-  try {
-    const url = editingCategory.value
-      ? `/api/categories/${editingCategory.value.id}`
-      : `/api/categories`
-
-    await apiFetch(url, {
-      method: editingCategory.value ? 'PUT' : 'POST',
-      body: JSON.stringify({
-        name: form.name,
-        description: form.description || null,
-        parent_id: form.parent_id || null,
-        attributes: form.attributes
-      })
-    })
-
-    toast.add({
-      title: editingCategory.value ? 'Category updated' : 'Category created',
-      color: 'success'
-    })
-    modalOpen.value = false
-    refresh()
-  } catch {
-    toast.add({ title: 'Failed to save category', color: 'error' })
   }
 }
 
@@ -153,37 +53,6 @@ async function deleteCategory() {
   }
 }
 
-const parentOptions = computed<{ label: string; value: string | undefined }[]>(() => {
-  const options: { label: string; value: string | undefined }[] = [
-    { label: 'None (Top Level)', value: undefined }
-  ]
-
-  if (!categories.value) return options
-
-  // Exclude current category and its descendants when editing
-  const excludeIds = new Set<string>()
-  if (editingCategory.value) {
-    excludeIds.add(editingCategory.value.id)
-    const addDescendants = (parentId: string) => {
-      categories.value?.forEach(c => {
-        if (c.parent_id === parentId) {
-          excludeIds.add(c.id)
-          addDescendants(c.id)
-        }
-      })
-    }
-    addDescendants(editingCategory.value.id)
-  }
-
-  categories.value.forEach(c => {
-    if (!excludeIds.has(c.id)) {
-      options.push({ label: c.name, value: c.id })
-    }
-  })
-
-  return options
-})
-
 // Stats
 const totalCategories = computed(() => categories.value?.length || 0)
 const totalItems = computed(() => {
@@ -201,8 +70,13 @@ function getAssetCount(categoryId: string): number {
   return categoryAssetCounts.value?.[categoryId] || 0
 }
 
-// Get icon and color based on category name
+// Get icon and color based on category name or icon field
 function getCategoryStyle(category: Category): { icon: string; bgColor: string; textColor: string } {
+  // Use saved icon if available
+  if (category.icon) {
+    return { icon: category.icon, bgColor: 'bg-attic-100 dark:bg-attic-900/30', textColor: 'text-attic-600 dark:text-attic-400' }
+  }
+
   const name = category.name.toLowerCase()
 
   if (name.includes('electronic') || name.includes('computer') || name.includes('tech')) {
@@ -239,6 +113,24 @@ function getCategoryStyle(category: Category): { icon: string; bgColor: string; 
   // Default
   return { icon: 'i-lucide-tag', bgColor: 'bg-attic-100 dark:bg-attic-900/30', textColor: 'text-attic-600 dark:text-attic-400' }
 }
+
+// Get attribute style by type
+function getAttributeStyle(dataType: string): { icon: string; bgColor: string; textColor: string } {
+  switch (dataType) {
+    case 'string':
+      return { icon: 'i-lucide-type', bgColor: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-600 dark:text-blue-400' }
+    case 'number':
+      return { icon: 'i-lucide-hash', bgColor: 'bg-amber-50 dark:bg-amber-900/20', textColor: 'text-amber-600 dark:text-amber-400' }
+    case 'boolean':
+      return { icon: 'i-lucide-toggle-left', bgColor: 'bg-green-50 dark:bg-green-900/20', textColor: 'text-green-600 dark:text-green-400' }
+    case 'text':
+      return { icon: 'i-lucide-align-left', bgColor: 'bg-purple-50 dark:bg-purple-900/20', textColor: 'text-purple-600 dark:text-purple-400' }
+    case 'date':
+      return { icon: 'i-lucide-calendar', bgColor: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-600 dark:text-red-400' }
+    default:
+      return { icon: 'i-lucide-circle', bgColor: 'bg-gray-50 dark:bg-gray-900/20', textColor: 'text-gray-600 dark:text-gray-400' }
+  }
+}
 </script>
 
 <template>
@@ -254,10 +146,10 @@ function getCategoryStyle(category: Category): { icon: string; bgColor: string; 
         </p>
       </div>
       <UButton
+        to="/categories/new"
         size="lg"
         icon="i-lucide-plus-circle"
         class="shadow-lg shadow-attic-500/20"
-        @click="openCreateModal"
       >
         Create New Category
       </UButton>
@@ -327,7 +219,7 @@ function getCategoryStyle(category: Category): { icon: string; bgColor: string; 
         <p class="text-sm text-mist-500 mb-4 max-w-sm">
           Create your first category to start organizing your assets.
         </p>
-        <UButton @click="openCreateModal">
+        <UButton to="/categories/new">
           Create Category
         </UButton>
       </div>
@@ -415,16 +307,16 @@ function getCategoryStyle(category: Category): { icon: string; bgColor: string; 
               <!-- Actions -->
               <td class="px-6 py-5 text-right">
                 <div class="flex items-center justify-end gap-2">
-                  <button
+                  <NuxtLink
+                    :to="`/categories/${category.id}/edit`"
                     class="p-2 text-mist-500 hover:text-attic-500 hover:bg-attic-500/10 rounded-lg transition-all"
                     title="Edit Category"
-                    @click="openEditModal(category)"
                   >
                     <UIcon
                       name="i-lucide-edit"
                       class="w-5 h-5"
                     />
-                  </button>
+                  </NuxtLink>
                   <button
                     class="p-2 text-mist-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                     title="Delete Category"
@@ -453,171 +345,6 @@ function getCategoryStyle(category: Category): { icon: string; bgColor: string; 
         <strong>Tip:</strong> You can define mandatory attributes (like Purchase Price or Serial Number) for each category. These will be automatically prompted whenever you add a new item to that category.
       </p>
     </div>
-
-    <!-- Create/Edit Modal -->
-    <UModal v-model:open="modalOpen">
-      <template #content>
-        <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl max-w-lg w-full">
-          <div class="p-6 border-b border-mist-100 dark:border-mist-700">
-            <h3 class="text-lg font-bold text-mist-950 dark:text-white">
-              {{ editingCategory ? 'Edit Category' : 'New Category' }}
-            </h3>
-          </div>
-
-          <form
-            class="p-6 space-y-4"
-            @submit.prevent="saveCategory"
-          >
-            <!-- Name -->
-            <div>
-              <label class="block text-sm font-medium text-mist-700 dark:text-mist-300 mb-1.5">
-                Name <span class="text-red-500">*</span>
-              </label>
-              <input
-                v-model="form.name"
-                type="text"
-                required
-                placeholder="Category name"
-                class="w-full bg-mist-50 dark:bg-mist-700 border border-mist-200 dark:border-mist-600 rounded-lg px-4 py-2.5 text-sm text-mist-950 dark:text-white placeholder-mist-400 focus:ring-2 focus:ring-attic-500 focus:border-transparent"
-              >
-            </div>
-
-            <!-- Description -->
-            <div>
-              <label class="block text-sm font-medium text-mist-700 dark:text-mist-300 mb-1.5">
-                Description
-              </label>
-              <textarea
-                v-model="form.description"
-                rows="3"
-                placeholder="Optional description"
-                class="w-full bg-mist-50 dark:bg-mist-700 border border-mist-200 dark:border-mist-600 rounded-lg px-4 py-2.5 text-sm text-mist-950 dark:text-white placeholder-mist-400 focus:ring-2 focus:ring-attic-500 focus:border-transparent resize-none"
-              />
-            </div>
-
-            <!-- Parent Category -->
-            <div>
-              <label class="block text-sm font-medium text-mist-700 dark:text-mist-300 mb-1.5">
-                Parent Category
-              </label>
-              <select
-                :value="form.parent_id ?? ''"
-                class="w-full bg-mist-50 dark:bg-mist-700 border border-mist-200 dark:border-mist-600 rounded-lg px-4 py-2.5 text-sm text-mist-950 dark:text-white focus:ring-2 focus:ring-attic-500 focus:border-transparent"
-                @change="form.parent_id = ($event.target as HTMLSelectElement).value || undefined"
-              >
-                <option
-                  v-for="opt in parentOptions"
-                  :key="opt.value ?? 'none'"
-                  :value="opt.value ?? ''"
-                >
-                  {{ opt.label }}
-                </option>
-              </select>
-            </div>
-
-            <!-- Attributes Section -->
-            <div class="border-t border-mist-100 dark:border-mist-700 pt-4 mt-4">
-              <div class="flex items-center justify-between mb-3">
-                <label class="block text-sm font-medium text-mist-700 dark:text-mist-300">
-                  Attributes
-                </label>
-                <button
-                  v-if="availableAttributes.length > 0"
-                  type="button"
-                  class="text-xs font-bold text-attic-500 hover:text-attic-600 flex items-center gap-1"
-                  @click="addAttribute"
-                >
-                  <UIcon
-                    name="i-lucide-plus"
-                    class="w-3.5 h-3.5"
-                  />
-                  Add Attribute
-                </button>
-              </div>
-
-              <div
-                v-if="form.attributes.length === 0"
-                class="text-sm text-mist-500 py-3 px-4 bg-mist-50 dark:bg-mist-700/50 rounded-lg"
-              >
-                No attributes assigned. Click "Add Attribute" to assign attributes.
-              </div>
-
-              <div
-                v-else
-                class="space-y-2"
-              >
-                <div
-                  v-for="(attr, index) in form.attributes"
-                  :key="attr.attribute_id"
-                  class="flex items-center gap-3 p-3 bg-mist-50 dark:bg-mist-700/50 rounded-lg"
-                >
-                  <select
-                    :value="attr.attribute_id"
-                    class="flex-1 bg-white dark:bg-mist-700 border border-mist-200 dark:border-mist-600 rounded-lg px-3 py-2 text-sm text-mist-950 dark:text-white focus:ring-2 focus:ring-attic-500 focus:border-transparent"
-                    @change="attr.attribute_id = ($event.target as HTMLSelectElement).value"
-                  >
-                    <option :value="attr.attribute_id">
-                      {{ getAttributeName(attr.attribute_id) }}
-                    </option>
-                    <option
-                      v-for="a in availableAttributes"
-                      :key="a.id"
-                      :value="a.id"
-                    >
-                      {{ a.name }}
-                    </option>
-                  </select>
-                  <label class="flex items-center gap-2 text-sm text-mist-700 dark:text-mist-300 cursor-pointer">
-                    <input
-                      v-model="attr.required"
-                      type="checkbox"
-                      class="rounded border-mist-300 text-attic-500 focus:ring-attic-500"
-                    >
-                    Required
-                  </label>
-                  <button
-                    type="button"
-                    class="p-1.5 text-mist-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-all"
-                    @click="removeAttribute(index)"
-                  >
-                    <UIcon
-                      name="i-lucide-trash-2"
-                      class="w-4 h-4"
-                    />
-                  </button>
-                </div>
-              </div>
-
-              <p
-                v-if="attributes?.length === 0"
-                class="text-sm text-mist-500 mt-3"
-              >
-                <NuxtLink
-                  to="/attributes"
-                  class="text-attic-500 hover:underline font-medium"
-                >
-                  Create attributes
-                </NuxtLink>
-                first to assign them to categories.
-              </p>
-            </div>
-          </form>
-
-          <div class="p-6 border-t border-mist-100 dark:border-mist-700 flex justify-end gap-3">
-            <UButton
-              variant="ghost"
-              color="neutral"
-              @click="modalOpen = false"
-            >
-              Cancel
-            </UButton>
-            <UButton @click="saveCategory">
-              {{ editingCategory ? 'Save Changes' : 'Create Category' }}
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
 
     <!-- Delete Confirmation Modal -->
     <UModal v-model:open="deleteModalOpen">
@@ -709,10 +436,15 @@ function getCategoryStyle(category: Category): { icon: string; bgColor: string; 
                 class="flex items-center justify-between p-3 bg-mist-50 dark:bg-mist-700/50 rounded-lg"
               >
                 <div class="flex items-center gap-3">
-                  <UIcon
-                    name="i-lucide-hash"
-                    class="w-4 h-4 text-mist-400"
-                  />
+                  <div
+                    class="size-8 rounded flex items-center justify-center"
+                    :class="[getAttributeStyle(attr.attribute?.data_type || 'string').bgColor, getAttributeStyle(attr.attribute?.data_type || 'string').textColor]"
+                  >
+                    <UIcon
+                      :name="getAttributeStyle(attr.attribute?.data_type || 'string').icon"
+                      class="w-4 h-4"
+                    />
+                  </div>
                   <span class="font-medium text-mist-950 dark:text-white">
                     {{ attr.attribute?.name || 'Unknown' }}
                   </span>
@@ -734,8 +466,10 @@ function getCategoryStyle(category: Category): { icon: string; bgColor: string; 
 
           <div class="p-6 border-t border-mist-100 dark:border-mist-700 flex justify-between">
             <UButton
+              v-if="viewingCategory"
+              :to="`/categories/${viewingCategory.id}/edit`"
               variant="soft"
-              @click="viewingCategory && openEditModal(viewingCategory); attributesModalOpen = false"
+              @click="attributesModalOpen = false"
             >
               Edit Attributes
             </UButton>
