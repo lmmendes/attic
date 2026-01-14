@@ -20,13 +20,13 @@ func NewCategoryRepository(pool *pgxpool.Pool) *CategoryRepository {
 
 func (r *CategoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Category, error) {
 	query := `
-		SELECT id, organization_id, parent_id, plugin_id, name, description, created_at, updated_at
+		SELECT id, organization_id, parent_id, plugin_id, name, description, icon, created_at, updated_at
 		FROM categories
 		WHERE id = $1 AND deleted_at IS NULL
 	`
 	var c domain.Category
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&c.ID, &c.OrganizationID, &c.ParentID, &c.PluginID, &c.Name, &c.Description,
+		&c.ID, &c.OrganizationID, &c.ParentID, &c.PluginID, &c.Name, &c.Description, &c.Icon,
 		&c.CreatedAt, &c.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -75,7 +75,7 @@ func (r *CategoryRepository) GetByIDWithAttributes(ctx context.Context, id uuid.
 
 func (r *CategoryRepository) List(ctx context.Context, orgID uuid.UUID) ([]domain.Category, error) {
 	query := `
-		SELECT id, organization_id, parent_id, plugin_id, name, description, created_at, updated_at
+		SELECT id, organization_id, parent_id, plugin_id, name, description, icon, created_at, updated_at
 		FROM categories
 		WHERE organization_id = $1 AND deleted_at IS NULL
 		ORDER BY name
@@ -90,7 +90,7 @@ func (r *CategoryRepository) List(ctx context.Context, orgID uuid.UUID) ([]domai
 	for rows.Next() {
 		var c domain.Category
 		if err := rows.Scan(
-			&c.ID, &c.OrganizationID, &c.ParentID, &c.PluginID, &c.Name, &c.Description,
+			&c.ID, &c.OrganizationID, &c.ParentID, &c.PluginID, &c.Name, &c.Description, &c.Icon,
 			&c.CreatedAt, &c.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -128,27 +128,27 @@ func buildCategoryTree(categories []domain.Category) []domain.Category {
 
 func (r *CategoryRepository) Create(ctx context.Context, c *domain.Category) error {
 	query := `
-		INSERT INTO categories (id, organization_id, parent_id, plugin_id, name, description)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO categories (id, organization_id, parent_id, plugin_id, name, description, icon)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING created_at, updated_at
 	`
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()
 	}
 	return r.pool.QueryRow(ctx, query,
-		c.ID, c.OrganizationID, c.ParentID, c.PluginID, c.Name, c.Description,
+		c.ID, c.OrganizationID, c.ParentID, c.PluginID, c.Name, c.Description, c.Icon,
 	).Scan(&c.CreatedAt, &c.UpdatedAt)
 }
 
 func (r *CategoryRepository) GetByPluginID(ctx context.Context, orgID uuid.UUID, pluginID string) (*domain.Category, error) {
 	query := `
-		SELECT id, organization_id, parent_id, plugin_id, name, description, created_at, updated_at
+		SELECT id, organization_id, parent_id, plugin_id, name, description, icon, created_at, updated_at
 		FROM categories
 		WHERE organization_id = $1 AND plugin_id = $2 AND deleted_at IS NULL
 	`
 	var c domain.Category
 	err := r.pool.QueryRow(ctx, query, orgID, pluginID).Scan(
-		&c.ID, &c.OrganizationID, &c.ParentID, &c.PluginID, &c.Name, &c.Description,
+		&c.ID, &c.OrganizationID, &c.ParentID, &c.PluginID, &c.Name, &c.Description, &c.Icon,
 		&c.CreatedAt, &c.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -163,12 +163,12 @@ func (r *CategoryRepository) GetByPluginID(ctx context.Context, orgID uuid.UUID,
 func (r *CategoryRepository) Update(ctx context.Context, c *domain.Category) error {
 	query := `
 		UPDATE categories
-		SET parent_id = $2, name = $3, description = $4
+		SET parent_id = $2, name = $3, description = $4, icon = $5
 		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING updated_at
 	`
 	return r.pool.QueryRow(ctx, query,
-		c.ID, c.ParentID, c.Name, c.Description,
+		c.ID, c.ParentID, c.Name, c.Description, c.Icon,
 	).Scan(&c.UpdatedAt)
 }
 
@@ -205,4 +205,30 @@ func (r *CategoryRepository) SetAttributes(ctx context.Context, categoryID uuid.
 	}
 
 	return tx.Commit(ctx)
+}
+
+func (r *CategoryRepository) GetAssetCounts(ctx context.Context, orgID uuid.UUID) (map[string]int, error) {
+	query := `
+		SELECT c.id::text, COUNT(a.id)
+		FROM categories c
+		LEFT JOIN assets a ON a.category_id = c.id AND a.deleted_at IS NULL
+		WHERE c.organization_id = $1 AND c.deleted_at IS NULL
+		GROUP BY c.id
+	`
+	rows, err := r.pool.Query(ctx, query, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := make(map[string]int)
+	for rows.Next() {
+		var categoryID string
+		var count int
+		if err := rows.Scan(&categoryID, &count); err != nil {
+			return nil, err
+		}
+		counts[categoryID] = count
+	}
+	return counts, rows.Err()
 }

@@ -312,12 +312,11 @@ function getLocationIcon(location: Location): string {
         </p>
       </div>
       <UButton
-        size="lg"
-        icon="i-lucide-plus-circle"
-        class="shadow-lg shadow-attic-500/20"
+        icon="i-lucide-plus"
+        class="h-11 px-6 font-bold shadow-lg shadow-attic-500/20"
         @click="openCreateModal()"
       >
-        Add Root Location
+        Add Location
       </UButton>
     </div>
 

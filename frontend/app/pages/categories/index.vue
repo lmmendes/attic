@@ -147,11 +147,10 @@ function getAttributeStyle(dataType: string): { icon: string; bgColor: string; t
       </div>
       <UButton
         to="/categories/new"
-        size="lg"
-        icon="i-lucide-plus-circle"
-        class="shadow-lg shadow-attic-500/20"
+        icon="i-lucide-plus"
+        class="h-11 px-6 font-bold shadow-lg shadow-attic-500/20"
       >
-        Create New Category
+        Add Category
       </UButton>
     </div>
 

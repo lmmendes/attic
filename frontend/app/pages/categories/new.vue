@@ -31,22 +31,66 @@ const selectedAttributes = ref<AttributeSelection[]>([])
 // Search query for attribute library
 const attributeSearch = ref('')
 
-// Available icons
+// Available icons - expanded list
 const icons = [
+  // Media & Entertainment
   'i-lucide-book-open',
   'i-lucide-headphones',
   'i-lucide-gamepad-2',
-  'i-lucide-laptop',
-  'i-lucide-camera',
-  'i-lucide-shirt',
-  'i-lucide-armchair',
-  'i-lucide-wrench',
-  'i-lucide-dumbbell',
-  'i-lucide-palette',
   'i-lucide-film',
   'i-lucide-music',
-  'i-lucide-car',
+  'i-lucide-tv',
+  'i-lucide-disc-3',
+  'i-lucide-radio',
+  // Electronics & Tech
+  'i-lucide-laptop',
+  'i-lucide-camera',
+  'i-lucide-smartphone',
+  'i-lucide-tablet',
+  'i-lucide-monitor',
+  'i-lucide-printer',
+  'i-lucide-cpu',
+  'i-lucide-hard-drive',
+  // Clothing & Accessories
+  'i-lucide-shirt',
   'i-lucide-watch',
+  'i-lucide-glasses',
+  'i-lucide-gem',
+  // Home & Furniture
+  'i-lucide-armchair',
+  'i-lucide-lamp',
+  'i-lucide-bed',
+  'i-lucide-sofa',
+  // Tools & Equipment
+  'i-lucide-wrench',
+  'i-lucide-hammer',
+  'i-lucide-drill',
+  'i-lucide-scissors',
+  // Sports & Fitness
+  'i-lucide-dumbbell',
+  'i-lucide-bike',
+  'i-lucide-footprints',
+  // Art & Creative
+  'i-lucide-palette',
+  'i-lucide-brush',
+  'i-lucide-pen-tool',
+  'i-lucide-image',
+  // Transport
+  'i-lucide-car',
+  'i-lucide-plane',
+  'i-lucide-ship',
+  // Kitchen & Dining
+  'i-lucide-chef-hat',
+  'i-lucide-utensils',
+  'i-lucide-coffee',
+  'i-lucide-wine',
+  // Other
+  'i-lucide-box',
+  'i-lucide-archive',
+  'i-lucide-briefcase',
+  'i-lucide-gift',
+  'i-lucide-heart',
+  'i-lucide-star',
   'i-lucide-tag'
 ]
 
@@ -252,22 +296,24 @@ function cancel() {
               Icon
             </h3>
           </div>
-          <div class="grid grid-cols-5 gap-3">
-            <button
-              v-for="icon in icons"
-              :key="icon"
-              type="button"
-              class="aspect-square rounded-xl flex items-center justify-center transition-all"
-              :class="form.icon === icon
-                ? 'bg-attic-500 text-white ring-2 ring-offset-2 ring-attic-500 dark:ring-offset-mist-800'
-                : 'bg-mist-50 dark:bg-mist-900 text-mist-500 hover:text-attic-500 hover:bg-mist-100 dark:hover:bg-mist-700 border border-transparent hover:border-mist-200 dark:hover:border-mist-600'"
-              @click="form.icon = icon"
-            >
-              <UIcon
-                :name="icon"
-                class="w-6 h-6"
-              />
-            </button>
+          <div class="max-h-[280px] overflow-y-auto custom-scrollbar pr-1">
+            <div class="grid grid-cols-5 gap-3">
+              <button
+                v-for="icon in icons"
+                :key="icon"
+                type="button"
+                class="aspect-square rounded-xl flex items-center justify-center transition-all"
+                :class="form.icon === icon
+                  ? 'bg-attic-500 text-white ring-2 ring-offset-2 ring-attic-500 dark:ring-offset-mist-800'
+                  : 'bg-mist-50 dark:bg-mist-900 text-mist-500 hover:text-attic-500 hover:bg-mist-100 dark:hover:bg-mist-700 border border-transparent hover:border-mist-200 dark:hover:border-mist-600'"
+                @click="form.icon = icon"
+              >
+                <UIcon
+                  :name="icon"
+                  class="w-6 h-6"
+                />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -304,9 +350,9 @@ function cancel() {
           </div>
 
           <!-- Composer Body: Split View -->
-          <div class="flex flex-col lg:flex-row flex-grow">
+          <div class="flex flex-col lg:flex-row flex-grow min-h-0">
             <!-- Zone 1: Active Attributes -->
-            <div class="flex-grow p-6 bg-mist-50 dark:bg-mist-900/50 relative">
+            <div class="flex-grow p-6 bg-mist-50 dark:bg-mist-900/50 relative overflow-y-auto custom-scrollbar">
               <div class="relative z-10 space-y-3">
                 <div class="flex items-center justify-between mb-4">
                   <h4 class="text-xs font-bold uppercase tracking-wider text-mist-400">

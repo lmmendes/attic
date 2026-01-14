@@ -18,6 +18,7 @@ type CreateCategoryRequest struct {
 	ParentID    *string               `json:"parent_id,omitempty"`
 	Name        string                `json:"name"`
 	Description *string               `json:"description,omitempty"`
+	Icon        *string               `json:"icon,omitempty"`
 	Attributes  []AttributeAssignment `json:"attributes,omitempty"`
 }
 
@@ -25,6 +26,7 @@ type UpdateCategoryRequest struct {
 	ParentID    *string               `json:"parent_id,omitempty"`
 	Name        string                `json:"name"`
 	Description *string               `json:"description,omitempty"`
+	Icon        *string               `json:"icon,omitempty"`
 	Attributes  []AttributeAssignment `json:"attributes,omitempty"`
 }
 
@@ -50,6 +52,15 @@ func (h *Handler) ListCategories(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, categories)
+}
+
+func (h *Handler) GetCategoryAssetCounts(w http.ResponseWriter, r *http.Request) {
+	counts, err := h.repos.Categories.GetAssetCounts(r.Context(), h.orgID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get asset counts")
+		return
+	}
+	writeJSON(w, http.StatusOK, counts)
 }
 
 func (h *Handler) GetCategory(w http.ResponseWriter, r *http.Request) {
@@ -88,6 +99,7 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 		OrganizationID: h.orgID,
 		Name:           req.Name,
 		Description:    req.Description,
+		Icon:           req.Icon,
 	}
 
 	if req.ParentID != nil {
@@ -152,6 +164,7 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 
 	cat.Name = req.Name
 	cat.Description = req.Description
+	cat.Icon = req.Icon
 
 	if req.ParentID != nil {
 		parentID, err := parseUUIDString(*req.ParentID)
