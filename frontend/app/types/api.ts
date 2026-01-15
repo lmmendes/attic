@@ -99,6 +99,10 @@ export interface Warranty {
   updated_at: string
 }
 
+export interface WarrantyWithAsset extends Warranty {
+  asset_name: string
+}
+
 export interface Attachment {
   id: string
   asset_id: string

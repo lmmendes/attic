@@ -42,6 +42,20 @@ func (h *Handler) GetWarranty(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, warranty)
 }
 
+func (h *Handler) ListWarranties(w http.ResponseWriter, r *http.Request) {
+	warranties, err := h.repos.Warranties.List(r.Context(), h.orgID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list warranties")
+		return
+	}
+
+	if warranties == nil {
+		warranties = []domain.WarrantyWithAsset{}
+	}
+
+	writeJSON(w, http.StatusOK, warranties)
+}
+
 func (h *Handler) ListExpiringWarranties(w http.ResponseWriter, r *http.Request) {
 	days, _ := strconv.Atoi(r.URL.Query().Get("days"))
 	if days <= 0 {

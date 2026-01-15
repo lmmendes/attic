@@ -110,9 +110,16 @@ type TagRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
+// WarrantyWithAsset combines warranty with asset info for listing
+type WarrantyWithAsset struct {
+	Warranty
+	AssetName string `json:"asset_name"`
+}
+
 // WarrantyRepository handles warranty persistence
 type WarrantyRepository interface {
 	GetByAssetID(ctx context.Context, assetID uuid.UUID) (*Warranty, error)
+	List(ctx context.Context, orgID uuid.UUID) ([]WarrantyWithAsset, error)
 	ListExpiring(ctx context.Context, orgID uuid.UUID, days int) ([]Warranty, error)
 	Create(ctx context.Context, warranty *Warranty) error
 	Update(ctx context.Context, warranty *Warranty) error

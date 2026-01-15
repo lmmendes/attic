@@ -323,6 +323,7 @@ func main() {
 		})
 
 		// Warranties overview
+		r.Get("/warranties", h.ListWarranties)
 		r.Get("/warranties/expiring", h.ListExpiringWarranties)
 
 		// Import Plugins
