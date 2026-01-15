@@ -2,17 +2,117 @@
 @import "@nuxt/ui";
 
 @theme static {
-  --font-sans: 'Public Sans', sans-serif;
+  /* Typography - Manrope font */
+  --font-sans: 'Manrope', sans-serif;
 
-  --color-green-50: #EFFDF5;
-  --color-green-100: #D9FBE8;
-  --color-green-200: #B3F5D1;
-  --color-green-300: #75EDAE;
-  --color-green-400: #00DC82;
-  --color-green-500: #00C16A;
-  --color-green-600: #00A155;
-  --color-green-700: #007F45;
-  --color-green-800: #016538;
-  --color-green-900: #0A5331;
-  --color-green-950: #052E16;
+  /* Primary Color Palette - Vibrant Teal (#1d798b base) */
+  --color-attic-50: #f0f9fb;
+  --color-attic-100: #d9f0f4;
+  --color-attic-200: #b8e3eb;
+  --color-attic-300: #87cfdc;
+  --color-attic-400: #4fb3c6;
+  --color-attic-500: #1d798b;
+  --color-attic-600: #1a6b7b;
+  --color-attic-700: #175a68;
+  --color-attic-800: #154a55;
+  --color-attic-900: #133d47;
+  --color-attic-950: #0c262d;
+
+  /* Alert/Accent Color - Amber/Warning */
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
+  --color-amber-900: #78350f;
+  --color-amber-950: #451a03;
+
+  /* Custom Neutral - Clean grays */
+  --color-mist-50: #f9fafb;
+  --color-mist-100: #f3f4f6;
+  --color-mist-200: #e5e7eb;
+  --color-mist-300: #d1d5db;
+  --color-mist-400: #9ca3af;
+  --color-mist-500: #667f85;
+  --color-mist-600: #4b5563;
+  --color-mist-700: #374151;
+  --color-mist-800: #1f2937;
+  --color-mist-900: #121617;
+  --color-mist-950: #030712;
+
+  /* Border Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Box Shadows */
+  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-primary: 0 10px 15px -3px rgba(29, 121, 139, 0.2), 0 4px 6px -4px rgba(29, 121, 139, 0.2);
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 10px;
+}
+
+/* Custom utility classes for design system */
+@utility text-main {
+  color: var(--color-mist-950);
+}
+
+@utility text-muted {
+  color: var(--color-mist-500);
+}
+
+@utility bg-surface {
+  background-color: white;
+}
+
+@utility bg-background {
+  background-color: var(--color-mist-50);
+}
+
+@utility border-subtle {
+  border-color: var(--color-mist-200);
+}
+
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
+
+@utility shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+@utility shadow-primary {
+  box-shadow: var(--shadow-primary);
+}
+
+/* Dark mode overrides */
+@variant dark {
+  .text-main {
+    color: white;
+  }
+  .bg-surface {
+    background-color: var(--color-mist-800);
+  }
+  .bg-background {
+    background-color: var(--color-mist-900);
+  }
+  .border-subtle {
+    border-color: var(--color-mist-700);
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #374151;
+  }
 }

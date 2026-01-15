@@ -39,6 +39,36 @@ func (r *WarrantyRepository) GetByAssetID(ctx context.Context, assetID uuid.UUID
 	return &w, nil
 }
 
+func (r *WarrantyRepository) List(ctx context.Context, orgID uuid.UUID) ([]domain.WarrantyWithAsset, error) {
+	query := `
+		SELECT w.id, w.asset_id, w.provider, w.start_date, w.end_date, w.notes, w.created_at, w.updated_at,
+		       a.name as asset_name
+		FROM warranties w
+		JOIN assets a ON a.id = w.asset_id
+		WHERE a.organization_id = $1
+		  AND a.deleted_at IS NULL
+		ORDER BY w.end_date ASC NULLS LAST
+	`
+	rows, err := r.pool.Query(ctx, query, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var warranties []domain.WarrantyWithAsset
+	for rows.Next() {
+		var w domain.WarrantyWithAsset
+		if err := rows.Scan(
+			&w.ID, &w.AssetID, &w.Provider, &w.StartDate, &w.EndDate,
+			&w.Notes, &w.CreatedAt, &w.UpdatedAt, &w.AssetName,
+		); err != nil {
+			return nil, err
+		}
+		warranties = append(warranties, w)
+	}
+	return warranties, rows.Err()
+}
+
 func (r *WarrantyRepository) ListExpiring(ctx context.Context, orgID uuid.UUID, days int) ([]domain.Warranty, error) {
 	query := `
 		SELECT w.id, w.asset_id, w.provider, w.start_date, w.end_date, w.notes, w.created_at, w.updated_at

@@ -263,6 +263,7 @@ func main() {
 		r.Route("/categories", func(r chi.Router) {
 			r.Get("/", h.ListCategories)
 			r.Post("/", h.CreateCategory)
+			r.Get("/asset-counts", h.GetCategoryAssetCounts)
 			r.Get("/{id}", h.GetCategory)
 			r.Put("/{id}", h.UpdateCategory)
 			r.Delete("/{id}", h.DeleteCategory)
@@ -322,6 +323,7 @@ func main() {
 		})
 
 		// Warranties overview
+		r.Get("/warranties", h.ListWarranties)
 		r.Get("/warranties/expiring", h.ListExpiringWarranties)
 
 		// Import Plugins

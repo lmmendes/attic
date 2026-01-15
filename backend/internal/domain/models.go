@@ -70,6 +70,7 @@ type Category struct {
 	PluginID       *string    `json:"plugin_id,omitempty"` // nil = user-created, non-nil = plugin-managed
 	Name           string     `json:"name"`
 	Description    *string    `json:"description,omitempty"`
+	Icon           *string    `json:"icon,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 	DeletedAt      *time.Time `json:"-"`
