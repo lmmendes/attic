@@ -1,4 +1,4 @@
-.PHONY: help dev dev-up dev-down backend-run backend-build backend-test migrate-up migrate-down migrate-create frontend-dev frontend-build build clean
+.PHONY: help dev dev-up dev-down backend-run backend-build backend-test migrate-up migrate-down migrate-create frontend-dev frontend-build frontend-test build clean
 
 help:
 	@echo "Available commands:"
@@ -15,6 +15,7 @@ help:
 	@echo "  migrate-create - Create new migration (NAME=xxx)"
 	@echo "  frontend-dev  - Run frontend dev server"
 	@echo "  frontend-build - Build frontend for production"
+	@echo "  frontend-test - Run frontend tests"
 
 # Combined build (frontend embedded in backend)
 build: frontend-build backend-build
@@ -69,3 +70,6 @@ frontend-dev:
 
 frontend-build:
 	cd frontend && bun run build
+
+frontend-test:
+	cd frontend && bun run test

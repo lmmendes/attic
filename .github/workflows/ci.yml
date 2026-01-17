@@ -37,3 +37,6 @@ jobs:
 
       - name: Backend tests
         run: cd backend && go test -v ./...
+
+      - name: Frontend tests
+        run: cd frontend && bun run test
