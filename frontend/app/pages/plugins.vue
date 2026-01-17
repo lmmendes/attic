@@ -14,7 +14,7 @@ function getCategoryStatus(plugin: Plugin): 'active' | 'pending' {
 }
 
 // Get attribute color based on index for visual variety
-function getAttributeStyle(index: number): { bg: string; text: string; border: string } {
+function getAttributeStyle(index: number): { bg: string, text: string, border: string } {
   const styles = [
     { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-200 dark:border-amber-800/30' },
     { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-800/30' },

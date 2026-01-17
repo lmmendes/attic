@@ -3,7 +3,7 @@ import type { Asset, AssetStats, Category, Location, Warranty } from '~/types/ap
 
 // No middleware - accessible to all
 
-const { isAuthenticated: loggedIn, user, login } = useAuth()
+const { isAuthenticated: loggedIn, user } = useAuth()
 
 // Fetch dashboard data when logged in
 const { data: assets } = useApi<{ assets: Asset[], total: number }>('/api/assets?limit=4', {
@@ -64,9 +64,12 @@ const formatRelativeTime = (dateString: string) => {
 </script>
 
 <template>
-  <!-- Logged out state -->
-  <template v-if="!loggedIn">
-    <div class="py-24 text-center max-w-xl mx-auto">
+  <div>
+    <!-- Logged out state -->
+    <div
+      v-if="!loggedIn"
+      class="py-24 text-center max-w-xl mx-auto"
+    >
       <div class="bg-attic-500/10 rounded-2xl p-4 w-20 h-20 mx-auto mb-6 flex items-center justify-center">
         <UIcon
           name="i-lucide-archive"
@@ -82,16 +85,17 @@ const formatRelativeTime = (dateString: string) => {
       </p>
       <UButton
         size="xl"
-        @click="login()"
+        to="/login"
       >
         Sign in to get started
       </UButton>
     </div>
-  </template>
 
-  <!-- Logged in dashboard -->
-  <template v-else>
-    <div class="flex flex-col gap-8">
+    <!-- Logged in dashboard -->
+    <div
+      v-else
+      class="flex flex-col gap-8"
+    >
       <!-- Welcome Section -->
       <div>
         <h2 class="text-2xl font-bold text-mist-950 dark:text-white">
@@ -331,5 +335,5 @@ const formatRelativeTime = (dateString: string) => {
         </div>
       </div>
     </div>
-  </template>
+  </div>
 </template>

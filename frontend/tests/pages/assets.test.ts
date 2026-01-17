@@ -45,9 +45,9 @@ describe('Assets Index Page', () => {
 
       // Clear filters function
       filters.q = ''
-      filters.category_id = undefined as any
-      filters.location_id = undefined as any
-      filters.condition_id = undefined as any
+      filters.category_id = undefined as string | undefined
+      filters.location_id = undefined as string | undefined
+      filters.condition_id = undefined as string | undefined
       filters.offset = 0
 
       expect(filters.q).toBe('')
@@ -261,7 +261,7 @@ describe('Assets Index Page', () => {
     })
 
     it('handles empty arrays gracefully', () => {
-      const categories: any[] = []
+      const categories: { name: string, id: string }[] = []
       const categoryOptions = categories?.map(c => ({ label: c.name, value: c.id })) || []
 
       expect(categoryOptions).toEqual([])

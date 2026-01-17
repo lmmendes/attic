@@ -48,7 +48,7 @@ describe('Categories Index Page', () => {
     })
 
     it('handles empty categories array', () => {
-      const categories: any[] = []
+      const categories: { attributes?: unknown[] }[] = []
 
       const totalCategories = categories.length || 0
       const avgAttributes = categories.length > 0
@@ -61,7 +61,7 @@ describe('Categories Index Page', () => {
   })
 
   describe('category styling', () => {
-    const getCategoryStyle = (category: { name: string; icon?: string }) => {
+    const getCategoryStyle = (category: { name: string, icon?: string }) => {
       if (category.icon) {
         return { icon: category.icon, bgColor: 'bg-attic-100', textColor: 'text-attic-600' }
       }
@@ -160,9 +160,9 @@ describe('Categories Index Page', () => {
   describe('delete category', () => {
     it('opens delete confirmation modal', () => {
       let deleteModalOpen = false
-      let categoryToDelete: any = null
+      let categoryToDelete: { id: string, name: string } | null = null
 
-      const confirmDelete = (category: any) => {
+      const confirmDelete = (category: { id: string, name: string }) => {
         categoryToDelete = category
         deleteModalOpen = true
       }
@@ -185,7 +185,7 @@ describe('Categories Index Page', () => {
     it('shows success toast after deletion', async () => {
       mockApiFetch.mockResolvedValueOnce({})
       let deleteModalOpen = true
-      let categoryToDelete: any = { id: 'cat-1', name: 'Test' }
+      let categoryToDelete: { id: string, name: string } | null = { id: 'cat-1', name: 'Test' }
 
       await mockApiFetch(`/api/categories/${categoryToDelete.id}`, { method: 'DELETE' })
       mockToast.add({ title: 'Category deleted', color: 'success' })
@@ -230,7 +230,7 @@ describe('Categories Index Page', () => {
 
     it('opens attributes modal on success', async () => {
       let attributesModalOpen = false
-      let viewingCategory: any = null
+      let viewingCategory: { id: string, name: string, attributes: unknown[] } | null = null
 
       const fullCategory = { id: 'cat-1', name: 'Electronics', attributes: [] }
       mockApiFetch.mockResolvedValueOnce(fullCategory)
@@ -283,7 +283,7 @@ describe('Categories Index Page', () => {
     })
 
     it('shows empty state when no categories', () => {
-      const categories: any[] = []
+      const categories: { id: string, name: string }[] = []
       expect(categories.length).toBe(0)
     })
 

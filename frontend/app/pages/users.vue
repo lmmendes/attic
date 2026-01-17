@@ -39,9 +39,9 @@ const filteredUsers = computed(() => {
   if (!searchQuery.value.trim()) return users.value
   const query = searchQuery.value.toLowerCase()
   return users.value.filter(
-    u => u.email.toLowerCase().includes(query) ||
-         (u.name && u.name.toLowerCase().includes(query)) ||
-         u.role.toLowerCase().includes(query)
+    u => u.email.toLowerCase().includes(query)
+      || (u.name && u.name.toLowerCase().includes(query))
+      || u.role.toLowerCase().includes(query)
   )
 })
 
@@ -149,8 +149,9 @@ const createUser = async () => {
     toast.add({ title: 'User created successfully', color: 'success' })
     isCreateModalOpen.value = false
     refresh()
-  } catch (error: any) {
-    toast.add({ title: error?.data?.error || 'Failed to create user', color: 'error' })
+  } catch (error: unknown) {
+    const err = error as { data?: { error?: string } }
+    toast.add({ title: err?.data?.error || 'Failed to create user', color: 'error' })
   } finally {
     isLoading.value = false
   }
@@ -167,8 +168,9 @@ const updateUser = async () => {
     toast.add({ title: 'User updated successfully', color: 'success' })
     isEditModalOpen.value = false
     refresh()
-  } catch (error: any) {
-    toast.add({ title: error?.data?.error || 'Failed to update user', color: 'error' })
+  } catch (error: unknown) {
+    const err = error as { data?: { error?: string } }
+    toast.add({ title: err?.data?.error || 'Failed to update user', color: 'error' })
   } finally {
     isLoading.value = false
   }
@@ -184,8 +186,9 @@ const resetPassword = async () => {
     })
     toast.add({ title: 'Password reset successfully', color: 'success' })
     isResetPasswordModalOpen.value = false
-  } catch (error: any) {
-    toast.add({ title: error?.data?.error || 'Failed to reset password', color: 'error' })
+  } catch (error: unknown) {
+    const err = error as { data?: { error?: string } }
+    toast.add({ title: err?.data?.error || 'Failed to reset password', color: 'error' })
   } finally {
     isLoading.value = false
   }
@@ -201,8 +204,9 @@ const deleteUser = async () => {
     toast.add({ title: 'User deleted successfully', color: 'success' })
     isDeleteModalOpen.value = false
     refresh()
-  } catch (error: any) {
-    toast.add({ title: error?.data?.error || 'Failed to delete user', color: 'error' })
+  } catch (error: unknown) {
+    const err = error as { data?: { error?: string } }
+    toast.add({ title: err?.data?.error || 'Failed to delete user', color: 'error' })
   } finally {
     isLoading.value = false
   }
@@ -225,8 +229,8 @@ function getInitials(user: User): string {
 }
 
 // Get avatar color based on user
-function getAvatarColor(user: User): { bg: string; text: string } {
-  const colors: Array<{ bg: string; text: string }> = [
+function getAvatarColor(user: User): { bg: string, text: string } {
+  const colors: Array<{ bg: string, text: string }> = [
     { bg: 'bg-attic-100 dark:bg-attic-900/30', text: 'text-attic-700 dark:text-attic-300' },
     { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-300' },
     { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300' },
@@ -239,7 +243,7 @@ function getAvatarColor(user: User): { bg: string; text: string } {
 }
 
 // Get role style
-function getRoleStyle(role: string): { bgColor: string; textColor: string; borderColor: string } {
+function getRoleStyle(role: string): { bgColor: string, textColor: string, borderColor: string } {
   if (role === 'admin') {
     return {
       bgColor: 'bg-purple-50 dark:bg-purple-900/30',

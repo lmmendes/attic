@@ -28,7 +28,7 @@ const form = reactive({
   purchase_note: ''
 })
 
-const categoryOptions = computed(() =>
+const _categoryOptions = computed(() =>
   categories.value?.map(c => ({ label: c.name, value: c.id, icon: c.icon })) || []
 )
 

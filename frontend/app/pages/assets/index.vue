@@ -49,7 +49,7 @@ const locationOptions = computed(() =>
   locations.value?.map(l => ({ label: l.name, value: l.id })) || []
 )
 
-const conditionOptions = computed(() =>
+const _conditionOptions = computed(() =>
   conditions.value?.map(c => ({ label: c.label, value: c.id })) || []
 )
 
@@ -78,7 +78,7 @@ function getShortId(asset: Asset): string {
 }
 
 // Get location breadcrumb
-function getLocationPath(asset: Asset): string[] {
+function _getLocationPath(asset: Asset): string[] {
   if (!asset.location?.name) return []
   return [asset.location.name]
 }

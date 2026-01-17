@@ -280,8 +280,9 @@ describe('New Asset Page', () => {
           method: 'POST',
           body: JSON.stringify({ name: 'Test', category_id: 'cat-1' })
         })
-      } catch (error: any) {
-        mockToast.add({ title: error.message || 'Failed to create asset', color: 'error' })
+      } catch (error: unknown) {
+        const err = error as { message?: string }
+        mockToast.add({ title: err.message || 'Failed to create asset', color: 'error' })
       }
 
       expect(mockToast.add).toHaveBeenCalledWith({
@@ -334,7 +335,7 @@ describe('New Asset Page', () => {
       }
 
       const formAttributes: Record<string, string | number | boolean> = {}
-      attributes.forEach(ca => {
+      attributes.forEach((ca) => {
         if (ca.attribute) {
           formAttributes[ca.attribute.key] = getDefaultValue(ca.attribute.data_type)
         }
@@ -348,8 +349,8 @@ describe('New Asset Page', () => {
     })
 
     it('clears selected category and attributes when category_id is undefined', () => {
-      let selectedCategory: any = { id: 'cat-1', name: 'Electronics' }
-      let formAttributes: Record<string, any> = { serial: 'ABC123' }
+      let selectedCategory: { id: string, name: string } | null = { id: 'cat-1', name: 'Electronics' }
+      let formAttributes: Record<string, string | number | boolean> = { serial: 'ABC123' }
 
       const categoryId = undefined
 

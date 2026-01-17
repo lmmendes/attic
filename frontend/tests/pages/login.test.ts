@@ -196,8 +196,9 @@ describe('Login Page', () => {
       let error = ''
       try {
         await mockLoginWithCredentials({ email: 'test@example.com', password: 'pass' })
-      } catch (e: any) {
-        error = e.message || 'Login failed'
+      } catch (e: unknown) {
+        const err = e as { message?: string }
+        error = err.message || 'Login failed'
       }
 
       expect(error).toBe('Network error')

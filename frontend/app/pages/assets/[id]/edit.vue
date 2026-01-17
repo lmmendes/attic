@@ -87,9 +87,9 @@ watch(
         selectedCategory.value?.attributes?.forEach((ca) => {
           if (ca.attribute) {
             // Preserve existing value if key exists
-            newAttributes[ca.attribute.key] =
-              form.attributes[ca.attribute.key] ??
-              getDefaultValue(ca.attribute.data_type)
+            newAttributes[ca.attribute.key]
+              = form.attributes[ca.attribute.key]
+                ?? getDefaultValue(ca.attribute.data_type)
           }
         })
         form.attributes = newAttributes
@@ -129,12 +129,12 @@ function getInputType(dataType: string): string {
 
 const locationOptions = computed(() => [
   { label: 'No location', value: undefined },
-  ...(locations.value?.map((l) => ({ label: l.name, value: l.id })) || [])
+  ...(locations.value?.map(l => ({ label: l.name, value: l.id })) || [])
 ])
 
 const conditionOptions = computed(() => [
   { label: 'No condition', value: undefined },
-  ...(conditions.value?.map((c) => ({ label: c.label, value: c.id })) || [])
+  ...(conditions.value?.map(c => ({ label: c.label, value: c.id })) || [])
 ])
 
 async function submitForm() {
@@ -201,7 +201,9 @@ const formProgress = computed(() => {
           name="i-lucide-loader-2"
           class="w-12 h-12 animate-spin text-attic-500 mx-auto mb-4"
         />
-        <p class="text-gray-500">Loading asset...</p>
+        <p class="text-gray-500">
+          Loading asset...
+        </p>
       </div>
     </div>
 

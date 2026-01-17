@@ -9,7 +9,7 @@ const toast = useToast()
 const apiFetch = useApiFetch()
 
 const { data: categories, refresh, status } = useApi<Category[]>('/api/categories')
-const { data: attributes } = useApi<Attribute[]>('/api/attributes')
+const { data: _attributes } = useApi<Attribute[]>('/api/attributes')
 
 // Fetch asset counts per category (endpoint may not exist yet, so we handle gracefully)
 const { data: categoryAssetCounts } = useApi<Record<string, number>>('/api/categories/asset-counts')
@@ -71,7 +71,7 @@ function getAssetCount(categoryId: string): number {
 }
 
 // Get icon and color based on category name or icon field
-function getCategoryStyle(category: Category): { icon: string; bgColor: string; textColor: string } {
+function getCategoryStyle(category: Category): { icon: string, bgColor: string, textColor: string } {
   // Use saved icon if available
   if (category.icon) {
     return { icon: category.icon, bgColor: 'bg-attic-100 dark:bg-attic-900/30', textColor: 'text-attic-600 dark:text-attic-400' }
@@ -115,7 +115,7 @@ function getCategoryStyle(category: Category): { icon: string; bgColor: string; 
 }
 
 // Get attribute style by type
-function getAttributeStyle(dataType: string): { icon: string; bgColor: string; textColor: string } {
+function getAttributeStyle(dataType: string): { icon: string, bgColor: string, textColor: string } {
   switch (dataType) {
     case 'string':
       return { icon: 'i-lucide-type', bgColor: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-600 dark:text-blue-400' }

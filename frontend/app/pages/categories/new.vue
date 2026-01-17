@@ -136,7 +136,7 @@ function removeAttribute(index: number) {
 }
 
 // Get icon and color for attribute type
-function getAttributeStyle(dataType: string): { icon: string; bgColor: string; textColor: string } {
+function getAttributeStyle(dataType: string): { icon: string, bgColor: string, textColor: string } {
   switch (dataType) {
     case 'string':
       return { icon: 'i-lucide-type', bgColor: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-600 dark:text-blue-400' }

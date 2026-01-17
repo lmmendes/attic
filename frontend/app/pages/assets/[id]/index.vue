@@ -276,7 +276,9 @@ function getShortId(): string {
                 name="i-lucide-package"
                 class="w-24 h-24 text-gray-200 dark:text-gray-600 mx-auto mb-4"
               />
-              <p class="text-sm text-gray-400">No image available</p>
+              <p class="text-sm text-gray-400">
+                No image available
+              </p>
             </div>
           </div>
         </div>
@@ -294,8 +296,12 @@ function getShortId(): string {
             Asset ID: <span class="font-bold text-attic-500 font-mono">{{ getShortId() }}</span>
           </p>
           <div class="mt-4 pt-4 border-t border-dashed border-gray-200 dark:border-gray-700">
-            <p class="text-[11px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">Last Updated</p>
-            <p class="text-sm font-medium text-mist-950 dark:text-white">{{ formatDateTime(asset.updated_at) }}</p>
+            <p class="text-[11px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
+              Last Updated
+            </p>
+            <p class="text-sm font-medium text-mist-950 dark:text-white">
+              {{ formatDateTime(asset.updated_at) }}
+            </p>
           </div>
         </div>
 
@@ -356,7 +362,9 @@ function getShortId(): string {
           class="space-y-4"
         >
           <div class="flex items-center justify-between px-2">
-            <h3 class="text-xl font-bold tracking-tight text-mist-950 dark:text-white">Personal Notes</h3>
+            <h3 class="text-xl font-bold tracking-tight text-mist-950 dark:text-white">
+              Personal Notes
+            </h3>
             <NuxtLink
               :to="`/assets/${route.params.id}/edit`"
               class="text-attic-500 text-sm font-bold hover:underline flex items-center gap-1"
@@ -438,7 +446,7 @@ function getShortId(): string {
           <div class="grid grid-cols-1 md:grid-cols-2 divide-y divide-x-0 md:divide-x md:divide-y-0 divide-gray-100 dark:divide-gray-700">
             <div class="divide-y divide-gray-100 dark:divide-gray-700">
               <div
-                v-for="(ca, index) in categoryWithAttrs.attributes.filter((_, i) => i % 2 === 0)"
+                v-for="ca in categoryWithAttrs.attributes.filter((_, i) => i % 2 === 0)"
                 :key="ca.attribute_id"
                 class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
               >
@@ -448,7 +456,7 @@ function getShortId(): string {
             </div>
             <div class="divide-y divide-gray-100 dark:divide-gray-700">
               <div
-                v-for="(ca, index) in categoryWithAttrs.attributes.filter((_, i) => i % 2 === 1)"
+                v-for="ca in categoryWithAttrs.attributes.filter((_, i) => i % 2 === 1)"
                 :key="ca.attribute_id"
                 class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
               >
@@ -517,7 +525,9 @@ function getShortId(): string {
               class="p-5 border-t border-gray-100 dark:border-gray-700"
             >
               <span class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-1">Notes</span>
-              <p class="text-sm text-mist-950 dark:text-white">{{ warranty.notes }}</p>
+              <p class="text-sm text-mist-950 dark:text-white">
+                {{ warranty.notes }}
+              </p>
             </div>
           </div>
           <div
@@ -528,7 +538,9 @@ function getShortId(): string {
               name="i-lucide-shield-off"
               class="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3"
             />
-            <p class="text-gray-500 dark:text-gray-400 mb-4">No warranty information</p>
+            <p class="text-gray-500 dark:text-gray-400 mb-4">
+              No warranty information
+            </p>
             <UButton
               variant="soft"
               size="sm"
@@ -584,8 +596,12 @@ function getShortId(): string {
                   />
                 </div>
                 <div>
-                  <p class="font-medium text-sm text-mist-950 dark:text-white">{{ attachment.file_name }}</p>
-                  <p class="text-xs text-gray-500">{{ formatBytes(attachment.file_size) }}</p>
+                  <p class="font-medium text-sm text-mist-950 dark:text-white">
+                    {{ attachment.file_name }}
+                  </p>
+                  <p class="text-xs text-gray-500">
+                    {{ formatBytes(attachment.file_size) }}
+                  </p>
                 </div>
               </div>
               <div class="flex gap-1">
@@ -614,7 +630,9 @@ function getShortId(): string {
               name="i-lucide-file-x"
               class="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3"
             />
-            <p class="text-gray-500 dark:text-gray-400 mb-4">No attachments yet</p>
+            <p class="text-gray-500 dark:text-gray-400 mb-4">
+              No attachments yet
+            </p>
             <UButton
               variant="soft"
               size="sm"
@@ -628,7 +646,9 @@ function getShortId(): string {
 
         <!-- Asset History -->
         <section class="space-y-4 pb-12">
-          <h3 class="text-xl font-bold tracking-tight px-2 text-mist-950 dark:text-white">Asset History</h3>
+          <h3 class="text-xl font-bold tracking-tight px-2 text-mist-950 dark:text-white">
+            Asset History
+          </h3>
           <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <ul class="relative border-l-2 border-gray-200 dark:border-gray-700 ml-8 my-6 space-y-8">
               <!-- History Item: Updated -->
@@ -636,10 +656,14 @@ function getShortId(): string {
                 <span class="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-attic-500 ring-4 ring-white dark:ring-gray-800 shadow-sm" />
                 <div class="flex flex-col gap-1">
                   <div class="flex items-center justify-between">
-                    <p class="text-sm font-bold text-mist-950 dark:text-white">Last Updated</p>
+                    <p class="text-sm font-bold text-mist-950 dark:text-white">
+                      Last Updated
+                    </p>
                     <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">{{ formatDateTime(asset.updated_at) }}</span>
                   </div>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">Asset details were modified.</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Asset details were modified.
+                  </p>
                 </div>
               </li>
               <!-- History Item: Created -->
@@ -647,10 +671,14 @@ function getShortId(): string {
                 <span class="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-gray-200 dark:bg-gray-600 ring-4 ring-white dark:ring-gray-800 shadow-sm" />
                 <div class="flex flex-col gap-1">
                   <div class="flex items-center justify-between">
-                    <p class="text-sm font-bold text-mist-950 dark:text-white">Asset Created</p>
+                    <p class="text-sm font-bold text-mist-950 dark:text-white">
+                      Asset Created
+                    </p>
                     <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">{{ formatDateTime(asset.created_at) }}</span>
                   </div>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">Initial entry created.</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Initial entry created.
+                  </p>
                 </div>
               </li>
             </ul>
@@ -669,7 +697,9 @@ function getShortId(): string {
           name="i-lucide-loader-2"
           class="w-12 h-12 animate-spin text-attic-500 mx-auto mb-4"
         />
-        <p class="text-gray-500">Loading asset...</p>
+        <p class="text-gray-500">
+          Loading asset...
+        </p>
       </div>
     </div>
 
@@ -685,8 +715,12 @@ function getShortId(): string {
               />
             </div>
             <div>
-              <h3 class="font-bold text-lg text-mist-950 dark:text-white">Delete Asset</h3>
-              <p class="text-sm text-gray-500">This action cannot be undone.</p>
+              <h3 class="font-bold text-lg text-mist-950 dark:text-white">
+                Delete Asset
+              </h3>
+              <p class="text-sm text-gray-500">
+                This action cannot be undone.
+              </p>
             </div>
           </div>
           <p class="text-gray-600 dark:text-gray-300 mb-6">

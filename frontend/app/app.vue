@@ -21,7 +21,7 @@ useSeoMeta({
   ogDescription: description
 })
 
-const { isAuthenticated: loggedIn, user, isAdmin, login, logout, fetchSession, isOIDCEnabled } = useAuth()
+const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isOIDCEnabled } = useAuth()
 
 // Fetch session on app load
 onMounted(() => {

@@ -12,7 +12,7 @@ const LocationTreeNode = {
     hasChildren: { type: Function, required: true }
   },
   emits: ['select', 'toggle', 'addChild'],
-  setup(props: any, { emit }: { emit: (event: string, ...args: any[]) => void }) {
+  setup(props: { node: { location: { id: string, name: string }, children: unknown[] }, expandedNodes: Set<string>, selectedId?: string, getIcon: (loc: unknown) => string, hasChildren: () => boolean }, { emit }: { emit: (event: string, ...args: unknown[]) => void }) {
     const isExpanded = () => props.expandedNodes.has(props.node.location.id)
     const isSelected = () => props.selectedId === props.node.location.id
     const hasChildrenComputed = () => props.node.children.length > 0
@@ -22,13 +22,15 @@ const LocationTreeNode = {
         class: ['node-row', { selected: isSelected() }],
         onClick: () => emit('select', props.node.location)
       }, [
-        hasChildrenComputed() ? h('button', {
-          class: 'toggle-btn',
-          onClick: (e: Event) => {
-            e.stopPropagation()
-            emit('toggle', props.node.location.id)
-          }
-        }, isExpanded() ? 'collapse' : 'expand') : null,
+        hasChildrenComputed()
+          ? h('button', {
+              class: 'toggle-btn',
+              onClick: (e: Event) => {
+                e.stopPropagation()
+                emit('toggle', props.node.location.id)
+              }
+            }, isExpanded() ? 'collapse' : 'expand')
+          : null,
         h('span', { class: 'icon' }, props.getIcon(props.node.location)),
         h('span', { class: 'name' }, props.node.location.name),
         h('button', {
@@ -39,21 +41,23 @@ const LocationTreeNode = {
           }
         }, '+')
       ]),
-      hasChildrenComputed() && isExpanded() ? h('div', { class: 'children' },
-        props.node.children.map((child: any) =>
-          h(LocationTreeNode, {
-            key: child.location.id,
-            node: child,
-            selectedId: props.selectedId,
-            expandedNodes: props.expandedNodes,
-            getIcon: props.getIcon,
-            hasChildren: props.hasChildren,
-            onSelect: (loc: any) => emit('select', loc),
-            onToggle: (id: string) => emit('toggle', id),
-            onAddChild: (id: string) => emit('addChild', id)
-          })
-        )
-      ) : null
+      hasChildrenComputed() && isExpanded()
+        ? h('div', { class: 'children' },
+            (props.node.children as { location: { id: string } }[]).map(child =>
+              h(LocationTreeNode, {
+                key: child.location.id,
+                node: child,
+                selectedId: props.selectedId,
+                expandedNodes: props.expandedNodes,
+                getIcon: props.getIcon,
+                hasChildren: props.hasChildren,
+                onSelect: (loc: unknown) => emit('select', loc),
+                onToggle: (id: string) => emit('toggle', id),
+                onAddChild: (id: string) => emit('addChild', id)
+              })
+            )
+          )
+        : null
     ])
   }
 }

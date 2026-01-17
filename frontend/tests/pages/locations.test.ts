@@ -16,7 +16,7 @@ interface TreeNode {
 describe('Locations Page', () => {
   const mockApiFetch = vi.fn()
   const mockToast = { add: vi.fn() }
-  const mockRefresh = vi.fn()
+  const _mockRefresh = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -25,7 +25,7 @@ describe('Locations Page', () => {
   describe('tree building', () => {
     const buildTree = (locations: Location[]): TreeNode[] => {
       const childrenMap = new Map<string | undefined, Location[]>()
-      locations.forEach(l => {
+      locations.forEach((l) => {
         const parentId = l.parent_id || undefined
         if (!childrenMap.has(parentId)) {
           childrenMap.set(parentId, [])
@@ -313,7 +313,7 @@ describe('Locations Page', () => {
       const getDescendants = (parentId: string): Set<string> => {
         const descendants = new Set<string>([parentId])
         const addDescendants = (id: string) => {
-          locations.forEach(l => {
+          locations.forEach((l) => {
             if (l.parent_id === id) {
               descendants.add(l.id)
               addDescendants(l.id)

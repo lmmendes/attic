@@ -31,8 +31,8 @@ vi.mock('#app', () => ({
   useRuntimeConfig: vi.fn(() => ({
     public: { apiBase: 'http://localhost:8080' }
   })),
-  ref: (val: any) => ({ value: val }),
-  computed: (fn: () => any) => ({ value: fn() }),
+  ref: <T>(val: T) => ({ value: val }),
+  computed: <T>(fn: () => T) => ({ value: fn() }),
   watch: vi.fn()
 }))
 
@@ -113,7 +113,7 @@ describe('ImportModal', () => {
     })
 
     it('handles empty search results', () => {
-      const emptyResults: any[] = []
+      const emptyResults: unknown[] = []
       expect(emptyResults).toHaveLength(0)
     })
 
@@ -123,8 +123,9 @@ describe('ImportModal', () => {
 
       try {
         await mockApiFetch('/api/plugins/plugin-1/search?q=test')
-      } catch (err: any) {
-        expect(err.data.error).toBe('Service unavailable')
+      } catch (err: unknown) {
+        const error = err as { data: { error: string } }
+        expect(error.data.error).toBe('Service unavailable')
       }
     })
   })
@@ -169,8 +170,9 @@ describe('ImportModal', () => {
           method: 'POST',
           body: JSON.stringify({ external_id: 'invalid' })
         })
-      } catch (err: any) {
-        expect(err.data.error).toContain('not found')
+      } catch (err: unknown) {
+        const error = err as { data: { error: string } }
+        expect(error.data.error).toContain('not found')
       }
     })
 
@@ -183,8 +185,9 @@ describe('ImportModal', () => {
           method: 'POST',
           body: JSON.stringify({ external_id: 'OL123' })
         })
-      } catch (err: any) {
-        expect(err.data.error).toContain('unavailable')
+      } catch (err: unknown) {
+        const error = err as { data: { error: string } }
+        expect(error.data.error).toContain('unavailable')
       }
     })
   })
@@ -213,8 +216,7 @@ describe('ImportModal', () => {
 
   describe('State Management', () => {
     it('tracks step progression', () => {
-      const steps = ['select', 'search', 'importing'] as const
-      type Step = typeof steps[number]
+      type Step = 'select' | 'search' | 'importing'
 
       let currentStep: Step = 'select'
 
@@ -228,10 +230,10 @@ describe('ImportModal', () => {
     it('resets state when modal closes', () => {
       const initialState = {
         step: 'select' as const,
-        selectedPlugin: null,
+        selectedPlugin: null as typeof mockPlugins.value[0] | null,
         searchField: '',
         searchQuery: '',
-        searchResults: [] as any[]
+        searchResults: [] as unknown[]
       }
 
       const resetState = { ...initialState }
@@ -247,7 +249,7 @@ describe('ImportModal', () => {
   describe('Navigation', () => {
     it('allows going back from search to select', () => {
       let step = 'search'
-      const selectedPlugin = mockPlugins.value[0]
+      const _selectedPlugin = mockPlugins.value[0]
 
       if (step === 'search') {
         step = 'select'

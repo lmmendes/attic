@@ -81,7 +81,7 @@ async function deleteCondition() {
 }
 
 // Get style for condition based on label/code
-function getConditionStyle(condition: Condition): { icon: string; bgColor: string; textColor: string; badgeBg: string; badgeText: string } {
+function getConditionStyle(condition: Condition): { icon: string, bgColor: string, textColor: string, badgeBg: string, badgeText: string } {
   const label = condition.label.toLowerCase()
   const code = condition.code.toLowerCase()
 

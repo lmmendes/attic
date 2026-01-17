@@ -54,8 +54,9 @@ export function useAuth() {
         await fetchSession()
       }
       return data
-    } catch (error: any) {
-      const message = error?.data?.error || error?.message || 'Login failed'
+    } catch (error: unknown) {
+      const err = error as { data?: { error?: string }, message?: string }
+      const message = err?.data?.error || err?.message || 'Login failed'
       return { success: false, error: message }
     }
   }
@@ -83,7 +84,7 @@ export function useAuth() {
     navigateTo('/login')
   }
 
-  const changePassword = async (currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+  const changePassword = async (currentPassword: string, newPassword: string): Promise<{ success: boolean, error?: string }> => {
     try {
       await $fetch('/api/auth/password', {
         baseURL: config.public.apiBase as string,
@@ -92,8 +93,9 @@ export function useAuth() {
         credentials: 'include'
       })
       return { success: true }
-    } catch (error: any) {
-      const message = error?.data?.error || error?.message || 'Password change failed'
+    } catch (error: unknown) {
+      const err = error as { data?: { error?: string }, message?: string }
+      const message = err?.data?.error || err?.message || 'Password change failed'
       return { success: false, error: message }
     }
   }

@@ -81,7 +81,7 @@ async function deleteAttribute() {
 }
 
 // Get style for data type
-function getTypeStyle(type: string): { icon: string; bgColor: string; textColor: string; borderColor: string; label: string } {
+function getTypeStyle(type: string): { icon: string, bgColor: string, textColor: string, borderColor: string, label: string } {
   switch (type) {
     case 'string':
       return {
@@ -135,7 +135,7 @@ function getTypeStyle(type: string): { icon: string; bgColor: string; textColor:
 }
 
 // Get icon for attribute based on name or type
-function getAttributeIcon(attr: Attribute): { icon: string; bgColor: string; textColor: string } {
+function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, textColor: string } {
   const name = attr.name.toLowerCase()
 
   if (name.includes('isbn') || name.includes('serial') || name.includes('code')) {

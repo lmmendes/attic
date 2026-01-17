@@ -44,7 +44,7 @@ const dataTypes = [
 const saving = ref(false)
 
 // Get style for selected type
-function getTypeStyle(type: string): { bgColor: string; textColor: string; borderColor: string } {
+function getTypeStyle(type: string): { bgColor: string, textColor: string, borderColor: string } {
   switch (type) {
     case 'string':
       return {

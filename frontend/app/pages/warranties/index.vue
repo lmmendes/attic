@@ -42,8 +42,8 @@ const filteredWarranties = computed(() => {
 
   const query = searchQuery.value.toLowerCase()
   return warranties.value.filter(
-    w => w.asset_name.toLowerCase().includes(query) ||
-         (w.provider && w.provider.toLowerCase().includes(query))
+    w => w.asset_name.toLowerCase().includes(query)
+      || (w.provider && w.provider.toLowerCase().includes(query))
   )
 })
 
@@ -76,7 +76,7 @@ function prevPage() {
 }
 
 // Get style for status
-function getStatusStyle(status: string): { icon: string; bgColor: string; textColor: string; borderColor: string; label: string } {
+function getStatusStyle(status: string): { icon: string, bgColor: string, textColor: string, borderColor: string, label: string } {
   switch (status) {
     case 'active':
       return {
@@ -114,7 +114,7 @@ function getStatusStyle(status: string): { icon: string; bgColor: string; textCo
 }
 
 // Get icon style for warranty based on status
-function getWarrantyIcon(warranty: WarrantyWithAsset): { icon: string; bgColor: string; textColor: string } {
+function getWarrantyIcon(warranty: WarrantyWithAsset): { icon: string, bgColor: string, textColor: string } {
   const status = getWarrantyStatus(warranty)
   const style = getStatusStyle(status)
   return { icon: style.icon, bgColor: style.bgColor, textColor: style.textColor }

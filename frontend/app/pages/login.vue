@@ -62,13 +62,22 @@ const handleOIDCLogin = () => {
       </div>
 
       <UCard class="mt-8">
-        <div v-if="loading" class="flex justify-center py-8">
-          <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin text-primary" />
+        <div
+          v-if="loading"
+          class="flex justify-center py-8"
+        >
+          <UIcon
+            name="i-lucide-loader-2"
+            class="w-8 h-8 animate-spin text-primary"
+          />
         </div>
 
         <template v-else>
           <!-- OIDC Login Button -->
-          <div v-if="isOIDCEnabled" class="space-y-4">
+          <div
+            v-if="isOIDCEnabled"
+            class="space-y-4"
+          >
             <UButton
               block
               size="lg"
@@ -81,7 +90,11 @@ const handleOIDCLogin = () => {
           </div>
 
           <!-- Email/Password Login Form -->
-          <form v-else @submit.prevent="handleLogin" class="space-y-6">
+          <form
+            v-else
+            class="space-y-6"
+            @submit.prevent="handleLogin"
+          >
             <UAlert
               v-if="error"
               color="error"
@@ -89,7 +102,10 @@ const handleOIDCLogin = () => {
               icon="i-lucide-alert-circle"
             />
 
-            <UFormField label="Email" name="email">
+            <UFormField
+              label="Email"
+              name="email"
+            >
               <UInput
                 v-model="email"
                 type="text"
@@ -101,7 +117,10 @@ const handleOIDCLogin = () => {
               />
             </UFormField>
 
-            <UFormField label="Password" name="password">
+            <UFormField
+              label="Password"
+              name="password"
+            >
               <UInput
                 v-model="password"
                 type="password"

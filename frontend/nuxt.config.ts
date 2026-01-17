@@ -15,17 +15,6 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  // Font configuration
-  fonts: {
-    families: [
-      {
-        name: 'Manrope',
-        provider: 'google',
-        weights: [200, 300, 400, 500, 600, 700, 800]
-      }
-    ]
-  },
-
   runtimeConfig: {
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080'
@@ -49,5 +38,16 @@ export default defineNuxtConfig({
         braceStyle: '1tbs'
       }
     }
+  },
+
+  // Font configuration
+  fonts: {
+    families: [
+      {
+        name: 'Manrope',
+        provider: 'google',
+        weights: [200, 300, 400, 500, 600, 700, 800]
+      }
+    ]
   }
 })
