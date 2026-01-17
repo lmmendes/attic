@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 	}
 	defer container.Terminate(ctx)
 
-	endpoint, err := container.Endpoint(ctx, "")
+	endpoint, err := container.PortEndpoint(ctx, "4566/tcp", "")
 	if err != nil {
 		panic("failed to get endpoint: " + err.Error())
 	}
