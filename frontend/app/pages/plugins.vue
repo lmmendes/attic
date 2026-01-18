@@ -9,6 +9,21 @@ const { data: pluginsData, status } = useApi<PluginsResponse>('/api/plugins')
 
 const plugins = computed(() => pluginsData.value?.plugins || [])
 
+// Track which plugins have expanded attributes
+const expandedAttributes = ref<Set<string>>(new Set())
+
+function toggleAttributes(pluginId: string) {
+  if (expandedAttributes.value.has(pluginId)) {
+    expandedAttributes.value.delete(pluginId)
+  } else {
+    expandedAttributes.value.add(pluginId)
+  }
+}
+
+function isExpanded(pluginId: string): boolean {
+  return expandedAttributes.value.has(pluginId)
+}
+
 function getCategoryStatus(plugin: Plugin): 'active' | 'pending' {
   return plugin.category_id ? 'active' : 'pending'
 }
@@ -148,19 +163,20 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
             </p>
             <div class="flex flex-wrap gap-1.5">
               <span
-                v-for="(attr, index) in plugin.attributes.slice(0, 4)"
+                v-for="(attr, index) in isExpanded(plugin.id) ? plugin.attributes : plugin.attributes.slice(0, 4)"
                 :key="attr.key"
                 class="px-2 py-0.5 rounded text-[11px] font-medium border"
                 :class="[getAttributeStyle(index).bg, getAttributeStyle(index).text, getAttributeStyle(index).border]"
               >
                 {{ attr.name }}
               </span>
-              <span
+              <button
                 v-if="plugin.attributes.length > 4"
-                class="px-2 py-0.5 rounded bg-mist-100 dark:bg-mist-700 text-mist-500 text-[11px] font-medium border border-mist-200 dark:border-mist-600"
+                class="px-2 py-0.5 rounded bg-mist-100 dark:bg-mist-700 text-mist-500 text-[11px] font-medium border border-mist-200 dark:border-mist-600 hover:bg-mist-200 dark:hover:bg-mist-600 hover:text-mist-700 dark:hover:text-mist-300 transition-colors cursor-pointer"
+                @click="toggleAttributes(plugin.id)"
               >
-                +{{ plugin.attributes.length - 4 }} more
-              </span>
+                {{ isExpanded(plugin.id) ? 'Show less' : `+${plugin.attributes.length - 4} more` }}
+              </button>
             </div>
           </div>
         </div>
