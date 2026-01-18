@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/lmmendes/attic/compare/v1.0.2...v1.1.0) (2026-01-18)
+
+
+### Features
+
+* **attachment:** ability to set image as default ([84d7684](https://github.com/lmmendes/attic/commit/84d76849e635fc32b00183d2f27ad7d557005ddc))
+* **attachments:** allowing local files ([d1a6a35](https://github.com/lmmendes/attic/commit/d1a6a356dc89744e1dee94433ac2d206cffcf09b))
+* **auth:** auth email and password ([3e22779](https://github.com/lmmendes/attic/commit/3e22779bce227826b75e808f18e9f02f6ac3d782))
+* **env:** Environment variables and now prefixed with ATTIC_ ([686feb9](https://github.com/lmmendes/attic/commit/686feb9ed2d6c31b4a09b9bfec250ee4f6d10180))
+* **plugins:** Showing expanded attributes ([2d3357e](https://github.com/lmmendes/attic/commit/2d3357ef5ec82b446b69a97dbbdac77ec9bb18c7))
+* **redesign:** Applying new frontend design to Attic ([#5](https://github.com/lmmendes/attic/issues/5)) ([e1c6117](https://github.com/lmmendes/attic/commit/e1c6117f84fb28c9c95838c5e496fd2c60f86081))
+
 ## [1.0.2](https://github.com/lmmendes/attic/compare/v1.0.1...v1.0.2) (2026-01-12)
 
 
