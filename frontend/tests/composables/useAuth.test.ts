@@ -79,13 +79,13 @@ describe('useAuth', () => {
   })
 
   describe('logout', () => {
-    it('calls logout endpoint and resets session', async () => {
+    it('calls logout endpoint and resets session for local auth', async () => {
       mockFetch.mockResolvedValueOnce({})
 
       const { useAuth } = await import('../../app/composables/useAuth')
       const { logout, session } = useAuth()
 
-      session.value = { authenticated: true, user: { email: 'test@example.com', name: 'Test' } }
+      session.value = { authenticated: true, oidc_enabled: false, user: { email: 'test@example.com', name: 'Test' } }
 
       await logout()
 
@@ -94,6 +94,31 @@ describe('useAuth', () => {
         credentials: 'include'
       }))
       expect(session.value).toEqual({ authenticated: false })
+    })
+
+    it('redirects to OIDC logout endpoint when OIDC is enabled', async () => {
+      const originalLocation = window.location
+      const mockHref = vi.fn()
+      Object.defineProperty(window, 'location', {
+        value: { ...originalLocation, href: '' },
+        writable: true
+      })
+      Object.defineProperty(window.location, 'href', {
+        set: mockHref,
+        get: () => ''
+      })
+
+      const { useAuth } = await import('../../app/composables/useAuth')
+      const { logout, session } = useAuth()
+
+      session.value = { authenticated: true, oidc_enabled: true, user: { email: 'test@example.com', name: 'Test' } }
+
+      await logout()
+
+      expect(mockHref).toHaveBeenCalled()
+      expect(mockFetch).not.toHaveBeenCalled()
+
+      Object.defineProperty(window, 'location', { value: originalLocation, writable: true })
     })
   })
 

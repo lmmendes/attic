@@ -71,6 +71,13 @@ export function useAuth() {
   }
 
   const logout = async () => {
+    // For OIDC, redirect to the OIDC logout endpoint which handles provider logout
+    if (session.value?.oidc_enabled) {
+      window.location.href = `${config.public.apiBase}/auth/oidc/logout`
+      return
+    }
+
+    // For local auth, call the logout API
     try {
       await $fetch('/auth/logout', {
         baseURL: config.public.apiBase as string,
