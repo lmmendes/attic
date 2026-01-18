@@ -69,6 +69,7 @@ export interface Asset {
   location_id?: string
   condition_id?: string
   parent_id?: string
+  main_attachment_id?: string
   name: string
   description?: string
   quantity: number
@@ -79,6 +80,8 @@ export interface Asset {
   category?: Category
   location?: Location
   condition?: Condition
+  main_attachment?: Attachment
+  main_attachment_url?: string
   created_at: string
   updated_at: string
 }

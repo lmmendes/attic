@@ -22,7 +22,7 @@ func NewAssetRepository(pool *pgxpool.Pool) *AssetRepository {
 
 func (r *AssetRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Asset, error) {
 	query := `
-		SELECT id, organization_id, category_id, location_id, condition_id, collection_id,
+		SELECT id, organization_id, category_id, location_id, condition_id, collection_id, main_attachment_id,
 		       name, description, quantity, attributes, purchase_at, purchase_price, purchase_note,
 		       import_plugin_id, import_external_id, created_at, updated_at
 		FROM assets
@@ -30,7 +30,7 @@ func (r *AssetRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.As
 	`
 	var a domain.Asset
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&a.ID, &a.OrganizationID, &a.CategoryID, &a.LocationID, &a.ConditionID, &a.CollectionID,
+		&a.ID, &a.OrganizationID, &a.CategoryID, &a.LocationID, &a.ConditionID, &a.CollectionID, &a.MainAttachmentID,
 		&a.Name, &a.Description, &a.Quantity, &a.Attributes, &a.PurchaseAt, &a.PurchasePrice, &a.PurchaseNote,
 		&a.ImportPluginID, &a.ImportExternalID, &a.CreatedAt, &a.UpdatedAt,
 	)
@@ -107,6 +107,21 @@ func (r *AssetRepository) GetByIDFull(ctx context.Context, id uuid.UUID) (*domai
 		asset.Warranty = &w
 	}
 
+	// Load main attachment if set
+	if asset.MainAttachmentID != nil {
+		attQuery := `
+			SELECT id, asset_id, uploaded_by, file_key, file_name, file_size, content_type, description, created_at
+			FROM attachments WHERE id = $1
+		`
+		var att domain.Attachment
+		if err := r.pool.QueryRow(ctx, attQuery, asset.MainAttachmentID).Scan(
+			&att.ID, &att.AssetID, &att.UploadedBy, &att.FileKey, &att.FileName,
+			&att.FileSize, &att.ContentType, &att.Description, &att.CreatedAt,
+		); err == nil {
+			asset.MainAttachment = &att
+		}
+	}
+
 	return asset, nil
 }
 
@@ -153,15 +168,17 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 
 	// Get assets with related data
 	query := fmt.Sprintf(`
-		SELECT a.id, a.organization_id, a.category_id, a.location_id, a.condition_id, a.collection_id,
+		SELECT a.id, a.organization_id, a.category_id, a.location_id, a.condition_id, a.collection_id, a.main_attachment_id,
 		       a.name, a.description, a.quantity, a.attributes, a.purchase_at, a.purchase_price, a.purchase_note, a.created_at, a.updated_at,
 		       c.id, c.name,
 		       l.id, l.name,
-		       cond.id, cond.code, cond.label
+		       cond.id, cond.code, cond.label,
+		       att.id, att.file_key, att.file_name, att.content_type
 		FROM assets a
 		LEFT JOIN categories c ON c.id = a.category_id AND c.deleted_at IS NULL
 		LEFT JOIN locations l ON l.id = a.location_id AND l.deleted_at IS NULL
 		LEFT JOIN conditions cond ON cond.id = a.condition_id AND cond.deleted_at IS NULL
+		LEFT JOIN attachments att ON att.id = a.main_attachment_id
 		WHERE %s
 		ORDER BY a.updated_at DESC
 		LIMIT $%d OFFSET $%d
@@ -181,13 +198,15 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 		var catID, catName *string
 		var locID, locName *string
 		var condID, condCode, condLabel *string
+		var attID, attFileKey, attFileName, attContentType *string
 
 		if err := rows.Scan(
-			&a.ID, &a.OrganizationID, &a.CategoryID, &a.LocationID, &a.ConditionID, &a.CollectionID,
+			&a.ID, &a.OrganizationID, &a.CategoryID, &a.LocationID, &a.ConditionID, &a.CollectionID, &a.MainAttachmentID,
 			&a.Name, &a.Description, &a.Quantity, &a.Attributes, &a.PurchaseAt, &a.PurchasePrice, &a.PurchaseNote, &a.CreatedAt, &a.UpdatedAt,
 			&catID, &catName,
 			&locID, &locName,
 			&condID, &condCode, &condLabel,
+			&attID, &attFileKey, &attFileName, &attContentType,
 		); err != nil {
 			return nil, 0, err
 		}
@@ -214,6 +233,16 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 				ID:    uuid.MustParse(*condID),
 				Code:  *condCode,
 				Label: *condLabel,
+			}
+		}
+
+		// Populate main attachment
+		if attID != nil && attFileKey != nil && attFileName != nil {
+			a.MainAttachment = &domain.Attachment{
+				ID:          uuid.MustParse(*attID),
+				FileKey:     *attFileKey,
+				FileName:    *attFileName,
+				ContentType: attContentType,
 			}
 		}
 
@@ -300,4 +329,27 @@ func (r *AssetRepository) GetTotalValue(ctx context.Context, orgID uuid.UUID) (f
 	var total float64
 	err := r.pool.QueryRow(ctx, query, orgID).Scan(&total)
 	return total, err
+}
+
+func (r *AssetRepository) SetMainAttachment(ctx context.Context, assetID uuid.UUID, attachmentID *uuid.UUID) error {
+	query := `
+		UPDATE assets
+		SET main_attachment_id = $2
+		WHERE id = $1 AND deleted_at IS NULL
+	`
+	_, err := r.pool.Exec(ctx, query, assetID, attachmentID)
+	return err
+}
+
+func (r *AssetRepository) GetMainAttachmentID(ctx context.Context, assetID uuid.UUID) (*uuid.UUID, error) {
+	query := `SELECT main_attachment_id FROM assets WHERE id = $1 AND deleted_at IS NULL`
+	var mainID *uuid.UUID
+	err := r.pool.QueryRow(ctx, query, assetID).Scan(&mainID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return mainID, nil
 }

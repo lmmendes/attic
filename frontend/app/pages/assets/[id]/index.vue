@@ -138,8 +138,64 @@ async function deleteAttachment(attachment: Attachment) {
     })
     toast.add({ title: 'Attachment deleted', color: 'success' })
     refreshAttachments()
+    // Refresh asset in case we deleted the main image
+    if (asset.value?.main_attachment_id === attachment.id) {
+      refreshAsset()
+    }
   } catch {
     toast.add({ title: 'Failed to delete attachment', color: 'error' })
+  }
+}
+
+// State for attachment thumbnail URLs
+const attachmentUrls = ref<Record<string, string>>({})
+
+// Helper to check if attachment is an image
+function isImageAttachment(attachment: Attachment): boolean {
+  const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
+  return attachment.content_type ? imageTypes.includes(attachment.content_type) : false
+}
+
+// Load thumbnail URLs for image attachments
+watch(attachments, async (atts) => {
+  if (!atts) return
+  for (const att of atts) {
+    if (isImageAttachment(att) && !attachmentUrls.value[att.id]) {
+      try {
+        const response = await apiFetch<{ url: string }>(`/api/attachments/${att.id}`)
+        if (response.url) {
+          attachmentUrls.value[att.id] = response.url
+        }
+      } catch {
+        // Ignore errors loading thumbnails
+      }
+    }
+  }
+}, { immediate: true })
+
+// Set main image
+async function setMainImage(attachment: Attachment) {
+  try {
+    await apiFetch(`/api/assets/${route.params.id}/main-image/${attachment.id}`, {
+      method: 'PUT'
+    })
+    toast.add({ title: 'Main image updated', color: 'success' })
+    refreshAsset()
+  } catch {
+    toast.add({ title: 'Failed to set main image', color: 'error' })
+  }
+}
+
+// Clear main image
+async function clearMainImage() {
+  try {
+    await apiFetch(`/api/assets/${route.params.id}/main-image`, {
+      method: 'DELETE'
+    })
+    toast.add({ title: 'Main image cleared', color: 'success' })
+    refreshAsset()
+  } catch {
+    toast.add({ title: 'Failed to clear main image', color: 'error' })
   }
 }
 
@@ -168,6 +224,8 @@ async function handleFileUpload(event: Event) {
 
     toast.add({ title: 'File uploaded', color: 'success' })
     refreshAttachments()
+    // Refresh asset in case this was auto-set as main image
+    refreshAsset()
   } catch {
     toast.add({ title: 'Failed to upload file', color: 'error' })
   } finally {
@@ -271,7 +329,16 @@ function getShortId(): string {
         <!-- Main Image / Placeholder -->
         <div class="relative group">
           <div class="aspect-[3/4] rounded-xl overflow-hidden shadow-2xl bg-white dark:bg-gray-800 ring-1 ring-black/5 flex items-center justify-center">
-            <div class="text-center p-8">
+            <img
+              v-if="asset.main_attachment_url"
+              :src="asset.main_attachment_url"
+              :alt="asset.name"
+              class="w-full h-full object-cover"
+            >
+            <div
+              v-else
+              class="text-center p-8"
+            >
               <UIcon
                 name="i-lucide-package"
                 class="w-24 h-24 text-gray-200 dark:text-gray-600 mx-auto mb-4"
@@ -281,6 +348,18 @@ function getShortId(): string {
               </p>
             </div>
           </div>
+          <!-- Clear main image button (shown on hover when image exists) -->
+          <button
+            v-if="asset.main_attachment_url"
+            class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-black/70 text-white rounded-full p-2"
+            title="Remove main image"
+            @click="clearMainImage"
+          >
+            <UIcon
+              name="i-lucide-x"
+              class="w-4 h-4"
+            />
+          </button>
         </div>
 
         <!-- Asset Intelligence Card -->
@@ -589,22 +668,48 @@ function getShortId(): string {
               class="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+                  <!-- Show thumbnail for images -->
+                  <img
+                    v-if="isImageAttachment(attachment) && attachmentUrls[attachment.id]"
+                    :src="attachmentUrls[attachment.id]"
+                    class="w-full h-full object-cover"
+                  >
                   <UIcon
+                    v-else
                     name="i-lucide-file"
                     class="w-5 h-5 text-gray-400"
                   />
                 </div>
                 <div>
-                  <p class="font-medium text-sm text-mist-950 dark:text-white">
-                    {{ attachment.file_name }}
-                  </p>
+                  <div class="flex items-center gap-2">
+                    <p class="font-medium text-sm text-mist-950 dark:text-white">
+                      {{ attachment.file_name }}
+                    </p>
+                    <UBadge
+                      v-if="asset.main_attachment_id === attachment.id"
+                      color="primary"
+                      size="xs"
+                    >
+                      Main Image
+                    </UBadge>
+                  </div>
                   <p class="text-xs text-gray-500">
                     {{ formatBytes(attachment.file_size) }}
                   </p>
                 </div>
               </div>
               <div class="flex gap-1">
+                <!-- Set as main image button (only for images) -->
+                <UButton
+                  v-if="isImageAttachment(attachment) && asset.main_attachment_id !== attachment.id"
+                  variant="ghost"
+                  color="neutral"
+                  icon="i-lucide-image"
+                  size="sm"
+                  title="Set as main image"
+                  @click="setMainImage(attachment)"
+                />
                 <UButton
                   variant="ghost"
                   color="neutral"

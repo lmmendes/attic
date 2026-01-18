@@ -39,10 +39,20 @@ type UpdateAssetRequest struct {
 }
 
 type AssetListResponse struct {
-	Assets []domain.Asset `json:"assets"`
-	Total  int            `json:"total"`
-	Limit  int            `json:"limit"`
-	Offset int            `json:"offset"`
+	Assets []AssetWithImageURL `json:"assets"`
+	Total  int                 `json:"total"`
+	Limit  int                 `json:"limit"`
+	Offset int                 `json:"offset"`
+}
+
+type AssetWithImageURL struct {
+	domain.Asset
+	MainAttachmentURL string `json:"main_attachment_url,omitempty"`
+}
+
+type AssetDetailResponse struct {
+	domain.Asset
+	MainAttachmentURL string `json:"main_attachment_url,omitempty"`
 }
 
 func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
@@ -88,8 +98,20 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 		assets = []domain.Asset{}
 	}
 
+	// Generate presigned URLs for main attachments
+	assetsWithURLs := make([]AssetWithImageURL, len(assets))
+	for i, asset := range assets {
+		assetsWithURLs[i] = AssetWithImageURL{Asset: asset}
+		if asset.MainAttachment != nil && h.storage != nil {
+			url, err := h.storage.GetPresignedURL(r.Context(), asset.MainAttachment.FileKey, 15*time.Minute)
+			if err == nil {
+				assetsWithURLs[i].MainAttachmentURL = url
+			}
+		}
+	}
+
 	writeJSON(w, http.StatusOK, AssetListResponse{
-		Assets: assets,
+		Assets: assetsWithURLs,
 		Total:  total,
 		Limit:  limit,
 		Offset: offset,
@@ -113,7 +135,16 @@ func (h *Handler) GetAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, asset)
+	// Generate presigned URL for main attachment
+	response := AssetDetailResponse{Asset: *asset}
+	if asset.MainAttachment != nil && h.storage != nil {
+		url, err := h.storage.GetPresignedURL(r.Context(), asset.MainAttachment.FileKey, 15*time.Minute)
+		if err == nil {
+			response.MainAttachmentURL = url
+		}
+	}
+
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {

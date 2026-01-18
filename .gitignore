@@ -2,6 +2,9 @@
 backend/bin/
 backend/cmd/server/.output/
 
+# Ignore uploads
+backend/uploads/*
+
 # Backend embedded frontend (built from frontend/)
 backend/cmd/server/dist/*
 !backend/cmd/server/dist/.gitkeep

@@ -336,6 +336,10 @@ func main() {
 			// Attachments (nested under asset)
 			r.Get("/{id}/attachments", h.ListAttachments)
 			r.Post("/{id}/attachments", h.UploadAttachment)
+
+			// Main image
+			r.Put("/{id}/main-image/{attachmentId}", h.SetMainAttachment)
+			r.Delete("/{id}/main-image", h.ClearMainAttachment)
 		})
 
 		// Attachment operations (by attachment ID)

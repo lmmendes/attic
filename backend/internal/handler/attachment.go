@@ -116,6 +116,11 @@ func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Auto-set as main image for any image upload
+	if isImageContentType(contentType) {
+		h.repos.Assets.SetMainAttachment(r.Context(), assetID, &attachment.ID)
+	}
+
 	writeJSON(w, http.StatusCreated, attachment)
 }
 
@@ -187,4 +192,94 @@ func (h *Handler) DeleteAttachment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) SetMainAttachment(w http.ResponseWriter, r *http.Request) {
+	assetID, err := parseUUID(r, "id")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid asset ID")
+		return
+	}
+
+	attachmentID, err := parseUUID(r, "attachmentId")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid attachment ID")
+		return
+	}
+
+	// Verify asset exists
+	asset, err := h.repos.Assets.GetByID(r.Context(), assetID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to check asset")
+		return
+	}
+	if asset == nil {
+		writeError(w, http.StatusNotFound, "asset not found")
+		return
+	}
+
+	// Verify attachment exists and belongs to this asset
+	attachment, err := h.repos.Attachments.GetByID(r.Context(), attachmentID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to check attachment")
+		return
+	}
+	if attachment == nil {
+		writeError(w, http.StatusNotFound, "attachment not found")
+		return
+	}
+	if attachment.AssetID != assetID {
+		writeError(w, http.StatusBadRequest, "attachment does not belong to this asset")
+		return
+	}
+
+	// Verify it's an image
+	if attachment.ContentType == nil || !isImageContentType(*attachment.ContentType) {
+		writeError(w, http.StatusBadRequest, "only image attachments can be set as main image")
+		return
+	}
+
+	// Set as main attachment
+	if err := h.repos.Assets.SetMainAttachment(r.Context(), assetID, &attachmentID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to set main attachment")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) ClearMainAttachment(w http.ResponseWriter, r *http.Request) {
+	assetID, err := parseUUID(r, "id")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid asset ID")
+		return
+	}
+
+	// Verify asset exists
+	asset, err := h.repos.Assets.GetByID(r.Context(), assetID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to check asset")
+		return
+	}
+	if asset == nil {
+		writeError(w, http.StatusNotFound, "asset not found")
+		return
+	}
+
+	// Clear main attachment
+	if err := h.repos.Assets.SetMainAttachment(r.Context(), assetID, nil); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to clear main attachment")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func isImageContentType(contentType string) bool {
+	switch contentType {
+	case "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml":
+		return true
+	default:
+		return false
+	}
 }

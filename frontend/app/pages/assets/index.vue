@@ -293,7 +293,14 @@ function toggleAssetSelection(assetId: string) {
                 </td>
                 <td class="p-4">
                   <div class="size-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-100 dark:border-gray-600 flex items-center justify-center">
+                    <img
+                      v-if="asset.main_attachment_url"
+                      :src="asset.main_attachment_url"
+                      :alt="asset.name"
+                      class="w-full h-full object-cover"
+                    >
                     <UIcon
+                      v-else
                       name="i-lucide-package"
                       class="w-6 h-6 text-gray-300 dark:text-gray-500"
                     />

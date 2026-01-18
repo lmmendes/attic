@@ -140,6 +140,7 @@ type Asset struct {
 	LocationID       *uuid.UUID      `json:"location_id,omitempty"`
 	ConditionID      *uuid.UUID      `json:"condition_id,omitempty"`
 	CollectionID     *uuid.UUID      `json:"collection_id,omitempty"`
+	MainAttachmentID *uuid.UUID      `json:"main_attachment_id,omitempty"`
 	Name             string          `json:"name"`
 	Description      *string         `json:"description,omitempty"`
 	Quantity         int             `json:"quantity"`
@@ -154,11 +155,12 @@ type Asset struct {
 	DeletedAt        *time.Time      `json:"-"`
 
 	// Populated by queries
-	Category  *Category  `json:"category,omitempty"`
-	Location  *Location  `json:"location,omitempty"`
-	Condition *Condition `json:"condition,omitempty"`
-	Tags      []Tag      `json:"tags,omitempty"`
-	Warranty  *Warranty  `json:"warranty,omitempty"`
+	Category       *Category   `json:"category,omitempty"`
+	Location       *Location   `json:"location,omitempty"`
+	Condition      *Condition  `json:"condition,omitempty"`
+	Tags           []Tag       `json:"tags,omitempty"`
+	Warranty       *Warranty   `json:"warranty,omitempty"`
+	MainAttachment *Attachment `json:"main_attachment,omitempty"`
 }
 
 // Tag represents a free-form tag
