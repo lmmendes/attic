@@ -17,23 +17,22 @@ import (
 	"github.com/google/uuid"
 	"github.com/mendelui/attic/internal/domain"
 	"github.com/mendelui/attic/internal/plugin"
-	"github.com/mendelui/attic/internal/storage"
 )
 
 // PluginHandler handles plugin-related HTTP requests
 type PluginHandler struct {
 	registry *plugin.Registry
 	repos    *Repositories
-	storage  *storage.S3Client
+	storage  FileStorage
 	orgID    uuid.UUID
 }
 
 // NewPluginHandler creates a new PluginHandler
-func NewPluginHandler(registry *plugin.Registry, repos *Repositories, s3 *storage.S3Client) *PluginHandler {
+func NewPluginHandler(registry *plugin.Registry, repos *Repositories, storage FileStorage) *PluginHandler {
 	return &PluginHandler{
 		registry: registry,
 		repos:    repos,
-		storage:  s3,
+		storage:  storage,
 		orgID:    uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 	}
 }
@@ -462,10 +461,10 @@ func (h *PluginHandler) downloadAndStoreImage(ctx context.Context, assetID uuid.
 		filename += ext
 	}
 
-	// Upload to S3
+	// Upload to storage
 	key, err := h.storage.Upload(ctx, filename, contentType, bytes.NewReader(imageData))
 	if err != nil {
-		return fmt.Errorf("uploading to S3: %w", err)
+		return fmt.Errorf("uploading to storage: %w", err)
 	}
 
 	// Create attachment record

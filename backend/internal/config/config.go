@@ -22,11 +22,19 @@ type Config struct {
 	BaseURL       string
 	SessionSecret string
 
+	// Storage settings
+	LocalStoragePath string // Path for local file storage (used when S3 is not configured)
+
 	// Auth settings
 	AdminEmail           string
 	AdminPassword        string
 	SessionDurationHours int
 	PasswordMinLength    int
+}
+
+// UseS3Storage returns true if S3 credentials are configured
+func (c *Config) UseS3Storage() bool {
+	return c.S3AccessKey != "" && c.S3SecretKey != ""
 }
 
 func Load() (*Config, error) {
@@ -46,8 +54,8 @@ func Load() (*Config, error) {
 		S3Endpoint:    getEnv("ATTIC_S3_ENDPOINT", "http://localhost:4566"),
 		S3Bucket:      getEnv("ATTIC_S3_BUCKET", "attic-attachments"),
 		S3Region:      getEnv("ATTIC_S3_REGION", "us-east-1"),
-		S3AccessKey:   getEnv("ATTIC_S3_ACCESS_KEY", "test"),
-		S3SecretKey:   getEnv("ATTIC_S3_SECRET_KEY", "test"),
+		S3AccessKey:   getEnv("ATTIC_S3_ACCESS_KEY", ""),  // Empty = use local storage
+		S3SecretKey:   getEnv("ATTIC_S3_SECRET_KEY", ""),  // Empty = use local storage
 		OIDCEnabled:   getEnv("ATTIC_OIDC_ENABLED", "false") == "true",
 		OIDCIssuer:    getEnv("ATTIC_OIDC_ISSUER", "http://localhost:8180/realms/attic"),
 		OIDCClientID:  getEnv("ATTIC_OIDC_CLIENT_ID", "attic-web"),
@@ -55,6 +63,8 @@ func Load() (*Config, error) {
 		CORSOrigins:   getEnv("ATTIC_CORS_ORIGINS", "http://localhost:3000"),
 		BaseURL:       getEnv("ATTIC_BASE_URL", "http://localhost:8080"),
 		SessionSecret: getEnv("ATTIC_SESSION_SECRET", "change-me-in-production-32chars!"),
+
+		LocalStoragePath: getEnv("ATTIC_LOCAL_STORAGE_PATH", "./uploads"),
 
 		AdminEmail:           getEnv("ATTIC_ADMIN_EMAIL", "admin"),
 		AdminPassword:        getEnv("ATTIC_ADMIN_PASSWORD", "admin"),

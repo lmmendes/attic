@@ -1,16 +1,25 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/mendelui/attic/internal/database"
 	"github.com/mendelui/attic/internal/repository"
-	"github.com/mendelui/attic/internal/storage"
 )
+
+// FileStorage defines the interface for file storage backends
+type FileStorage interface {
+	Upload(ctx context.Context, filename string, contentType string, body io.Reader) (string, error)
+	GetPresignedURL(ctx context.Context, key string, expiry time.Duration) (string, error)
+	Delete(ctx context.Context, key string) error
+}
 
 // Repositories holds all repository implementations
 type Repositories struct {
@@ -29,16 +38,16 @@ type Repositories struct {
 type Handler struct {
 	db      *database.DB
 	repos   *Repositories
-	storage *storage.S3Client
+	storage FileStorage
 	orgID   uuid.UUID // Default organization ID
 }
 
 // New creates a new Handler
-func New(db *database.DB, repos *Repositories, s3 *storage.S3Client) *Handler {
+func New(db *database.DB, repos *Repositories, storage FileStorage) *Handler {
 	return &Handler{
 		db:      db,
 		repos:   repos,
-		storage: s3,
+		storage: storage,
 		orgID:   uuid.MustParse("00000000-0000-0000-0000-000000000001"), // Default org from seed
 	}
 }

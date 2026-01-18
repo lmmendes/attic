@@ -73,19 +73,33 @@ func main() {
 
 	slog.Info("connected to database")
 
-	// S3 client
-	s3Client, err := storage.NewS3Client(ctx, storage.S3Config{
-		Endpoint:  cfg.S3Endpoint,
-		Region:    cfg.S3Region,
-		Bucket:    cfg.S3Bucket,
-		AccessKey: cfg.S3AccessKey,
-		SecretKey: cfg.S3SecretKey,
-	})
-	if err != nil {
-		slog.Warn("failed to connect to S3, attachments will be disabled", "error", err)
-		s3Client = nil
+	// Initialize file storage (S3 or local)
+	var fileStorage storage.FileStorage
+	if cfg.UseS3Storage() {
+		s3Client, err := storage.NewS3Client(ctx, storage.S3Config{
+			Endpoint:  cfg.S3Endpoint,
+			Region:    cfg.S3Region,
+			Bucket:    cfg.S3Bucket,
+			AccessKey: cfg.S3AccessKey,
+			SecretKey: cfg.S3SecretKey,
+		})
+		if err != nil {
+			slog.Warn("failed to connect to S3, attachments will be disabled", "error", err)
+		} else {
+			slog.Info("using S3 storage", "bucket", cfg.S3Bucket)
+			fileStorage = s3Client
+		}
 	} else {
-		slog.Info("connected to S3", "bucket", cfg.S3Bucket)
+		localStorage, err := storage.NewLocalStorage(storage.LocalConfig{
+			BasePath: cfg.LocalStoragePath,
+			BaseURL:  cfg.BaseURL + "/files",
+		})
+		if err != nil {
+			slog.Warn("failed to initialize local storage, attachments will be disabled", "error", err)
+		} else {
+			slog.Info("using local file storage", "path", cfg.LocalStoragePath)
+			fileStorage = localStorage
+		}
 	}
 
 	// Initialize repositories
@@ -168,8 +182,8 @@ func main() {
 	slog.Info("registered plugins", "count", len(pluginRegistry.List()))
 
 	// Initialize handlers
-	h := handler.New(db, repos, s3Client)
-	pluginHandler := handler.NewPluginHandler(pluginRegistry, repos, s3Client)
+	h := handler.New(db, repos, fileStorage)
+	pluginHandler := handler.NewPluginHandler(pluginRegistry, repos, fileStorage)
 	authHandler := handler.NewAuthHandler(userRepo, sessionManager, cfg.PasswordMinLength, cfg.OIDCEnabled)
 	userMgmtHandler := handler.NewUserManagementHandler(userRepo, sessionManager, cfg.PasswordMinLength, defaultOrgID)
 
@@ -205,6 +219,14 @@ func main() {
 		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(swaggerUIHTML))
 	})
+
+	// Serve local files (only when using local storage)
+	if localStorage, ok := fileStorage.(*storage.LocalStorage); ok {
+		fileServer := http.StripPrefix("/files/", http.FileServer(http.Dir(localStorage.BasePath())))
+		r.Get("/files/*", func(w http.ResponseWriter, r *http.Request) {
+			fileServer.ServeHTTP(w, r)
+		})
+	}
 
 	// Auth routes (no auth required)
 	r.Route("/auth", func(r chi.Router) {
