@@ -168,8 +168,14 @@ func (h *testAssetHandler) listAssets(w http.ResponseWriter, r *http.Request) {
 		assets = []domain.Asset{}
 	}
 
+	// Convert to AssetWithImageURL
+	assetsWithURLs := make([]AssetWithImageURL, len(assets))
+	for i, asset := range assets {
+		assetsWithURLs[i] = AssetWithImageURL{Asset: asset}
+	}
+
 	writeJSON(w, http.StatusOK, AssetListResponse{
-		Assets: assets,
+		Assets: assetsWithURLs,
 		Total:  total,
 		Limit:  limit,
 		Offset: offset,
