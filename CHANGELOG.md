@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0](https://github.com/lmmendes/attic/compare/v1.1.0...v1.2.0) (2026-01-19)
+
+
+### Features
+
+* **security:** Added user id and group id to io operations ([79e95fc](https://github.com/lmmendes/attic/commit/79e95fc805dbb5c41ae2f472a718fe0e4ea1cc84))
+
+
+### Bug Fixes
+
+* **lint:** fixed issue with linting ([4b7c478](https://github.com/lmmendes/attic/commit/4b7c478bfe09458d4b050012a914ae2da64f1b51))
+* **login:** Fix loging page screen ([8cec5ba](https://github.com/lmmendes/attic/commit/8cec5baec2fe8cb57767f6e784fba3dcf7d8bcb1))
+* **logout:** fixed logout button ([90ba098](https://github.com/lmmendes/attic/commit/90ba09890ee3d3d64fd0dcb55bbf4dcb2525a305))
+* **password:** fixed issue with logged in user not being able to change password. updated tests ([e51a979](https://github.com/lmmendes/attic/commit/e51a979070902597b060562d9673bf6dac473da3))
+
 ## [1.1.0](https://github.com/lmmendes/attic/compare/v1.0.2...v1.1.0) (2026-01-18)
 
 
