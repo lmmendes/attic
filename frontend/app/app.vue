@@ -21,12 +21,58 @@ useSeoMeta({
   ogDescription: description
 })
 
-const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isOIDCEnabled } = useAuth()
+const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isOIDCEnabled, changePassword } = useAuth()
 
 // Fetch session on app load
 onMounted(() => {
   fetchSession()
 })
+
+// Password change modal state
+const passwordModalOpen = ref(false)
+const currentPassword = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const passwordError = ref('')
+const passwordSuccess = ref(false)
+const passwordLoading = ref(false)
+
+const openPasswordModal = () => {
+  currentPassword.value = ''
+  newPassword.value = ''
+  confirmPassword.value = ''
+  passwordError.value = ''
+  passwordSuccess.value = false
+  passwordModalOpen.value = true
+}
+
+const handleChangePassword = async () => {
+  passwordError.value = ''
+  passwordSuccess.value = false
+
+  if (newPassword.value !== confirmPassword.value) {
+    passwordError.value = 'New passwords do not match'
+    return
+  }
+
+  if (newPassword.value.length < 8) {
+    passwordError.value = 'Password must be at least 8 characters'
+    return
+  }
+
+  passwordLoading.value = true
+  const result = await changePassword(currentPassword.value, newPassword.value)
+  passwordLoading.value = false
+
+  if (result.success) {
+    passwordSuccess.value = true
+    setTimeout(() => {
+      passwordModalOpen.value = false
+    }, 1500)
+  } else {
+    passwordError.value = result.error || 'Failed to change password'
+  }
+}
 
 const route = useRoute()
 
@@ -68,7 +114,7 @@ type DropdownMenuItem = {
   slot?: string
   disabled?: boolean
   icon?: string
-  click?: () => void
+  onSelect?: () => void
 }
 
 const userMenuItems = computed(() => {
@@ -85,14 +131,14 @@ const userMenuItems = computed(() => {
     items.push([{
       label: 'Change Password',
       icon: 'i-lucide-key',
-      click: () => navigateTo('/settings')
+      onSelect: openPasswordModal
     }])
   }
 
   items.push([{
     label: 'Sign out',
     icon: 'i-lucide-log-out',
-    click: () => logout()
+    onSelect: () => logout()
   }])
 
   return items
@@ -384,5 +430,98 @@ const sidebarOpen = ref(false)
         </NuxtLink>
       </div>
     </template>
+
+    <!-- Password Change Modal -->
+    <UModal v-model:open="passwordModalOpen">
+      <template #content>
+        <UCard>
+          <template #header>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-key"
+                class="w-5 h-5"
+              />
+              <span class="font-semibold">Change Password</span>
+            </div>
+          </template>
+
+          <form
+            class="space-y-4"
+            @submit.prevent="handleChangePassword"
+          >
+            <UAlert
+              v-if="passwordError"
+              color="error"
+              :title="passwordError"
+              icon="i-lucide-alert-circle"
+            />
+
+            <UAlert
+              v-if="passwordSuccess"
+              color="success"
+              title="Password changed successfully"
+              icon="i-lucide-check-circle"
+            />
+
+            <UFormField
+              label="Current Password"
+              name="currentPassword"
+            >
+              <UInput
+                v-model="currentPassword"
+                type="password"
+                placeholder="Enter current password"
+                autocomplete="current-password"
+                required
+              />
+            </UFormField>
+
+            <UFormField
+              label="New Password"
+              name="newPassword"
+            >
+              <UInput
+                v-model="newPassword"
+                type="password"
+                placeholder="Enter new password"
+                autocomplete="new-password"
+                required
+              />
+            </UFormField>
+
+            <UFormField
+              label="Confirm New Password"
+              name="confirmPassword"
+            >
+              <UInput
+                v-model="confirmPassword"
+                type="password"
+                placeholder="Confirm new password"
+                autocomplete="new-password"
+                required
+              />
+            </UFormField>
+
+            <div class="flex justify-end gap-2 pt-2">
+              <UButton
+                color="neutral"
+                variant="outline"
+                @click="passwordModalOpen = false"
+              >
+                Cancel
+              </UButton>
+              <UButton
+                type="submit"
+                color="primary"
+                :loading="passwordLoading"
+                :disabled="passwordLoading || !currentPassword || !newPassword || !confirmPassword"
+              >
+                Change Password
+              </UButton>
+            </div>
+          </form>
+        </UCard>
+      </template>
+    </UModal>
   </UApp>
 </template>

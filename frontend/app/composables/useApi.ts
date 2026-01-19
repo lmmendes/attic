@@ -13,7 +13,7 @@ export function useApi<T>(
     onResponseError({ response }) {
       if (response.status === 401) {
         // Token expired or invalid - redirect to login
-        window.location.href = `${config.public.apiBase}/auth/login`
+        navigateTo('/login')
       }
     }
   }

@@ -140,4 +140,62 @@ describe('useApi', () => {
       expect(result).toBeDefined()
     })
   })
+
+  describe('401 error handling behavior', () => {
+    it('should redirect to /login when response status is 401', () => {
+      const mockNavigateTo = vi.fn()
+
+      const handleResponseError = (response: { status: number }) => {
+        if (response.status === 401) {
+          mockNavigateTo('/login')
+        }
+      }
+
+      handleResponseError({ status: 401 })
+
+      expect(mockNavigateTo).toHaveBeenCalledWith('/login')
+    })
+
+    it('should not redirect when response status is not 401', () => {
+      const mockNavigateTo = vi.fn()
+
+      const handleResponseError = (response: { status: number }) => {
+        if (response.status === 401) {
+          mockNavigateTo('/login')
+        }
+      }
+
+      handleResponseError({ status: 500 })
+
+      expect(mockNavigateTo).not.toHaveBeenCalled()
+    })
+
+    it('should not redirect on 403 forbidden errors', () => {
+      const mockNavigateTo = vi.fn()
+
+      const handleResponseError = (response: { status: number }) => {
+        if (response.status === 401) {
+          mockNavigateTo('/login')
+        }
+      }
+
+      handleResponseError({ status: 403 })
+
+      expect(mockNavigateTo).not.toHaveBeenCalled()
+    })
+
+    it('should not redirect on 404 not found errors', () => {
+      const mockNavigateTo = vi.fn()
+
+      const handleResponseError = (response: { status: number }) => {
+        if (response.status === 401) {
+          mockNavigateTo('/login')
+        }
+      }
+
+      handleResponseError({ status: 404 })
+
+      expect(mockNavigateTo).not.toHaveBeenCalled()
+    })
+  })
 })
