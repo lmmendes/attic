@@ -203,7 +203,7 @@ describe('Password Change Modal', () => {
   describe('User Menu Items', () => {
     it('includes change password option when OIDC is disabled', () => {
       const isOIDCEnabled = false
-      const items: { label: string; icon?: string }[][] = []
+      const items: { label: string, icon?: string }[][] = []
 
       if (!isOIDCEnabled) {
         items.push([{
@@ -218,7 +218,7 @@ describe('Password Change Modal', () => {
 
     it('excludes change password option when OIDC is enabled', () => {
       const isOIDCEnabled = true
-      const items: { label: string; icon?: string }[][] = []
+      const items: { label: string, icon?: string }[][] = []
 
       if (!isOIDCEnabled) {
         items.push([{
