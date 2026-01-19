@@ -15,6 +15,8 @@ import (
 type LocalStorage struct {
 	basePath string
 	baseURL  string
+	puid     *int
+	pgid     *int
 }
 
 // LocalConfig holds local storage configuration
@@ -23,6 +25,10 @@ type LocalConfig struct {
 	BasePath string
 	// BaseURL is the base URL for serving files (e.g., "http://localhost:8080/files")
 	BaseURL string
+	// PUID is the user ID for file ownership (nil = don't change ownership)
+	PUID *int
+	// PGID is the group ID for file ownership (nil = don't change ownership)
+	PGID *int
 }
 
 // NewLocalStorage creates a new local file storage client
@@ -32,10 +38,19 @@ func NewLocalStorage(cfg LocalConfig) (*LocalStorage, error) {
 		return nil, fmt.Errorf("creating storage directory: %w", err)
 	}
 
-	return &LocalStorage{
+	s := &LocalStorage{
 		basePath: cfg.BasePath,
 		baseURL:  cfg.BaseURL,
-	}, nil
+		puid:     cfg.PUID,
+		pgid:     cfg.PGID,
+	}
+
+	// Chown the base directory if PUID/PGID are configured
+	if err := s.chown(cfg.BasePath); err != nil {
+		return nil, fmt.Errorf("setting ownership of storage directory: %w", err)
+	}
+
+	return s, nil
 }
 
 // Upload saves a file to local storage and returns the storage key
@@ -52,6 +67,11 @@ func (s *LocalStorage) Upload(ctx context.Context, filename string, contentType 
 		return "", fmt.Errorf("creating directory: %w", err)
 	}
 
+	// Chown the directory if PUID/PGID are configured
+	if err := s.chown(dir); err != nil {
+		return "", fmt.Errorf("setting directory ownership: %w", err)
+	}
+
 	// Create the file
 	file, err := os.Create(fullPath)
 	if err != nil {
@@ -64,6 +84,13 @@ func (s *LocalStorage) Upload(ctx context.Context, filename string, contentType 
 		// Clean up on failure
 		os.Remove(fullPath)
 		return "", fmt.Errorf("writing file: %w", err)
+	}
+
+	// Chown the file if PUID/PGID are configured
+	if err := s.chown(fullPath); err != nil {
+		// Clean up on failure
+		os.Remove(fullPath)
+		return "", fmt.Errorf("setting file ownership: %w", err)
 	}
 
 	return key, nil
@@ -104,4 +131,12 @@ func (s *LocalStorage) Delete(ctx context.Context, key string) error {
 // BasePath returns the base storage path (useful for serving files)
 func (s *LocalStorage) BasePath() string {
 	return s.basePath
+}
+
+// chown changes the ownership of a file or directory if PUID/PGID are configured
+func (s *LocalStorage) chown(path string) error {
+	if s.puid == nil || s.pgid == nil {
+		return nil
+	}
+	return os.Chown(path, *s.puid, *s.pgid)
 }

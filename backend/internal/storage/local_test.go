@@ -307,3 +307,156 @@ func (r *errorReader) Read(p []byte) (n int, err error) {
 	}
 	return n, nil
 }
+
+func Test_LocalStorage_WithPUIDPGID_StoresConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Use current user's UID/GID so chown succeeds without root
+	puid := os.Getuid()
+	pgid := os.Getgid()
+
+	storage, err := NewLocalStorage(LocalConfig{
+		BasePath: tmpDir,
+		BaseURL:  "http://localhost:8080/files",
+		PUID:     &puid,
+		PGID:     &pgid,
+	})
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+
+	if storage.puid == nil || *storage.puid != puid {
+		t.Errorf("expected puid to be %d, got %v", puid, storage.puid)
+	}
+	if storage.pgid == nil || *storage.pgid != pgid {
+		t.Errorf("expected pgid to be %d, got %v", pgid, storage.pgid)
+	}
+}
+
+func Test_LocalStorage_WithoutPUIDPGID_NilValues(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	storage, err := NewLocalStorage(LocalConfig{
+		BasePath: tmpDir,
+		BaseURL:  "http://localhost:8080/files",
+	})
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+
+	if storage.puid != nil {
+		t.Errorf("expected puid to be nil, got %v", storage.puid)
+	}
+	if storage.pgid != nil {
+		t.Errorf("expected pgid to be nil, got %v", storage.pgid)
+	}
+}
+
+func Test_LocalStorage_chown_NilPUIDPGID_NoError(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	storage, err := NewLocalStorage(LocalConfig{
+		BasePath: tmpDir,
+		BaseURL:  "http://localhost:8080/files",
+	})
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+
+	// chown should return nil when PUID/PGID are not set
+	err = storage.chown(tmpDir)
+	if err != nil {
+		t.Errorf("expected no error when PUID/PGID are nil, got: %v", err)
+	}
+}
+
+func Test_LocalStorage_chown_OnlyPUID_NoError(t *testing.T) {
+	tmpDir := t.TempDir()
+	puid := 1000
+
+	storage := &LocalStorage{
+		basePath: tmpDir,
+		baseURL:  "http://localhost:8080/files",
+		puid:     &puid,
+		pgid:     nil, // Only PUID set, not PGID
+	}
+
+	// chown should return nil when only one of PUID/PGID is set
+	err := storage.chown(tmpDir)
+	if err != nil {
+		t.Errorf("expected no error when only PUID is set, got: %v", err)
+	}
+}
+
+func Test_LocalStorage_Upload_WithoutPUIDPGID_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	storage, err := NewLocalStorage(LocalConfig{
+		BasePath: tmpDir,
+		BaseURL:  "http://localhost:8080/files",
+	})
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+
+	ctx := context.Background()
+	content := "Hello, World!"
+	body := strings.NewReader(content)
+
+	key, err := storage.Upload(ctx, "test.txt", "text/plain", body)
+	if err != nil {
+		t.Fatalf("failed to upload: %v", err)
+	}
+
+	if key == "" {
+		t.Error("expected non-empty key")
+	}
+
+	// Verify file exists and has correct content
+	fullPath := filepath.Join(tmpDir, key)
+	data, err := os.ReadFile(fullPath)
+	if err != nil {
+		t.Fatalf("failed to read uploaded file: %v", err)
+	}
+	if string(data) != content {
+		t.Errorf("expected content '%s', got '%s'", content, string(data))
+	}
+}
+
+func Test_LocalStorage_Upload_WithPUIDPGID_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Use current user's UID/GID so chown succeeds without root
+	puid := os.Getuid()
+	pgid := os.Getgid()
+
+	storage, err := NewLocalStorage(LocalConfig{
+		BasePath: tmpDir,
+		BaseURL:  "http://localhost:8080/files",
+		PUID:     &puid,
+		PGID:     &pgid,
+	})
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+
+	ctx := context.Background()
+	content := "Hello, World with chown!"
+	body := strings.NewReader(content)
+
+	key, err := storage.Upload(ctx, "test-chown.txt", "text/plain", body)
+	if err != nil {
+		t.Fatalf("failed to upload: %v", err)
+	}
+
+	if key == "" {
+		t.Error("expected non-empty key")
+	}
+
+	// Verify file exists and has correct content
+	fullPath := filepath.Join(tmpDir, key)
+	data, err := os.ReadFile(fullPath)
+	if err != nil {
+		t.Fatalf("failed to read uploaded file: %v", err)
+	}
+	if string(data) != content {
+		t.Errorf("expected content '%s', got '%s'", content, string(data))
+	}
+}

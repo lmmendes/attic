@@ -24,6 +24,8 @@ type Config struct {
 
 	// Storage settings
 	LocalStoragePath string // Path for local file storage (used when S3 is not configured)
+	PUID             *int   // User ID for file ownership (nil = don't change ownership)
+	PGID             *int   // Group ID for file ownership (nil = don't change ownership)
 
 	// Auth settings
 	AdminEmail           string
@@ -37,6 +39,11 @@ func (c *Config) UseS3Storage() bool {
 	return c.S3AccessKey != "" && c.S3SecretKey != ""
 }
 
+// HasFileOwnership returns true if PUID and PGID are configured
+func (c *Config) HasFileOwnership() bool {
+	return c.PUID != nil && c.PGID != nil
+}
+
 func Load() (*Config, error) {
 	sessionHours, _ := strconv.Atoi(getEnv("ATTIC_SESSION_DURATION_HOURS", "24"))
 	if sessionHours <= 0 {
@@ -46,6 +53,19 @@ func Load() (*Config, error) {
 	passwordMinLength, _ := strconv.Atoi(getEnv("ATTIC_PASSWORD_MIN_LENGTH", "8"))
 	if passwordMinLength <= 0 {
 		passwordMinLength = 8
+	}
+
+	// Parse optional PUID/PGID for file ownership
+	var puid, pgid *int
+	if puidStr := os.Getenv("ATTIC_PUID"); puidStr != "" {
+		if val, err := strconv.Atoi(puidStr); err == nil {
+			puid = &val
+		}
+	}
+	if pgidStr := os.Getenv("ATTIC_PGID"); pgidStr != "" {
+		if val, err := strconv.Atoi(pgidStr); err == nil {
+			pgid = &val
+		}
 	}
 
 	cfg := &Config{
@@ -65,6 +85,8 @@ func Load() (*Config, error) {
 		SessionSecret: getEnv("ATTIC_SESSION_SECRET", "change-me-in-production-32chars!"),
 
 		LocalStoragePath: getEnv("ATTIC_LOCAL_STORAGE_PATH", "./uploads"),
+		PUID:             puid,
+		PGID:             pgid,
 
 		AdminEmail:           getEnv("ATTIC_ADMIN_EMAIL", "admin"),
 		AdminPassword:        getEnv("ATTIC_ADMIN_PASSWORD", "admin"),

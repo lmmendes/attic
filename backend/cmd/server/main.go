@@ -93,11 +93,17 @@ func main() {
 		localStorage, err := storage.NewLocalStorage(storage.LocalConfig{
 			BasePath: cfg.LocalStoragePath,
 			BaseURL:  cfg.BaseURL + "/files",
+			PUID:     cfg.PUID,
+			PGID:     cfg.PGID,
 		})
 		if err != nil {
 			slog.Warn("failed to initialize local storage, attachments will be disabled", "error", err)
 		} else {
-			slog.Info("using local file storage", "path", cfg.LocalStoragePath)
+			if cfg.HasFileOwnership() {
+				slog.Info("using local file storage", "path", cfg.LocalStoragePath, "puid", *cfg.PUID, "pgid", *cfg.PGID)
+			} else {
+				slog.Info("using local file storage", "path", cfg.LocalStoragePath)
+			}
 			fileStorage = localStorage
 		}
 	}
