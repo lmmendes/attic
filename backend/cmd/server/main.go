@@ -23,6 +23,7 @@ import (
 	"github.com/mendelui/attic/internal/domain"
 	"github.com/mendelui/attic/internal/handler"
 	"github.com/mendelui/attic/internal/plugin"
+	"github.com/mendelui/attic/internal/plugin/bgg"
 	"github.com/mendelui/attic/internal/plugin/googlebooks"
 	"github.com/mendelui/attic/internal/plugin/tmdb"
 	"github.com/mendelui/attic/internal/repository"
@@ -184,6 +185,9 @@ func main() {
 	}
 	if err := pluginRegistry.Register(tmdb.NewSeriesPlugin()); err != nil {
 		slog.Error("failed to register TMDB Series plugin", "error", err)
+	}
+	if err := pluginRegistry.Register(bgg.New()); err != nil {
+		slog.Error("failed to register BGG plugin", "error", err)
 	}
 	slog.Info("registered plugins", "count", len(pluginRegistry.List()))
 

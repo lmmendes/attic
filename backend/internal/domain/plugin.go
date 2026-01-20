@@ -9,6 +9,10 @@ type ImportPlugin interface {
 	Name() string        // Display name, e.g., "Google Books"
 	Description() string // Brief description of the plugin
 
+	// Configuration status
+	Enabled() bool          // Returns true if the plugin is properly configured
+	DisabledReason() string // Returns reason if disabled (e.g., "Missing API key: ATTIC_TMDB_API_KEY")
+
 	// Category management
 	CategoryName() string        // Category this plugin manages
 	CategoryDescription() string // Description for the category
@@ -55,12 +59,14 @@ type ImportData struct {
 
 // PluginInfo represents plugin metadata for API responses
 type PluginInfo struct {
-	ID                  string        `json:"id"`
-	Name                string        `json:"name"`
-	Description         string        `json:"description"`
-	CategoryName        string        `json:"category_name"`
-	CategoryDescription string        `json:"category_description"`
-	SearchFields        []SearchField `json:"search_fields"`
+	ID                  string            `json:"id"`
+	Name                string            `json:"name"`
+	Description         string            `json:"description"`
+	Enabled             bool              `json:"enabled"`
+	DisabledReason      string            `json:"disabled_reason,omitempty"`
+	CategoryName        string            `json:"category_name"`
+	CategoryDescription string            `json:"category_description"`
+	SearchFields        []SearchField     `json:"search_fields"`
 	Attributes          []PluginAttribute `json:"attributes"`
 }
 
@@ -70,6 +76,8 @@ func PluginToInfo(p ImportPlugin) PluginInfo {
 		ID:                  p.ID(),
 		Name:                p.Name(),
 		Description:         p.Description(),
+		Enabled:             p.Enabled(),
+		DisabledReason:      p.DisabledReason(),
 		CategoryName:        p.CategoryName(),
 		CategoryDescription: p.CategoryDescription(),
 		SearchFields:        p.SearchFields(),

@@ -22,10 +22,12 @@ const searchResults = ref<PluginSearchResult[]>([])
 const searching = ref(false)
 const importing = ref(false)
 
-// Load plugins
+// Load plugins from API
 const { data: pluginsData } = useApi<PluginsResponse>('/api/plugins')
 
-const plugins = computed(() => pluginsData.value?.plugins || [])
+const plugins = computed(() =>
+  (pluginsData.value?.plugins || []).filter(p => p.enabled)
+)
 
 // Search field options for selected plugin
 const searchFieldOptions = computed(() => {

@@ -423,6 +423,7 @@ const formProgress = computed(() => {
                     v-else
                     v-model="form.attributes[ca.attribute.key]"
                     :type="getInputType(ca.attribute.data_type)"
+                    :step="ca.attribute.data_type === 'number' ? 'any' : undefined"
                     :placeholder="`Enter ${ca.attribute.name.toLowerCase()}`"
                     class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm placeholder:text-gray-400"
                   >

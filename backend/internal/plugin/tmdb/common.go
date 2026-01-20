@@ -21,12 +21,27 @@ const (
 // go build -ldflags="-X github.com/mendelui/attic/internal/plugin/tmdb.APIKey=your-key"
 var APIKey = ""
 
+const tmdbAPIKeyEnvVar = "ATTIC_TMDB_API_KEY"
+
 // getAPIKey returns the API key, preferring environment variable over build-time value
 func getAPIKey() string {
-	if key := os.Getenv("ATTIC_TMDB_API_KEY"); key != "" {
+	if key := os.Getenv(tmdbAPIKeyEnvVar); key != "" {
 		return key
 	}
 	return APIKey
+}
+
+// IsEnabled returns true if the TMDB API key is configured
+func IsEnabled() bool {
+	return getAPIKey() != ""
+}
+
+// GetDisabledReason returns the reason the plugin is disabled
+func GetDisabledReason() string {
+	if IsEnabled() {
+		return ""
+	}
+	return "Missing API key: " + tmdbAPIKeyEnvVar
 }
 
 // Client wraps HTTP client with TMDB-specific functionality

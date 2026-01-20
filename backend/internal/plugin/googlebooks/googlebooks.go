@@ -47,6 +47,16 @@ func (p *Plugin) Description() string {
 	return "Import books from Google Books API"
 }
 
+// Enabled returns true as Google Books API doesn't require authentication
+func (p *Plugin) Enabled() bool {
+	return true
+}
+
+// DisabledReason returns empty string as Google Books is always enabled
+func (p *Plugin) DisabledReason() string {
+	return ""
+}
+
 // CategoryName returns the category this plugin manages
 func (p *Plugin) CategoryName() string {
 	return "Books"

@@ -24,8 +24,11 @@ function isExpanded(pluginId: string): boolean {
   return expandedAttributes.value.has(pluginId)
 }
 
-function getCategoryStatus(plugin: Plugin): 'active' | 'pending' {
-  return plugin.category_id ? 'active' : 'pending'
+function getPluginStatus(plugin: Plugin): 'active' | 'available' | 'disabled' {
+  if (!plugin.enabled) {
+    return 'disabled'
+  }
+  return plugin.category_id ? 'active' : 'available'
 }
 
 // Get attribute color based on index for visual variety
@@ -94,20 +97,28 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
       <div
         v-for="plugin in plugins"
         :key="plugin.id"
-        class="bg-white dark:bg-mist-800 rounded-xl border border-mist-100 dark:border-mist-700 shadow-sm flex flex-col overflow-hidden"
+        class="rounded-xl border shadow-sm flex flex-col overflow-hidden"
+        :class="plugin.enabled
+          ? 'bg-white dark:bg-mist-800 border-mist-100 dark:border-mist-700'
+          : 'bg-mist-50 dark:bg-mist-900 border-mist-200 dark:border-mist-700 opacity-75'"
       >
         <!-- Card Header -->
         <div class="p-6 pb-0 flex justify-between items-center mb-6">
-          <h3 class="text-xl font-bold text-mist-950 dark:text-white">
+          <h3
+            class="text-xl font-bold"
+            :class="plugin.enabled ? 'text-mist-950 dark:text-white' : 'text-mist-500 dark:text-mist-400'"
+          >
             {{ plugin.name }}
           </h3>
           <span
             class="px-2.5 py-0.5 rounded-full text-xs font-semibold border"
-            :class="getCategoryStatus(plugin) === 'active'
-              ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800/30'
-              : 'bg-mist-100 dark:bg-mist-700 text-mist-600 dark:text-mist-300 border-mist-200 dark:border-mist-600'"
+            :class="{
+              'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800/30': getPluginStatus(plugin) === 'active',
+              'bg-mist-100 dark:bg-mist-700 text-mist-600 dark:text-mist-300 border-mist-200 dark:border-mist-600': getPluginStatus(plugin) === 'available',
+              'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800/30': getPluginStatus(plugin) === 'disabled'
+            }"
           >
-            {{ getCategoryStatus(plugin) === 'active' ? 'Active' : 'Available' }}
+            {{ getPluginStatus(plugin) === 'active' ? 'Active' : getPluginStatus(plugin) === 'available' ? 'Available' : 'Disabled' }}
           </span>
         </div>
 
@@ -183,7 +194,24 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
 
         <!-- Card Footer -->
         <div class="p-6 border-t border-mist-100 dark:border-mist-700 mt-6">
+          <!-- Disabled Reason -->
+          <div
+            v-if="!plugin.enabled && plugin.disabled_reason"
+            class="mb-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30"
+          >
+            <div class="flex items-start gap-2">
+              <UIcon
+                name="i-lucide-alert-triangle"
+                class="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0"
+              />
+              <p class="text-xs text-amber-700 dark:text-amber-300">
+                {{ plugin.disabled_reason }}
+              </p>
+            </div>
+          </div>
+
           <NuxtLink
+            v-if="plugin.enabled"
             to="/assets"
             class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-attic-500/20 text-attic-600 dark:text-attic-400 font-bold text-sm hover:bg-attic-500/5 transition-colors"
           >
@@ -193,6 +221,16 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
             />
             Use to Import
           </NuxtLink>
+          <div
+            v-else
+            class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-mist-200 dark:border-mist-600 text-mist-400 dark:text-mist-500 font-bold text-sm cursor-not-allowed"
+          >
+            <UIcon
+              name="i-lucide-download"
+              class="w-4 h-4"
+            />
+            Unavailable
+          </div>
         </div>
       </div>
     </div>

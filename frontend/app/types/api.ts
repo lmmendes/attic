@@ -158,6 +158,8 @@ export interface Plugin {
   id: string
   name: string
   description: string
+  enabled: boolean
+  disabled_reason?: string
   category_name: string
   category_description: string
   search_fields: PluginSearchField[]

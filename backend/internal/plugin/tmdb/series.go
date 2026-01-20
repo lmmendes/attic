@@ -40,6 +40,16 @@ func (p *SeriesPlugin) Description() string {
 	return "Import TV series from The Movie Database (TMDB)"
 }
 
+// Enabled returns true if the TMDB API key is configured
+func (p *SeriesPlugin) Enabled() bool {
+	return IsEnabled()
+}
+
+// DisabledReason returns the reason the plugin is disabled
+func (p *SeriesPlugin) DisabledReason() string {
+	return GetDisabledReason()
+}
+
 // CategoryName returns the category this plugin manages
 func (p *SeriesPlugin) CategoryName() string {
 	return "TV Series"

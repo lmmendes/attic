@@ -44,14 +44,16 @@ type PluginListResponse struct {
 
 // PluginResponse represents a plugin in API responses
 type PluginResponse struct {
-	ID                  string                  `json:"id"`
-	Name                string                  `json:"name"`
-	Description         string                  `json:"description"`
-	CategoryName        string                  `json:"category_name"`
-	CategoryDescription string                  `json:"category_description"`
-	SearchFields        []domain.SearchField    `json:"search_fields"`
+	ID                  string                   `json:"id"`
+	Name                string                   `json:"name"`
+	Description         string                   `json:"description"`
+	Enabled             bool                     `json:"enabled"`
+	DisabledReason      string                   `json:"disabled_reason,omitempty"`
+	CategoryName        string                   `json:"category_name"`
+	CategoryDescription string                   `json:"category_description"`
+	SearchFields        []domain.SearchField     `json:"search_fields"`
 	Attributes          []domain.PluginAttribute `json:"attributes"`
-	CategoryID          *uuid.UUID              `json:"category_id,omitempty"`
+	CategoryID          *uuid.UUID               `json:"category_id,omitempty"`
 }
 
 // SearchResponse represents the response for plugin search
@@ -82,6 +84,8 @@ func (h *PluginHandler) ListPlugins(w http.ResponseWriter, r *http.Request) {
 			ID:                  p.ID(),
 			Name:                p.Name(),
 			Description:         p.Description(),
+			Enabled:             p.Enabled(),
+			DisabledReason:      p.DisabledReason(),
 			CategoryName:        p.CategoryName(),
 			CategoryDescription: p.CategoryDescription(),
 			SearchFields:        p.SearchFields(),
@@ -114,6 +118,8 @@ func (h *PluginHandler) GetPlugin(w http.ResponseWriter, r *http.Request) {
 		ID:                  p.ID(),
 		Name:                p.Name(),
 		Description:         p.Description(),
+		Enabled:             p.Enabled(),
+		DisabledReason:      p.DisabledReason(),
 		CategoryName:        p.CategoryName(),
 		CategoryDescription: p.CategoryDescription(),
 		SearchFields:        p.SearchFields(),
@@ -136,6 +142,11 @@ func (h *PluginHandler) Search(w http.ResponseWriter, r *http.Request) {
 	p, exists := h.registry.Get(pluginID)
 	if !exists {
 		writeError(w, http.StatusNotFound, fmt.Sprintf("plugin '%s' not found", pluginID))
+		return
+	}
+
+	if !p.Enabled() {
+		writeError(w, http.StatusServiceUnavailable, fmt.Sprintf("plugin '%s' is disabled: %s", pluginID, p.DisabledReason()))
 		return
 	}
 
@@ -211,6 +222,11 @@ func (h *PluginHandler) Import(w http.ResponseWriter, r *http.Request) {
 	p, exists := h.registry.Get(pluginID)
 	if !exists {
 		writeError(w, http.StatusNotFound, fmt.Sprintf("plugin '%s' not found", pluginID))
+		return
+	}
+
+	if !p.Enabled() {
+		writeError(w, http.StatusServiceUnavailable, fmt.Sprintf("plugin '%s' is disabled: %s", pluginID, p.DisabledReason()))
 		return
 	}
 
