@@ -157,12 +157,25 @@ func (p *Plugin) Search(ctx context.Context, field, query string, limit int) ([]
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 
-	// Convert to SearchResult (limit results)
-	results := make([]domain.SearchResult, 0, min(limit, len(searchResp.Items)))
-	for i, item := range searchResp.Items {
-		if i >= limit {
-			break
-		}
+	// Limit results
+	itemCount := min(limit, len(searchResp.Items))
+	if itemCount == 0 {
+		return []domain.SearchResult{}, nil
+	}
+
+	// Collect IDs for batch thumbnail fetch
+	ids := make([]string, itemCount)
+	for i := 0; i < itemCount; i++ {
+		ids[i] = searchResp.Items[i].ID
+	}
+
+	// Fetch thumbnails in batch (single API call)
+	thumbnails := p.fetchThumbnails(ctx, apiKey, ids)
+
+	// Convert to SearchResult
+	results := make([]domain.SearchResult, 0, itemCount)
+	for i := 0; i < itemCount; i++ {
+		item := searchResp.Items[i]
 
 		result := domain.SearchResult{
 			ExternalID: item.ID,
@@ -172,6 +185,11 @@ func (p *Plugin) Search(ctx context.Context, field, query string, limit int) ([]
 		// Build subtitle with year
 		if item.YearPublished.Value != "" {
 			result.Subtitle = fmt.Sprintf("(%s)", item.YearPublished.Value)
+		}
+
+		// Add thumbnail if available
+		if thumb, ok := thumbnails[item.ID]; ok && thumb != "" {
+			result.ImageURL = &thumb
 		}
 
 		results = append(results, result)
@@ -350,6 +368,54 @@ func (p *Plugin) waitForRateLimit() {
 		time.Sleep(5*time.Second - elapsed)
 	}
 	p.lastRequest = time.Now()
+}
+
+// fetchThumbnails fetches thumbnails for multiple IDs in a single API call
+func (p *Plugin) fetchThumbnails(ctx context.Context, apiKey string, ids []string) map[string]string {
+	thumbnails := make(map[string]string)
+	if len(ids) == 0 {
+		return thumbnails
+	}
+
+	// Rate limiting
+	p.waitForRateLimit()
+
+	// Build URL with comma-separated IDs
+	u, _ := url.Parse(baseURL + "/thing")
+	params := url.Values{}
+	params.Set("id", strings.Join(ids, ","))
+	u.RawQuery = params.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return thumbnails
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return thumbnails
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return thumbnails
+	}
+
+	var thingResp thingResponse
+	if err := xml.NewDecoder(resp.Body).Decode(&thingResp); err != nil {
+		return thumbnails
+	}
+
+	for _, item := range thingResp.Items {
+		if item.Thumbnail != "" {
+			thumbnails[item.ID] = item.Thumbnail
+		} else if item.Image != "" {
+			thumbnails[item.ID] = item.Image
+		}
+	}
+
+	return thumbnails
 }
 
 // extractLinks extracts values from links of a specific type
