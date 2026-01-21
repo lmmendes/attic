@@ -22,3 +22,5 @@ backend/cmd/server/dist/*
 .vscode/
 *.swp
 *.swo
+
+backend/server
