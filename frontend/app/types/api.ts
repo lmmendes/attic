@@ -77,6 +77,7 @@ export interface Asset {
   purchase_at?: string
   purchase_price?: number
   purchase_note?: string
+  notes?: string
   category?: Category
   location?: Location
   condition?: Condition

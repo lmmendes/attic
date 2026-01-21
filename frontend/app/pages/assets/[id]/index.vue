@@ -442,6 +442,23 @@ function getShortId(): string {
         >
           <div class="flex items-center justify-between px-2">
             <h3 class="text-xl font-bold tracking-tight text-mist-950 dark:text-white">
+              Description
+            </h3>
+          </div>
+          <div class="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <p class="text-mist-950 dark:text-gray-300 leading-relaxed">
+              {{ asset.description }}
+            </p>
+          </div>
+        </section>
+
+        <!-- Personal Notes (if present) -->
+        <section
+          v-if="asset.notes"
+          class="space-y-4"
+        >
+          <div class="flex items-center justify-between px-2">
+            <h3 class="text-xl font-bold tracking-tight text-mist-950 dark:text-white">
               Personal Notes
             </h3>
             <NuxtLink
@@ -457,7 +474,7 @@ function getShortId(): string {
           </div>
           <div class="bg-amber-50/50 dark:bg-gray-800 p-6 rounded-xl border-l-4 border-attic-500 shadow-sm min-h-[120px]">
             <p class="text-mist-950 dark:text-gray-300 leading-relaxed italic">
-              "{{ asset.description }}"
+              "{{ asset.notes }}"
             </p>
           </div>
         </section>

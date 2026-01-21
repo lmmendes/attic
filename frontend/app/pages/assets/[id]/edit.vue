@@ -29,7 +29,8 @@ const form = reactive({
   attributes: {} as Record<string, string | number | boolean>,
   purchase_at: '',
   purchase_price: undefined as number | undefined,
-  purchase_note: ''
+  purchase_note: '',
+  notes: ''
 })
 
 // Initialize form when asset loads
@@ -54,6 +55,7 @@ watch(
       form.purchase_at = newAsset.purchase_at?.split('T')[0] || ''
       form.purchase_price = newAsset.purchase_price || undefined
       form.purchase_note = newAsset.purchase_note || ''
+      form.notes = newAsset.notes || ''
 
       // Load category with attributes
       if (newAsset.category_id) {
@@ -156,7 +158,8 @@ async function submitForm() {
         Object.keys(form.attributes).length > 0 ? form.attributes : undefined,
       purchase_at: form.purchase_at || undefined,
       purchase_price: form.purchase_price || undefined,
-      purchase_note: form.purchase_note || undefined
+      purchase_note: form.purchase_note || undefined,
+      notes: form.notes || undefined
     }
 
     await apiFetch(`/api/assets/${route.params.id}`, {
@@ -438,12 +441,25 @@ const formProgress = computed(() => {
             <!-- Description -->
             <div class="space-y-2">
               <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Description & Notes
+                Description
               </label>
               <textarea
                 v-model="form.description"
                 rows="3"
-                placeholder="Any visible wear, special details, or notes about this item..."
+                placeholder="Product description, features, specifications..."
+                class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm resize-none placeholder:text-gray-400"
+              />
+            </div>
+
+            <!-- Personal Notes -->
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Personal Notes
+              </label>
+              <textarea
+                v-model="form.notes"
+                rows="3"
+                placeholder="Your personal notes: condition details, where you bought it, special memories..."
                 class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm resize-none placeholder:text-gray-400"
               />
             </div>

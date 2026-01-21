@@ -22,6 +22,7 @@ type CreateAssetRequest struct {
 	PurchaseAt    *string         `json:"purchase_at,omitempty"`
 	PurchasePrice *float64        `json:"purchase_price,omitempty"`
 	PurchaseNote  *string         `json:"purchase_note,omitempty"`
+	Notes         *string         `json:"notes,omitempty"`
 }
 
 type UpdateAssetRequest struct {
@@ -36,6 +37,7 @@ type UpdateAssetRequest struct {
 	PurchaseAt    *string         `json:"purchase_at,omitempty"`
 	PurchasePrice *float64        `json:"purchase_price,omitempty"`
 	PurchaseNote  *string         `json:"purchase_note,omitempty"`
+	Notes         *string         `json:"notes,omitempty"`
 }
 
 type AssetListResponse struct {
@@ -200,6 +202,7 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	}
 	asset.PurchasePrice = req.PurchasePrice
 	asset.PurchaseNote = req.PurchaseNote
+	asset.Notes = req.Notes
 
 	if err := h.repos.Assets.Create(r.Context(), asset); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create asset")
@@ -277,6 +280,7 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	}
 	asset.PurchasePrice = req.PurchasePrice
 	asset.PurchaseNote = req.PurchaseNote
+	asset.Notes = req.Notes
 
 	if err := h.repos.Assets.Update(r.Context(), asset); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update asset")
