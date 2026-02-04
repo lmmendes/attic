@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/mendelui/attic/internal/auth"
-	"github.com/mendelui/attic/internal/repository"
+	"github.com/lmmendes/attic/internal/auth"
+	"github.com/lmmendes/attic/internal/repository"
 )
 
 // AuthHandler handles authentication endpoints

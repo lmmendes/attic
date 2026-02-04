@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/mendelui/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/domain"
 )
 
 // CreateAttributeRequest represents the request body for creating an attribute

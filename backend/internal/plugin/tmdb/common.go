@@ -18,7 +18,7 @@ const (
 )
 
 // APIKey can be set at build time via ldflags:
-// go build -ldflags="-X github.com/mendelui/attic/internal/plugin/tmdb.APIKey=your-key"
+// go build -ldflags="-X github.com/lmmendes/attic/internal/plugin/tmdb.APIKey=your-key"
 var APIKey = ""
 
 const tmdbAPIKeyEnvVar = "ATTIC_TMDB_API_KEY"

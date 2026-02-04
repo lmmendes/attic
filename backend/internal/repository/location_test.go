@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/mendelui/attic/internal/domain"
-	"github.com/mendelui/attic/internal/testutil"
+	"github.com/lmmendes/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/testutil"
 )
 
 func Test_LocationRepository_Create_Success(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/mendelui/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/domain"
 )
 
 type contextKey string

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/mendelui/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/domain"
 )
 
 func Test_NewSessionManager_CreatesManager(t *testing.T) {

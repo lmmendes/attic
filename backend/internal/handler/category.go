@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/mendelui/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/domain"
 )
 
 // AttributeAssignment represents an attribute assignment in request body

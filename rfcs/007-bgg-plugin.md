@@ -30,7 +30,7 @@ The BGG plugin enables users to import board games from the BoardGameGeek XML AP
 The BGG API requires an application token for all requests. The key can be configured via:
 
 1. **Environment Variable** (preferred): `ATTIC_BGG_API_KEY`
-2. **Build-time Injection**: `-ldflags="-X github.com/mendelui/attic/internal/plugin/bgg.APIKey=your-key"`
+2. **Build-time Injection**: `-ldflags="-X github.com/lmmendes/attic/internal/plugin/bgg.APIKey=your-key"`
 
 All requests include the header:
 ```

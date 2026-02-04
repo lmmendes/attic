@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/mendelui/attic/internal/domain"
-	"github.com/mendelui/attic/internal/repository"
+	"github.com/lmmendes/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/repository"
 )
 
 type userContextKey string

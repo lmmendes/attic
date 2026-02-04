@@ -1,4 +1,4 @@
-module github.com/mendelui/attic
+module github.com/lmmendes/attic
 
 go 1.24.0
 

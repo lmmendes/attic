@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/mendelui/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/domain"
 )
 
 // mockPlugin implements domain.ImportPlugin for testing

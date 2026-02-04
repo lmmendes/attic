@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mendelui/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/domain"
 )
 
 const (

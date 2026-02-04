@@ -48,7 +48,7 @@ The TMDB plugin provides integration with The Movie Database (TMDB) API, enablin
 The TMDB API requires an API key for all requests. The key can be configured via:
 
 1. **Environment Variable** (preferred): `TMDB_API_KEY`
-2. **Build-time Injection**: `-ldflags="-X github.com/mendelui/attic/internal/plugin/tmdb.APIKey=your-key"`
+2. **Build-time Injection**: `-ldflags="-X github.com/lmmendes/attic/internal/plugin/tmdb.APIKey=your-key"`
 
 All requests include the header:
 ```

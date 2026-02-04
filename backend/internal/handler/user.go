@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/mendelui/attic/internal/auth"
+	"github.com/lmmendes/attic/internal/auth"
 )
 
 type CurrentUserResponse struct {

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/mendelui/attic/internal/auth"
-	"github.com/mendelui/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/auth"
+	"github.com/lmmendes/attic/internal/domain"
 )
 
 // mockUserRepo implements a minimal user repository for testing

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mendelui/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/domain"
 )
 
 type CreateWarrantyRequest struct {

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/mendelui/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/domain"
 )
 
 const maxUploadSize = 50 * 1024 * 1024 // 50MB

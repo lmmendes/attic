@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/mendelui/attic/internal/auth"
-	"github.com/mendelui/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/auth"
+	"github.com/lmmendes/attic/internal/domain"
 )
 
 // testCurrentUserHandler wraps user handler logic for testing

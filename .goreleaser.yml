@@ -21,7 +21,7 @@ builds:
     ldflags:
       - -s -w
       - -X main.Version={{.Version}}
-      - -X github.com/mendelui/attic/internal/plugin/tmdb.APIKey={{ .Env.ATTIC_TMDB_API_KEY }}
+      - -X github.com/lmmendes/attic/internal/plugin/tmdb.APIKey={{ .Env.ATTIC_TMDB_API_KEY }}
 
 archives:
   - id: attic

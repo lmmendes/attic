@@ -43,7 +43,7 @@ backend-run:
 
 LDFLAGS := -w -s
 ifdef ATTIC_TMDB_API_KEY
-	LDFLAGS += -X github.com/mendelui/attic/internal/plugin/tmdb.APIKey=$(ATTIC_TMDB_API_KEY)
+	LDFLAGS += -X github.com/lmmendes/attic/internal/plugin/tmdb.APIKey=$(ATTIC_TMDB_API_KEY)
 endif
 
 backend-build:

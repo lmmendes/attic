@@ -15,8 +15,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/mendelui/attic/internal/domain"
-	"github.com/mendelui/attic/internal/plugin"
+	"github.com/lmmendes/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/plugin"
 )
 
 // PluginHandler handles plugin-related HTTP requests

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mendelui/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/domain"
 )
 
 const (
@@ -23,7 +23,7 @@ const (
 )
 
 // APIKey can be set at build time via ldflags:
-// go build -ldflags="-X github.com/mendelui/attic/internal/plugin/bgg.APIKey=your-key"
+// go build -ldflags="-X github.com/lmmendes/attic/internal/plugin/bgg.APIKey=your-key"
 var APIKey = ""
 
 // getAPIKey returns the API key, preferring environment variable over build-time value

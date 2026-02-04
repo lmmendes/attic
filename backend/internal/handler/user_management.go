@@ -7,9 +7,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/mendelui/attic/internal/auth"
-	"github.com/mendelui/attic/internal/domain"
-	"github.com/mendelui/attic/internal/repository"
+	"github.com/lmmendes/attic/internal/auth"
+	"github.com/lmmendes/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/repository"
 )
 
 // UserManagementHandler handles user management endpoints (admin only)

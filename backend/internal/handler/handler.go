@@ -10,8 +10,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/mendelui/attic/internal/database"
-	"github.com/mendelui/attic/internal/repository"
+	"github.com/lmmendes/attic/internal/database"
+	"github.com/lmmendes/attic/internal/repository"
 )
 
 // FileStorage defines the interface for file storage backends
