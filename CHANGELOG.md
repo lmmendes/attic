@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.0](https://github.com/lmmendes/attic/compare/v1.2.0...v1.3.0) (2026-02-05)
+
+
+### Features
+
+* **asset:** added notes to asset ([e525454](https://github.com/lmmendes/attic/commit/e525454f599b56e38ac5b908633e94bb51a9b379))
+* **plugin:** import bgg ([642c18d](https://github.com/lmmendes/attic/commit/642c18dd646fa110d51ab91945e9137d9745b8ec))
+
+
+### Bug Fixes
+
+* go github organization organization name ([653f7f6](https://github.com/lmmendes/attic/commit/653f7f6a12718d7fa589fe4b131e767ddbd680ea))
+* migration issue ([0c72fc6](https://github.com/lmmendes/attic/commit/0c72fc6359b91eb53691719425c5b488bb18220a))
+* **plugin:** Fix thumbnail image not rendering on bgg search ([2f47e40](https://github.com/lmmendes/attic/commit/2f47e4086dbe915d789638fdad6e918e8bfc9451))
+
 ## [1.2.0](https://github.com/lmmendes/attic/compare/v1.1.0...v1.2.0) (2026-01-19)
 
 
