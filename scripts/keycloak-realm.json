@@ -12,7 +12,8 @@
     {
       "clientId": "attic-web",
       "enabled": true,
-      "publicClient": true,
+      "publicClient": false,
+      "secret": "change-me-in-production",
       "redirectUris": ["http://localhost:8080/*", "http://localhost:3000/*"],
       "webOrigins": ["http://localhost:3000", "http://localhost:8080"],
       "standardFlowEnabled": true,

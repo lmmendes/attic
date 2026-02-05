@@ -170,6 +170,7 @@ func main() {
 		oauthHandler, err = auth.NewOAuthHandler(ctx, auth.OAuthConfig{
 			IssuerURL:     cfg.OIDCIssuer,
 			ClientID:      cfg.OIDCClientID,
+			ClientSecret:  cfg.OIDCClientSecret,
 			BaseURL:       cfg.BaseURL,
 			SessionSecret: cfg.SessionSecret,
 			Disabled:      cfg.AuthDisabled,

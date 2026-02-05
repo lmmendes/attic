@@ -41,11 +41,12 @@ type OAuthHandler struct {
 
 // OAuthConfig for OAuth handler
 type OAuthConfig struct {
-	IssuerURL    string
-	ClientID     string
-	BaseURL      string
+	IssuerURL     string
+	ClientID      string
+	ClientSecret  string
+	BaseURL       string
 	SessionSecret string
-	Disabled     bool
+	Disabled      bool
 }
 
 // NewOAuthHandler creates a new OAuth handler
@@ -60,10 +61,11 @@ func NewOAuthHandler(ctx context.Context, cfg OAuthConfig) (*OAuthHandler, error
 	}
 
 	oauth2Config := oauth2.Config{
-		ClientID:    cfg.ClientID,
-		Endpoint:    provider.Endpoint(),
-		RedirectURL: cfg.BaseURL + "/auth/callback",
-		Scopes:      []string{oidc.ScopeOpenID, "profile", "email"},
+		ClientID:     cfg.ClientID,
+		ClientSecret: cfg.ClientSecret,
+		Endpoint:     provider.Endpoint(),
+		RedirectURL:  cfg.BaseURL + "/auth/callback",
+		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
 	}
 
 	verifier := provider.Verifier(&oidc.Config{
