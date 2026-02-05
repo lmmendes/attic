@@ -36,46 +36,46 @@ type LoginRequest struct {
 // Login handles email/password login
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if h.oidcEnabled {
-		http.Error(w, `{"error":"email/password login is disabled when OIDC is enabled"}`, http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "email/password login is disabled when OIDC is enabled")
 		return
 	}
 
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.Email == "" || req.Password == "" {
-		http.Error(w, `{"error":"email and password are required"}`, http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "email and password are required")
 		return
 	}
 
 	user, err := h.userRepo.GetByEmail(r.Context(), req.Email)
 	if err != nil {
 		slog.Error("failed to get user", "error", err)
-		http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
 	if user == nil {
-		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
+		writeError(w, http.StatusUnauthorized, "invalid email or password")
 		return
 	}
 
 	if !user.HasPassword() {
-		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
+		writeError(w, http.StatusUnauthorized, "invalid email or password")
 		return
 	}
 
 	if !auth.CheckPassword(req.Password, *user.PasswordHash) {
-		http.Error(w, `{"error":"invalid email or password"}`, http.StatusUnauthorized)
+		writeError(w, http.StatusUnauthorized, "invalid email or password")
 		return
 	}
 
 	if err := h.sessionManager.CreateSession(w, r, user); err != nil {
 		slog.Error("failed to create session", "error", err)
-		http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
@@ -115,53 +115,53 @@ type ChangePasswordRequest struct {
 // ChangePassword allows a user to change their own password
 func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	if h.oidcEnabled {
-		http.Error(w, `{"error":"password change is disabled when OIDC is enabled"}`, http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "password change is disabled when OIDC is enabled")
 		return
 	}
 
 	session, err := h.sessionManager.GetSession(r)
 	if err != nil {
-		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	var req ChangePasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.CurrentPassword == "" || req.NewPassword == "" {
-		http.Error(w, `{"error":"current and new password are required"}`, http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "current and new password are required")
 		return
 	}
 
 	if err := auth.ValidatePassword(req.NewPassword, h.passwordMinLength); err != nil {
-		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	user, err := h.userRepo.GetByID(r.Context(), session.UserID)
 	if err != nil || user == nil {
-		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		writeError(w, http.StatusNotFound, "user not found")
 		return
 	}
 
 	if !user.HasPassword() || !auth.CheckPassword(req.CurrentPassword, *user.PasswordHash) {
-		http.Error(w, `{"error":"current password is incorrect"}`, http.StatusUnauthorized)
+		writeError(w, http.StatusUnauthorized, "current password is incorrect")
 		return
 	}
 
 	hash, err := auth.HashPassword(req.NewPassword)
 	if err != nil {
 		slog.Error("failed to hash password", "error", err)
-		http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
 	if err := h.userRepo.UpdatePassword(r.Context(), user.ID, hash); err != nil {
 		slog.Error("failed to update password", "error", err)
-		http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 

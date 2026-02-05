@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -88,7 +88,8 @@ func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 
 	key, err := h.storage.Upload(r.Context(), header.Filename, contentType, file)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, fmt.Sprintf("failed to upload file: %v", err))
+		slog.Error("failed to upload file to storage", "error", err, "filename", header.Filename)
+		writeError(w, http.StatusInternalServerError, "failed to upload file")
 		return
 	}
 

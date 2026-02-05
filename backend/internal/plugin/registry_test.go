@@ -18,6 +18,8 @@ type mockPlugin struct {
 func (m *mockPlugin) ID() string                                { return m.id }
 func (m *mockPlugin) Name() string                              { return m.name }
 func (m *mockPlugin) Description() string                       { return m.description }
+func (m *mockPlugin) Enabled() bool                             { return true }
+func (m *mockPlugin) DisabledReason() string                    { return "" }
 func (m *mockPlugin) CategoryName() string                      { return "Test Category" }
 func (m *mockPlugin) CategoryDescription() string               { return "Test category description" }
 func (m *mockPlugin) Attributes() []domain.PluginAttribute      { return nil }

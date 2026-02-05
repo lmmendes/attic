@@ -1,4 +1,4 @@
-.PHONY: help dev dev-up dev-down backend-run backend-build backend-test migrate-up migrate-down migrate-create frontend-dev frontend-build frontend-test build clean
+.PHONY: help dev dev-up dev-down backend-run backend-build backend-test backend-test-coverage migrate-up migrate-down migrate-create frontend-dev frontend-build frontend-test build clean test
 
 help:
 	@echo "Available commands:"
@@ -16,6 +16,8 @@ help:
 	@echo "  frontend-dev  - Run frontend dev server"
 	@echo "  frontend-build - Build frontend for production"
 	@echo "  frontend-test - Run frontend tests"
+	@echo "  test          - Run all tests (backend + frontend)"
+	@echo "  backend-test-coverage - Run backend tests with coverage"
 
 # Combined build (frontend embedded in backend)
 build: frontend-build backend-build
@@ -51,6 +53,13 @@ backend-build:
 
 backend-test:
 	cd backend && go test -v ./...
+
+backend-test-coverage:
+	cd backend && go test -v -coverprofile=coverage.out ./...
+	cd backend && go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report: backend/coverage.html"
+
+test: backend-test frontend-test
 
 # Migrations
 DATABASE_URL ?= postgres://attic:attic@localhost:5432/attic?sslmode=disable

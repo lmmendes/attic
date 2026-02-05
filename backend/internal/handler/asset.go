@@ -10,6 +10,8 @@ import (
 	"github.com/lmmendes/attic/internal/domain"
 )
 
+const maxAssetQuantity = 1000000
+
 type CreateAssetRequest struct {
 	CategoryID    string          `json:"category_id"`
 	LocationID    *string         `json:"location_id,omitempty"`
@@ -179,6 +181,10 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	if asset.Quantity <= 0 {
 		asset.Quantity = 1
 	}
+	if asset.Quantity > maxAssetQuantity {
+		writeError(w, http.StatusBadRequest, "quantity exceeds maximum allowed value")
+		return
+	}
 
 	if req.LocationID != nil {
 		if id, err := parseUUIDString(*req.LocationID); err == nil {
@@ -247,6 +253,10 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	asset.Quantity = req.Quantity
 	if asset.Quantity <= 0 {
 		asset.Quantity = 1
+	}
+	if asset.Quantity > maxAssetQuantity {
+		writeError(w, http.StatusBadRequest, "quantity exceeds maximum allowed value")
+		return
 	}
 	asset.Attributes = req.Attributes
 
