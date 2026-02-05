@@ -28,12 +28,12 @@ type PluginHandler struct {
 }
 
 // NewPluginHandler creates a new PluginHandler
-func NewPluginHandler(registry *plugin.Registry, repos *Repositories, storage FileStorage) *PluginHandler {
+func NewPluginHandler(registry *plugin.Registry, repos *Repositories, storage FileStorage, defaultOrgID uuid.UUID) *PluginHandler {
 	return &PluginHandler{
 		registry: registry,
 		repos:    repos,
 		storage:  storage,
-		orgID:    uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+		orgID:    defaultOrgID,
 	}
 }
 

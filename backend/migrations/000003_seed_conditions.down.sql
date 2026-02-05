@@ -1,2 +1,2 @@
-DELETE FROM conditions WHERE organization_id = '00000000-0000-0000-0000-000000000001';
-DELETE FROM organizations WHERE id = '00000000-0000-0000-0000-000000000001';
+DELETE FROM conditions WHERE organization_id = (SELECT id FROM organizations WHERE name = 'Default Organization');
+DELETE FROM organizations WHERE name = 'Default Organization';

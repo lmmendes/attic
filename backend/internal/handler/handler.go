@@ -43,12 +43,12 @@ type Handler struct {
 }
 
 // New creates a new Handler
-func New(db *database.DB, repos *Repositories, storage FileStorage) *Handler {
+func New(db *database.DB, repos *Repositories, storage FileStorage, defaultOrgID uuid.UUID) *Handler {
 	return &Handler{
 		db:      db,
 		repos:   repos,
 		storage: storage,
-		orgID:   uuid.MustParse("00000000-0000-0000-0000-000000000001"), // Default org from seed
+		orgID:   defaultOrgID,
 	}
 }
 

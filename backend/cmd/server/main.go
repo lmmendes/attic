@@ -28,6 +28,7 @@ import (
 	"github.com/lmmendes/attic/internal/plugin/tmdb"
 	"github.com/lmmendes/attic/internal/repository"
 	"github.com/lmmendes/attic/internal/storage"
+	"github.com/lmmendes/attic/migrations"
 )
 
 //go:embed openapi.yaml
@@ -35,8 +36,6 @@ var openapiSpec []byte
 
 // Version is set by ldflags during build
 var Version = "dev"
-
-var defaultOrgID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 func main() {
 	// CLI flags for password reset
@@ -73,6 +72,12 @@ func main() {
 	}
 
 	slog.Info("connected to database")
+
+	// Run migrations
+	if err := db.Migrate(ctx, migrations.FS); err != nil {
+		slog.Error("failed to run migrations", "error", err)
+		os.Exit(1)
+	}
 
 	// Initialize file storage (S3 or local)
 	var fileStorage storage.FileStorage
@@ -123,8 +128,20 @@ func main() {
 		Attributes:    repository.NewAttributeRepository(db.Pool),
 	}
 
+	// Resolve default organization from database
+	defaultOrg, err := repos.Organizations.GetDefault(ctx)
+	if err != nil {
+		slog.Error("failed to get default organization", "error", err)
+		os.Exit(1)
+	}
+	if defaultOrg == nil {
+		slog.Error("no default organization found - ensure migrations have been run")
+		os.Exit(1)
+	}
+	defaultOrgID := defaultOrg.ID
+
 	// Bootstrap admin user if needed
-	if err := bootstrapAdmin(ctx, userRepo, cfg); err != nil {
+	if err := bootstrapAdmin(ctx, userRepo, cfg, defaultOrgID); err != nil {
 		slog.Error("failed to bootstrap admin", "error", err)
 		os.Exit(1)
 	}
@@ -192,8 +209,8 @@ func main() {
 	slog.Info("registered plugins", "count", len(pluginRegistry.List()))
 
 	// Initialize handlers
-	h := handler.New(db, repos, fileStorage)
-	pluginHandler := handler.NewPluginHandler(pluginRegistry, repos, fileStorage)
+	h := handler.New(db, repos, fileStorage, defaultOrgID)
+	pluginHandler := handler.NewPluginHandler(pluginRegistry, repos, fileStorage, defaultOrgID)
 	authHandler := handler.NewAuthHandler(userRepo, sessionManager, cfg.PasswordMinLength, cfg.OIDCEnabled)
 	userMgmtHandler := handler.NewUserManagementHandler(userRepo, sessionManager, cfg.PasswordMinLength, defaultOrgID)
 
@@ -409,7 +426,7 @@ func main() {
 }
 
 // bootstrapAdmin creates the initial admin user if no users exist
-func bootstrapAdmin(ctx context.Context, userRepo *repository.UserRepository, cfg *config.Config) error {
+func bootstrapAdmin(ctx context.Context, userRepo *repository.UserRepository, cfg *config.Config, defaultOrgID uuid.UUID) error {
 	count, err := userRepo.Count(ctx)
 	if err != nil {
 		return fmt.Errorf("counting users: %w", err)
