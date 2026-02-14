@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -23,6 +24,7 @@ const (
 type Session struct {
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token,omitempty"`
+	IDToken      string    `json:"id_token,omitempty"`
 	ExpiresAt    time.Time `json:"expires_at"`
 	Subject      string    `json:"sub"`
 	Email        string    `json:"email"`
@@ -31,12 +33,13 @@ type Session struct {
 
 // OAuthHandler handles OAuth login flow
 type OAuthHandler struct {
-	provider     *oidc.Provider
-	oauth2Config oauth2.Config
-	verifier     *oidc.IDTokenVerifier
-	baseURL      string
-	secret       []byte
-	disabled     bool
+	provider           *oidc.Provider
+	oauth2Config       oauth2.Config
+	verifier           *oidc.IDTokenVerifier
+	baseURL            string
+	secret             []byte
+	disabled           bool
+	endSessionEndpoint string
 }
 
 // OAuthConfig for OAuth handler
@@ -52,7 +55,15 @@ type OAuthConfig struct {
 // NewOAuthHandler creates a new OAuth handler
 func NewOAuthHandler(ctx context.Context, cfg OAuthConfig) (*OAuthHandler, error) {
 	if cfg.Disabled {
-		return &OAuthHandler{disabled: true, baseURL: cfg.BaseURL}, nil
+		return &OAuthHandler{
+			nil,
+			oauth2.Config{},
+			nil,
+			cfg.BaseURL,
+			nil,
+			true,
+			"",
+		}, nil
 	}
 
 	provider, err := oidc.NewProvider(ctx, cfg.IssuerURL)
@@ -80,12 +91,22 @@ func NewOAuthHandler(ctx context.Context, cfg OAuthConfig) (*OAuthHandler, error
 		secret = padded
 	}
 
+	// Extract end_session_endpoint from OIDC discovery document
+	var providerClaims struct {
+		EndSessionEndpoint string `json:"end_session_endpoint"`
+	}
+	if err := provider.Claims(&providerClaims); err != nil {
+		slog.Warn("failed to extract end_session_endpoint from OIDC discovery", "error", err)
+	}
+
 	return &OAuthHandler{
-		provider:     provider,
-		oauth2Config: oauth2Config,
-		verifier:     verifier,
-		baseURL:      cfg.BaseURL,
-		secret:       secret[:32],
+		provider,
+		oauth2Config,
+		verifier,
+		cfg.BaseURL,
+		secret[:32],
+		false,
+		providerClaims.EndSessionEndpoint,
 	}, nil
 }
 
@@ -193,6 +214,7 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	session := Session{
 		AccessToken:  token.AccessToken,
 		RefreshToken: token.RefreshToken,
+		IDToken:      rawIDToken,
 		ExpiresAt:    token.Expiry,
 		Subject:      idToken.Subject,
 		Email:        claims.Email,
@@ -212,6 +234,9 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 // Logout clears the session
 func (h *OAuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	// Read session before clearing so we can pass id_token_hint to the provider
+	session, _ := h.getSessionFromCookie(r)
+
 	// Clear session cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
@@ -226,14 +251,26 @@ func (h *OAuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Redirect to provider logout if available
-	// For Keycloak, construct logout URL
-	logoutURL := h.provider.Endpoint().AuthURL
-	// Replace /auth with /logout in Keycloak URL
-	// e.g., http://localhost:8180/realms/attic/protocol/openid-connect/auth
-	//    -> http://localhost:8180/realms/attic/protocol/openid-connect/logout
-	if len(logoutURL) > 5 {
-		logoutURL = logoutURL[:len(logoutURL)-4] + "logout?post_logout_redirect_uri=" + h.baseURL + "&client_id=" + h.oauth2Config.ClientID
+	postLogoutRedirect := h.baseURL + "/login?logout=true"
+
+	params := url.Values{}
+	params.Set("post_logout_redirect_uri", postLogoutRedirect)
+	params.Set("client_id", h.oauth2Config.ClientID)
+	if session != nil && session.IDToken != "" {
+		params.Set("id_token_hint", session.IDToken)
+	}
+
+	var logoutURL string
+	if h.endSessionEndpoint != "" {
+		logoutURL = h.endSessionEndpoint + "?" + params.Encode()
+	} else {
+		// Fallback: derive logout URL from auth endpoint (e.g. Keycloak)
+		authURL := h.provider.Endpoint().AuthURL
+		if len(authURL) > 4 {
+			logoutURL = authURL[:len(authURL)-4] + "logout?" + params.Encode()
+		} else {
+			logoutURL = postLogoutRedirect
+		}
 	}
 
 	http.Redirect(w, r, logoutURL, http.StatusTemporaryRedirect)
