@@ -213,6 +213,9 @@ func main() {
 	h := handler.New(db, repos, fileStorage, defaultOrgID)
 	pluginHandler := handler.NewPluginHandler(pluginRegistry, repos, fileStorage, defaultOrgID)
 	authHandler := handler.NewAuthHandler(userRepo, sessionManager, cfg.PasswordMinLength, cfg.OIDCEnabled)
+	if oauthHandler != nil {
+		authHandler.SetOAuthHandler(oauthHandler)
+	}
 	userMgmtHandler := handler.NewUserManagementHandler(userRepo, sessionManager, cfg.PasswordMinLength, defaultOrgID)
 
 	r := chi.NewRouter()

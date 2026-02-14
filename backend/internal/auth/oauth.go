@@ -107,7 +107,7 @@ func (h *OAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   300, // 5 minutes
 		HttpOnly: true,
-		Secure:   r.TLS != nil,
+		Secure:   isSecureRequest(r),
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -310,7 +310,7 @@ func (h *OAuthHandler) setSessionCookie(w http.ResponseWriter, r *http.Request, 
 		Path:     "/",
 		MaxAge:   int(cookieMaxAge.Seconds()),
 		HttpOnly: true,
-		Secure:   r.TLS != nil,
+		Secure:   isSecureRequest(r),
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -334,6 +334,15 @@ func (h *OAuthHandler) getSessionFromCookie(r *http.Request) (*Session, error) {
 	}
 
 	return &session, nil
+}
+
+// isSecureRequest checks if the request originated over HTTPS,
+// accounting for reverse proxies that set X-Forwarded-Proto.
+func isSecureRequest(r *http.Request) bool {
+	if r.TLS != nil {
+		return true
+	}
+	return r.Header.Get("X-Forwarded-Proto") == "https"
 }
 
 func generateRandomString(length int) string {

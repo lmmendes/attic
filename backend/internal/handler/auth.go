@@ -15,6 +15,7 @@ type AuthHandler struct {
 	sessionManager    *auth.SessionManager
 	passwordMinLength int
 	oidcEnabled       bool
+	oauthHandler      *auth.OAuthHandler
 }
 
 // NewAuthHandler creates a new auth handler
@@ -25,6 +26,11 @@ func NewAuthHandler(userRepo *repository.UserRepository, sessionManager *auth.Se
 		passwordMinLength: passwordMinLength,
 		oidcEnabled:       oidcEnabled,
 	}
+}
+
+// SetOAuthHandler sets the OAuth handler for OIDC session delegation
+func (h *AuthHandler) SetOAuthHandler(oauthHandler *auth.OAuthHandler) {
+	h.oauthHandler = oauthHandler
 }
 
 // LoginRequest represents login credentials
@@ -100,6 +106,10 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 // GetSession returns current session info
 func (h *AuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
+	if h.oidcEnabled && h.oauthHandler != nil {
+		h.oauthHandler.GetSession(w, r)
+		return
+	}
 	info := h.sessionManager.GetSessionInfo(r)
 	info["oidc_enabled"] = h.oidcEnabled
 	w.Header().Set("Content-Type", "application/json")
