@@ -64,7 +64,7 @@ func NewOAuthHandler(ctx context.Context, cfg OAuthConfig) (*OAuthHandler, error
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
 		Endpoint:     provider.Endpoint(),
-		RedirectURL:  cfg.BaseURL + "/auth/callback",
+		RedirectURL:  cfg.BaseURL + "/auth/oidc/callback",
 		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
 	}
 

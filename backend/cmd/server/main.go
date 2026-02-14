@@ -269,9 +269,6 @@ func main() {
 			r.Get("/oidc/login", oauthHandler.Login)
 			r.Get("/oidc/callback", oauthHandler.Callback)
 			r.Get("/oidc/logout", oauthHandler.Logout)
-			// Keep old routes for backwards compatibility
-			r.Get("/login", oauthHandler.Login)
-			r.Get("/callback", oauthHandler.Callback)
 		}
 	})
 

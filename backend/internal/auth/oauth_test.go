@@ -48,7 +48,7 @@ func Test_OAuthHandler_Login_Disabled_RedirectsToHome(t *testing.T) {
 func Test_OAuthHandler_Callback_Disabled_RedirectsToHome(t *testing.T) {
 	handler := &OAuthHandler{disabled: true, baseURL: "http://localhost:3000"}
 
-	req := httptest.NewRequest(http.MethodGet, "/auth/callback", nil)
+	req := httptest.NewRequest(http.MethodGet, "/auth/oidc/callback", nil)
 	rec := httptest.NewRecorder()
 
 	handler.Callback(rec, req)
