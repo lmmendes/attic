@@ -41,7 +41,7 @@ dev-down:
 
 # Backend
 backend-run:
-	cd backend && go run ./cmd/server
+	cd backend && go build -o bin/attic ./cmd/server && ./bin/attic
 
 LDFLAGS := -w -s
 ifdef ATTIC_TMDB_API_KEY
