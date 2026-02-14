@@ -77,9 +77,8 @@ func Load() (*Config, error) {
 		S3Region:      getEnv("ATTIC_S3_REGION", "us-east-1"),
 		S3AccessKey:   getEnv("ATTIC_S3_ACCESS_KEY", ""),  // Empty = use local storage
 		S3SecretKey:   getEnv("ATTIC_S3_SECRET_KEY", ""),  // Empty = use local storage
-		OIDCEnabled:      getEnv("ATTIC_OIDC_ENABLED", "false") == "true",
-		OIDCIssuer:       getEnv("ATTIC_OIDC_ISSUER", "http://localhost:8180/realms/attic"),
-		OIDCClientID:     getEnv("ATTIC_OIDC_CLIENT_ID", "attic-web"),
+		OIDCIssuer:       getEnv("ATTIC_OIDC_ISSUER", ""),
+		OIDCClientID:     getEnv("ATTIC_OIDC_CLIENT_ID", ""),
 		OIDCClientSecret: getEnv("ATTIC_OIDC_CLIENT_SECRET", ""),
 		AuthDisabled:     getEnv("ATTIC_AUTH_DISABLED", "false") == "true",
 		CORSOrigins:   getEnv("ATTIC_CORS_ORIGINS", "http://localhost:3000"),
@@ -94,6 +93,11 @@ func Load() (*Config, error) {
 		AdminPassword:        getEnv("ATTIC_ADMIN_PASSWORD", "admin"),
 		SessionDurationHours: sessionHours,
 		PasswordMinLength:    passwordMinLength,
+	}
+
+	// OIDC is enabled if explicitly set, or auto-detected when issuer and client ID are configured
+	if getEnv("ATTIC_OIDC_ENABLED", "") == "true" || (cfg.OIDCIssuer != "" && cfg.OIDCClientID != "") {
+		cfg.OIDCEnabled = true
 	}
 
 	if cfg.DatabaseURL == "" {

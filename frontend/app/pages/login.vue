@@ -10,11 +10,13 @@ const password = ref('')
 const error = ref('')
 const isLoading = ref(false)
 
-// Check if already authenticated
+// Check if already authenticated or if OIDC is enabled
 onMounted(async () => {
   await fetchSession()
   if (isAuthenticated.value) {
     navigateTo('/')
+  } else if (isOIDCEnabled.value) {
+    loginWithOIDC()
   }
 })
 
