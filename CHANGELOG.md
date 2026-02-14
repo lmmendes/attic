@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/lmmendes/attic/compare/v1.3.2...v1.3.3) (2026-02-14)
+
+
+### Bug Fixes
+
+* oidc session cookie missmatch ([ab2a680](https://github.com/lmmendes/attic/commit/ab2a680f80245c0a92a2da3c6c536476f61515ea))
+
 ## [1.3.2](https://github.com/lmmendes/attic/compare/v1.3.1...v1.3.2) (2026-02-14)
 
 
