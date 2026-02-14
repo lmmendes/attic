@@ -283,6 +283,7 @@ func (h *OAuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
 			"authenticated": true,
+			"oidc_enabled":  true,
 			"user": map[string]string{
 				"sub":   "dev-user",
 				"email": "dev@example.com",
@@ -297,6 +298,7 @@ func (h *OAuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
 			"authenticated": false,
+			"oidc_enabled":  true,
 		})
 		return
 	}
@@ -307,6 +309,7 @@ func (h *OAuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
 			"authenticated": false,
+			"oidc_enabled":  true,
 		})
 		return
 	}
@@ -314,6 +317,7 @@ func (h *OAuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
 		"authenticated": true,
+		"oidc_enabled":  true,
 		"user": map[string]string{
 			"sub":   session.Subject,
 			"email": session.Email,
