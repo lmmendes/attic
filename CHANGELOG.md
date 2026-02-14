@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/lmmendes/attic/compare/v1.3.1...v1.3.2) (2026-02-14)
+
+
+### Bug Fixes
+
+* **auth:** fix oidc callback issue ([4f211c5](https://github.com/lmmendes/attic/commit/4f211c582bc71b76c2920f1be2b19127c9b70809))
+
 ## [1.3.1](https://github.com/lmmendes/attic/compare/v1.3.0...v1.3.1) (2026-02-14)
 
 
