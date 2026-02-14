@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.3.4](https://github.com/lmmendes/attic/compare/v1.3.3...v1.3.4) (2026-02-14)
+
+
+### Bug Fixes
+
+* fix oidc logout ([dc73a00](https://github.com/lmmendes/attic/commit/dc73a00c25ccc9d9b6b80e639285f2da6cc34d59))
+* **login:** sessing oidc status in login status response ([38437c2](https://github.com/lmmendes/attic/commit/38437c285ec00d24ff71a86a0478eeb60cc33861))
+* oidc login extrat token attrs ([ef32465](https://github.com/lmmendes/attic/commit/ef32465a99e06ec13ce0bea6889b2c2777cfbf1b))
+* removed issue that triggered login process after logout ([f65befb](https://github.com/lmmendes/attic/commit/f65befb88da192accddf28448f9d19ed87b00c9b))
+
 ## [1.3.3](https://github.com/lmmendes/attic/compare/v1.3.2...v1.3.3) (2026-02-14)
 
 
