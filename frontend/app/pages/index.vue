@@ -1,30 +1,22 @@
 <script setup lang="ts">
 import type { Asset, AssetStats, Category, Location, Warranty } from '~/types/api'
 
-// No middleware - accessible to all
+definePageMeta({
+  middleware: 'auth'
+})
 
-const { isAuthenticated: loggedIn, user } = useAuth()
+const { user } = useAuth()
 
 // Fetch dashboard data when logged in
-const { data: assets } = useApi<{ assets: Asset[], total: number }>('/api/assets?limit=4', {
-  immediate: loggedIn.value
-})
+const { data: assets } = useApi<{ assets: Asset[], total: number }>('/api/assets?limit=4')
 
-const { data: assetStats } = useApi<AssetStats>('/api/assets/stats', {
-  immediate: loggedIn.value
-})
+const { data: assetStats } = useApi<AssetStats>('/api/assets/stats')
 
-const { data: categories } = useApi<Category[]>('/api/categories', {
-  immediate: loggedIn.value
-})
+const { data: categories } = useApi<Category[]>('/api/categories')
 
-const { data: locations } = useApi<Location[]>('/api/locations', {
-  immediate: loggedIn.value
-})
+const { data: locations } = useApi<Location[]>('/api/locations')
 
-const { data: expiringWarranties } = useApi<Warranty[]>('/api/warranties/expiring?days=30', {
-  immediate: loggedIn.value
-})
+const { data: expiringWarranties } = useApi<Warranty[]>('/api/warranties/expiring?days=30')
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('en-US', {
@@ -64,38 +56,7 @@ const formatRelativeTime = (dateString: string) => {
 </script>
 
 <template>
-  <div>
-    <!-- Logged out state -->
-    <div
-      v-if="!loggedIn"
-      class="py-24 text-center max-w-xl mx-auto"
-    >
-      <div class="bg-attic-500/10 rounded-2xl p-4 w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-        <UIcon
-          name="i-lucide-archive"
-          class="w-10 h-10 text-attic-500"
-        />
-      </div>
-      <h1 class="text-4xl font-bold text-mist-950 dark:text-white mb-4">
-        Welcome to Attic
-      </h1>
-      <p class="text-lg text-mist-500 mb-8">
-        A simple, powerful asset management system for organizations.
-        Track your assets, manage warranties, and keep everything organized.
-      </p>
-      <UButton
-        size="xl"
-        to="/login"
-      >
-        Sign in to get started
-      </UButton>
-    </div>
-
-    <!-- Logged in dashboard -->
-    <div
-      v-else
-      class="flex flex-col gap-8"
-    >
+  <div class="flex flex-col gap-8">
       <!-- Welcome Section -->
       <div>
         <h2 class="text-2xl font-bold text-mist-950 dark:text-white">
@@ -334,6 +295,5 @@ const formatRelativeTime = (dateString: string) => {
           </div>
         </div>
       </div>
-    </div>
   </div>
 </template>

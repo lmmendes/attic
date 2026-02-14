@@ -44,144 +44,112 @@ const handleOIDCLogin = () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex bg-gray-50 dark:bg-gray-900">
-    <!-- Left side - Branding (hidden on mobile) -->
-    <div class="hidden lg:flex lg:w-1/2 xl:w-3/5 bg-primary-600 dark:bg-primary-800 items-center justify-center p-12">
-      <div class="max-w-lg text-center">
+  <div class="min-h-screen flex items-center justify-center bg-primary-600 dark:bg-primary-800 p-6">
+    <div class="w-full max-w-md">
+      <!-- Branding -->
+      <div class="text-center mb-8">
         <UIcon
           name="i-lucide-archive"
-          class="w-24 h-24 text-white mx-auto mb-8"
+          class="w-16 h-16 text-white mx-auto mb-4"
         />
-        <h1 class="text-4xl xl:text-5xl font-bold text-white mb-4">
+        <h1 class="text-3xl lg:text-4xl font-bold text-white mb-2">
           Attic
         </h1>
-        <p class="text-xl text-primary-100">
+        <p class="text-primary-100">
           Asset Management System
         </p>
-        <p class="mt-6 text-primary-200 text-lg">
-          Organize, track, and manage your assets efficiently
-        </p>
       </div>
-    </div>
 
-    <!-- Right side - Login Form -->
-    <div class="w-full lg:w-1/2 xl:w-2/5 flex items-center justify-center p-6 sm:p-12">
-      <div class="w-full max-w-md">
-        <!-- Mobile header (shown only on mobile) -->
-        <div class="text-center lg:hidden mb-8">
-          <div class="flex justify-center">
-            <UIcon
-              name="i-lucide-archive"
-              class="w-16 h-16 text-primary"
-            />
-          </div>
-          <h2 class="mt-4 text-3xl font-bold text-gray-900 dark:text-white">
-            Attic
-          </h2>
-          <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Asset Management System
-          </p>
+      <UCard>
+        <div
+          v-if="loading"
+          class="flex justify-center py-8"
+        >
+          <UIcon
+            name="i-lucide-loader-2"
+            class="w-8 h-8 animate-spin text-primary"
+          />
         </div>
 
-        <!-- Desktop header (shown only on desktop) -->
-        <div class="hidden lg:block mb-8">
-          <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
-            Welcome back
-          </h2>
-          <p class="mt-2 text-gray-600 dark:text-gray-400">
-            Sign in to your account to continue
-          </p>
-        </div>
-
-        <UCard>
+        <template v-else>
+          <!-- OIDC Login Button -->
           <div
-            v-if="loading"
-            class="flex justify-center py-8"
+            v-if="isOIDCEnabled"
+            class="space-y-4"
           >
-            <UIcon
-              name="i-lucide-loader-2"
-              class="w-8 h-8 animate-spin text-primary"
-            />
+            <UButton
+              block
+              size="xl"
+              color="primary"
+              icon="i-lucide-log-in"
+              @click="handleOIDCLogin"
+            >
+              Sign in with SSO
+            </UButton>
           </div>
 
-          <template v-else>
-            <!-- OIDC Login Button -->
-            <div
-              v-if="isOIDCEnabled"
-              class="space-y-4"
-            >
-              <UButton
-                block
-                size="xl"
-                color="primary"
-                icon="i-lucide-log-in"
-                @click="handleOIDCLogin"
-              >
-                Sign in with SSO
-              </UButton>
-            </div>
+          <!-- Email/Password Login Form -->
+          <form
+            v-else
+            class="space-y-6"
+            @submit.prevent="handleLogin"
+          >
+            <UAlert
+              v-if="error"
+              color="error"
+              :title="error"
+              icon="i-lucide-alert-circle"
+            />
 
-            <!-- Email/Password Login Form -->
-            <form
-              v-else
-              class="space-y-6"
-              @submit.prevent="handleLogin"
+            <UFormField
+              label="Email"
+              name="email"
             >
-              <UAlert
-                v-if="error"
-                color="error"
-                :title="error"
-                icon="i-lucide-alert-circle"
+              <UInput
+                v-model="email"
+                type="text"
+                placeholder="Enter your email"
+                icon="i-lucide-mail"
+                size="xl"
+                autocomplete="username"
+                required
+                class="w-full"
               />
+            </UFormField>
 
-              <UFormField
-                label="Email"
-                name="email"
-              >
-                <UInput
-                  v-model="email"
-                  type="text"
-                  placeholder="Enter your email"
-                  icon="i-lucide-mail"
-                  size="xl"
-                  autocomplete="username"
-                  required
-                />
-              </UFormField>
-
-              <UFormField
-                label="Password"
-                name="password"
-              >
-                <UInput
-                  v-model="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  icon="i-lucide-lock"
-                  size="xl"
-                  autocomplete="current-password"
-                  required
-                />
-              </UFormField>
-
-              <UButton
-                type="submit"
-                block
+            <UFormField
+              label="Password"
+              name="password"
+            >
+              <UInput
+                v-model="password"
+                type="password"
+                placeholder="Enter your password"
+                icon="i-lucide-lock"
                 size="xl"
-                color="primary"
-                :loading="isLoading"
-                :disabled="isLoading || !email || !password"
-              >
-                Sign in
-              </UButton>
-            </form>
-          </template>
-        </UCard>
+                autocomplete="current-password"
+                required
+                class="w-full"
+              />
+            </UFormField>
 
-        <p class="text-center text-sm text-gray-500 dark:text-gray-400 mt-8">
-          Powered by Attic
-        </p>
-      </div>
+            <UButton
+              type="submit"
+              block
+              size="xl"
+              color="primary"
+              :loading="isLoading"
+              :disabled="isLoading || !email || !password"
+            >
+              Sign in
+            </UButton>
+          </form>
+        </template>
+      </UCard>
+
+      <p class="text-center text-sm text-primary-200 mt-8">
+        Powered by Attic
+      </p>
     </div>
   </div>
 </template>

@@ -152,9 +152,7 @@ const sidebarOpen = ref(false)
   <UApp class="bg-mist-50 dark:bg-mist-900">
     <!-- Login page without sidebar -->
     <template v-if="!loggedIn">
-      <div class="min-h-screen flex items-center justify-center p-4">
-        <NuxtPage />
-      </div>
+      <NuxtPage />
     </template>
 
     <!-- Main app layout with sidebar -->
