@@ -10,16 +10,11 @@ const password = ref('')
 const error = ref('')
 const isLoading = ref(false)
 
-const route = useRoute()
-const isPostLogout = computed(() => route.query.logout === 'true')
-
-// Check if already authenticated or if OIDC is enabled
+// Check if already authenticated
 onMounted(async () => {
   await fetchSession()
   if (isAuthenticated.value) {
     navigateTo('/')
-  } else if (isOIDCEnabled.value && !isPostLogout.value) {
-    loginWithOIDC()
   }
 })
 
