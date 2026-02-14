@@ -46,7 +46,7 @@ func (p *UserProvisioner) Provision(next http.Handler) http.Handler {
 			p.orgID,
 			claims.Subject,
 			claims.Email,
-			claims.DisplayName,
+			claimsDisplayName(claims),
 		)
 		if err != nil {
 			slog.Error("failed to provision user", "error", err, "subject", claims.Subject)
@@ -71,4 +71,11 @@ func GetUser(ctx context.Context) *domain.User {
 		return nil
 	}
 	return user
+}
+
+func claimsDisplayName(c *Claims) string {
+	if c.Name != "" {
+		return c.Name
+	}
+	return c.DisplayName
 }

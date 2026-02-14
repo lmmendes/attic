@@ -276,12 +276,16 @@ func (h *OAuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, logoutURL, http.StatusTemporaryRedirect)
 }
 
-// GetSession returns the current session info
+// GetSession writes the current session info as JSON to the response
 func (h *OAuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(h.GetSessionInfo(r))
+}
+
+// GetSessionInfo returns session data as a map without writing to the response
+func (h *OAuthHandler) GetSessionInfo(r *http.Request) map[string]any {
 	if h.disabled {
-		// Return mock session
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
+		return map[string]any{
 			"authenticated": true,
 			"oidc_enabled":  true,
 			"user": map[string]string{
@@ -289,33 +293,25 @@ func (h *OAuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 				"email": "dev@example.com",
 				"name":  "Development User",
 			},
-		})
-		return
+		}
 	}
 
 	session, err := h.getSessionFromCookie(r)
 	if err != nil || session == nil {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
+		return map[string]any{
 			"authenticated": false,
 			"oidc_enabled":  true,
-		})
-		return
+		}
 	}
 
-	// Check if session is expired
 	if time.Now().After(session.ExpiresAt) {
-		// TODO: Implement token refresh
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
+		return map[string]any{
 			"authenticated": false,
 			"oidc_enabled":  true,
-		})
-		return
+		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
+	return map[string]any{
 		"authenticated": true,
 		"oidc_enabled":  true,
 		"user": map[string]string{
@@ -324,7 +320,7 @@ func (h *OAuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 			"name":  session.Name,
 		},
 		"expires_at": session.ExpiresAt,
-	})
+	}
 }
 
 // GetAccessToken extracts access token from session cookie

@@ -149,6 +149,19 @@ func (m *Middleware) authenticateOIDC(w http.ResponseWriter, r *http.Request, ne
 
 	claims.Subject = idToken.Subject
 
+	// If claims are missing from access token, supplement from session cookie
+	if (claims.Email == "" || claims.DisplayName == "") && m.oauth != nil {
+		session, _ := m.oauth.getSessionFromCookie(r)
+		if session != nil {
+			if claims.Email == "" {
+				claims.Email = session.Email
+			}
+			if claims.DisplayName == "" {
+				claims.DisplayName = session.Name
+			}
+		}
+	}
+
 	// Add claims to context
 	ctx := context.WithValue(r.Context(), UserContextKey, &claims)
 	next.ServeHTTP(w, r.WithContext(ctx))
@@ -207,6 +220,17 @@ func (m *Middleware) Optional(next http.Handler) http.Handler {
 func RequireAdmin(sessionManager *SessionManager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Check domain user from context first (used by OIDC via UserProvisioner)
+			if user := GetUser(r.Context()); user != nil {
+				if user.Role != domain.UserRoleAdmin {
+					http.Error(w, `{"error":"admin access required"}`, http.StatusForbidden)
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Fall back to local session
 			session, err := sessionManager.GetSession(r)
 			if err != nil {
 				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)

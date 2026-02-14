@@ -107,7 +107,21 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 // GetSession returns current session info
 func (h *AuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	if h.oidcEnabled && h.oauthHandler != nil {
-		h.oauthHandler.GetSession(w, r)
+		info := h.oauthHandler.GetSessionInfo(r)
+
+		// Enrich OIDC session with the user's role from the database
+		if userMap, ok := info["user"].(map[string]string); ok {
+			if sub := userMap["sub"]; sub != "" {
+				dbUser, err := h.userRepo.GetByOIDCSubject(r.Context(), sub)
+				if err == nil && dbUser != nil {
+					userMap["role"] = string(dbUser.Role)
+					userMap["id"] = dbUser.ID.String()
+				}
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(info)
 		return
 	}
 	info := h.sessionManager.GetSessionInfo(r)
