@@ -33,6 +33,7 @@ dockers_v2:
     dockerfile: Dockerfile.goreleaser
     images:
       - ghcr.io/lmmendes/attic
+      - lmmendes/attic
     tags:
       - "{{ .Version }}"
       - latest
