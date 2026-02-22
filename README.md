@@ -2,15 +2,9 @@
 
 > Track everything. Lose nothing.
 
-Attic is a self-hosted  management platform for cataloging and organizing physical and digital possessions. Built for individuals and small-to-medium organizations, it gives you full ownership of your data with a clean, modern interface.
-
----
-
-## What is Attic?
-
 Attic is an open-source asset management system that lets you track, organize, and manage everything you own — from electronics and books to board games and digital assets.
 
-It mirrors the way your real-world spaces are organized with hierarchical locations and categories, supports rich metadata through custom attributes, and integrates with external sources to auto-fill asset details. Whether you're managing a home library or an office inventory, Attic provides a flexible foundation that doesn't require code changes to adapt to your needs.
+It mirrors the way your real-world spaces are organized with hierarchical locations and categories, supports rich metadata through custom attributes, and integrates with external sources to auto-fill asset details. Whether you're managing a home library or an office inventory.
 
 ---
 
