@@ -40,7 +40,7 @@ The following Attic-specific variables will be prefixed with `ATTIC_`:
 | `S3_REGION`        | `ATTIC_S3_REGION`         | backend/internal/config      |
 | `S3_ACCESS_KEY`    | `ATTIC_S3_ACCESS_KEY`     | backend/internal/config      |
 | `S3_SECRET_KEY`    | `ATTIC_S3_SECRET_KEY`     | backend/internal/config      |
-| `OIDC_ISSUER`      | `ATTIC_OIDC_ISSUER`       | backend/internal/config      |
+| `OIDC_ISSUER`      | `ATTIC_OIDC_ISSUER_URL`   | backend/internal/config      |
 | `OIDC_CLIENT_ID`   | `ATTIC_OIDC_CLIENT_ID`    | backend/internal/config      |
 | `TMDB_API_KEY`     | `ATTIC_TMDB_API_KEY`      | backend/internal/plugin/tmdb |
 

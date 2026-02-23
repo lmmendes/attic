@@ -108,7 +108,7 @@ The CLI command:
 | `ATTIC_PASSWORD_MIN_LENGTH` | Minimum password length | `8` |
 
 Existing OIDC variables (only used when `ATTIC_OIDC_ENABLED=true`):
-- `ATTIC_OIDC_ISSUER`
+- `ATTIC_OIDC_ISSUER_URL`
 - `ATTIC_OIDC_CLIENT_ID`
 
 ## API Endpoints
