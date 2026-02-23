@@ -77,7 +77,7 @@ func Load() (*Config, error) {
 		S3Region:      getEnv("ATTIC_S3_REGION", "us-east-1"),
 		S3AccessKey:   getEnv("ATTIC_S3_ACCESS_KEY", ""),  // Empty = use local storage
 		S3SecretKey:   getEnv("ATTIC_S3_SECRET_KEY", ""),  // Empty = use local storage
-		OIDCIssuer:       getEnv("ATTIC_OIDC_ISSUER", ""),
+		OIDCIssuer:       getEnv("ATTIC_OIDC_ISSUER_URL", ""),
 		OIDCClientID:     getEnv("ATTIC_OIDC_CLIENT_ID", ""),
 		OIDCClientSecret: getEnv("ATTIC_OIDC_CLIENT_SECRET", ""),
 		AuthDisabled:     getEnv("ATTIC_AUTH_DISABLED", "false") == "true",
