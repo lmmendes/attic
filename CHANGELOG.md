@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/lmmendes/attic/compare/v1.3.4...v1.4.0) (2026-02-23)
+
+
+### Miscellaneous Chores
+
+* release 1.4.0 ([3ed5545](https://github.com/lmmendes/attic/commit/3ed554540470833ca766d5c11d5d6ce8edbded5f))
+
 ## [1.3.4](https://github.com/lmmendes/attic/compare/v1.3.3...v1.3.4) (2026-02-14)
 
 
