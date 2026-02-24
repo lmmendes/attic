@@ -6,8 +6,6 @@ Attic is an open-source asset management system that lets you track, organize, a
 
 It mirrors the way your real-world spaces are organized with hierarchical locations and categories, supports rich metadata through custom attributes, and integrates with external sources to auto-fill asset details. Whether you're managing a home library or an office inventory.
 
----
-
 ## Key Features
 
 **Asset Management**
@@ -33,8 +31,6 @@ It mirrors the way your real-world spaces are organized with hierarchical locati
 - REST API with Swagger documentation
 - S3-compatible storage for attachments
 - Dark mode with mobile-responsive UI
-
----
 
 ## Quick Start
 
@@ -96,8 +92,6 @@ docker compose -f docker-compose.prod.yml exec backend \
 
 For more details, visit [getattic.dev](https://getattic.dev).
 
----
-
 ## Tech Stack
 
 | Component | Technology |
@@ -107,7 +101,6 @@ For more details, visit [getattic.dev](https://getattic.dev).
 | Auth      | Keycloak (OIDC), JWT |
 | Storage   | S3-compatible (AWS S3, MinIO, LocalStack) |
 
----
 
 ## License
 
