@@ -49,7 +49,7 @@ It mirrors the way your real-world spaces are organized with hierarchical locati
 
 1. **Clone the repository and start infrastructure:**
    ```bash
-   git clone <repo-url>
+   git clone git@github.com:lmmendes/attic.git
    cd attic
    docker compose up -d
    ```
@@ -111,4 +111,4 @@ For more details, visit [getattic.dev](https://getattic.dev).
 
 ## License
 
-MIT
+[MIT](LICENSE.md)
