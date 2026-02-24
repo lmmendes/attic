@@ -14,7 +14,7 @@ If you discover a security vulnerability in attic, please report it responsibly.
 
 ### How to Report
 
-Use the [private vulnerability reporting](https://github.com/lmmendes/attic/security/advisories/new)) feature from GitHub.
+Use the [private vulnerability reporting](https://github.com/lmmendes/attic/security/advisories/new) feature from GitHub.
 
 ### What to Include
 
@@ -33,4 +33,4 @@ We follow a coordinated disclosure policy. We ask that you give us reasonable ti
 
 ## License
 
-linkdinger is licensed under [MIT](LICENSE.md).
+attic is licensed under [MIT](LICENSE.md).
