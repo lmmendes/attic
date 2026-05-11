@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -382,6 +384,152 @@ func Test_RequireAdmin_AdminUser_AllowsRequest(t *testing.T) {
 	}
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+}
+
+// Tests for OIDC session-based authentication
+
+func Test_Middleware_OIDC_NoHeaderNoSession_ReturnsUnauthorized(t *testing.T) {
+	oauth := &OAuthHandler{
+		disabled: false,
+		secret:   make([]byte, 32),
+	}
+	m := &Middleware{
+		disabled:    false,
+		oidcEnabled: true,
+		oauth:       oauth,
+	}
+
+	nextCalled := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+
+	m.Authenticate(next).ServeHTTP(rec, req)
+
+	if nextCalled {
+		t.Error("expected next handler NOT to be called")
+	}
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected status 401, got %d", rec.Code)
+	}
+}
+
+func Test_Middleware_OIDC_ExpiredSession_ReturnsUnauthorized(t *testing.T) {
+	oauth := &OAuthHandler{
+		disabled: false,
+		secret:   make([]byte, 32),
+	}
+	m := &Middleware{
+		disabled:    false,
+		oidcEnabled: true,
+		oauth:       oauth,
+	}
+
+	// Create an expired session
+	session := Session{
+		AccessToken: "opaque-token",
+		IDToken:     "some.jwt.token",
+		ExpiresAt:   time.Now().Add(-1 * time.Hour),
+		Subject:     "user-123",
+		Email:       "test@example.com",
+	}
+	sessionCookie := createSessionCookie(t, session)
+
+	nextCalled := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(sessionCookie)
+	rec := httptest.NewRecorder()
+
+	m.Authenticate(next).ServeHTTP(rec, req)
+
+	if nextCalled {
+		t.Error("expected next handler NOT to be called for expired session")
+	}
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected status 401, got %d", rec.Code)
+	}
+}
+
+func Test_Middleware_OIDC_NoOAuthHandler_ReturnsUnauthorized(t *testing.T) {
+	m := &Middleware{
+		disabled:    false,
+		oidcEnabled: true,
+		oauth:       nil, // No OAuth handler
+	}
+
+	nextCalled := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+
+	m.Authenticate(next).ServeHTTP(rec, req)
+
+	if nextCalled {
+		t.Error("expected next handler NOT to be called")
+	}
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected status 401, got %d", rec.Code)
+	}
+}
+
+func Test_Middleware_OIDC_EmptySession_ReturnsUnauthorized(t *testing.T) {
+	oauth := &OAuthHandler{
+		disabled: false,
+		secret:   make([]byte, 32),
+	}
+	m := &Middleware{
+		disabled:    false,
+		oidcEnabled: true,
+		oauth:       oauth,
+	}
+
+	// Session with no tokens at all
+	session := Session{
+		ExpiresAt: time.Now().Add(1 * time.Hour),
+		Subject:   "user-123",
+	}
+	sessionCookie := createSessionCookie(t, session)
+
+	nextCalled := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(sessionCookie)
+	rec := httptest.NewRecorder()
+
+	m.Authenticate(next).ServeHTTP(rec, req)
+
+	if nextCalled {
+		t.Error("expected next handler NOT to be called for session without tokens")
+	}
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected status 401, got %d", rec.Code)
+	}
+}
+
+func createSessionCookie(t *testing.T, session Session) *http.Cookie {
+	t.Helper()
+	data, err := json.Marshal(session)
+	if err != nil {
+		t.Fatalf("failed to marshal session: %v", err)
+	}
+	encoded := base64.StdEncoding.EncodeToString(data)
+	return &http.Cookie{
+		Name:  sessionCookieName,
+		Value: encoded,
 	}
 }
 

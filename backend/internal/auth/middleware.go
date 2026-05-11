@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/lmmendes/attic/internal/domain"
@@ -26,11 +27,12 @@ type Claims struct {
 
 // Middleware handles authentication (both OIDC and local)
 type Middleware struct {
-	verifier       *oidc.IDTokenVerifier
-	disabled       bool
-	oidcEnabled    bool
-	oauth          *OAuthHandler
-	sessionManager *SessionManager
+	verifier        *oidc.IDTokenVerifier
+	idTokenVerifier *oidc.IDTokenVerifier
+	disabled        bool
+	oidcEnabled     bool
+	oauth           *OAuthHandler
+	sessionManager  *SessionManager
 }
 
 // Config for auth middleware
@@ -67,6 +69,15 @@ func NewMiddleware(ctx context.Context, cfg Config) (*Middleware, error) {
 			InsecureSkipSignatureCheck: false,
 		})
 		m.verifier = verifier
+
+		// Separate verifier for ID tokens from session cookies.
+		// Expiry is skipped because the session manages its own lifetime
+		// via ExpiresAt (derived from the access token expiry).
+		idTokenVerifier := provider.Verifier(&oidc.Config{
+			ClientID:        cfg.ClientID,
+			SkipExpiryCheck: true,
+		})
+		m.idTokenVerifier = idTokenVerifier
 	}
 
 	return m, nil
@@ -110,28 +121,27 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 
 // authenticateOIDC handles OIDC-based authentication
 func (m *Middleware) authenticateOIDC(w http.ResponseWriter, r *http.Request, next http.Handler) {
-	var tokenString string
-
-	// First, try Authorization header
-	authHeader := r.Header.Get("Authorization")
-	if authHeader != "" {
+	// First, try Authorization header (Bearer token from API clients)
+	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
-			tokenString = parts[1]
+			m.authenticateOIDCBearer(w, r, next, parts[1])
+			return
 		}
 	}
 
-	// If no header, try session cookie
-	if tokenString == "" && m.oauth != nil {
-		tokenString = m.oauth.GetAccessToken(r)
-	}
-
-	if tokenString == "" {
-		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+	// Fall back to session cookie (browser-based flow)
+	if m.oauth != nil {
+		m.authenticateOIDCSession(w, r, next)
 		return
 	}
 
-	// Verify the token
+	http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+}
+
+// authenticateOIDCBearer verifies a Bearer token from the Authorization header.
+// The token is expected to be a JWT (e.g. from providers that issue JWT access tokens).
+func (m *Middleware) authenticateOIDCBearer(w http.ResponseWriter, r *http.Request, next http.Handler, tokenString string) {
 	idToken, err := m.verifier.Verify(r.Context(), tokenString)
 	if err != nil {
 		slog.Error("token verification failed", "error", err)
@@ -139,7 +149,6 @@ func (m *Middleware) authenticateOIDC(w http.ResponseWriter, r *http.Request, ne
 		return
 	}
 
-	// Extract claims
 	var claims Claims
 	if err := idToken.Claims(&claims); err != nil {
 		slog.Error("failed to parse claims", "error", err)
@@ -149,22 +158,91 @@ func (m *Middleware) authenticateOIDC(w http.ResponseWriter, r *http.Request, ne
 
 	claims.Subject = idToken.Subject
 
-	// If claims are missing from access token, supplement from session cookie
-	if (claims.Email == "" || claims.DisplayName == "") && m.oauth != nil {
-		session, _ := m.oauth.getSessionFromCookie(r)
-		if session != nil {
-			if claims.Email == "" {
-				claims.Email = session.Email
-			}
-			if claims.DisplayName == "" {
-				claims.DisplayName = session.Name
-			}
-		}
-	}
-
-	// Add claims to context
 	ctx := context.WithValue(r.Context(), UserContextKey, &claims)
 	next.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// authenticateOIDCSession verifies the session cookie using the stored ID token.
+// RFC-compliant OIDC providers may issue opaque access tokens, so the ID token
+// (which is always a signed JWT) is used for verification instead.
+func (m *Middleware) authenticateOIDCSession(w http.ResponseWriter, r *http.Request, next http.Handler) {
+	session, err := m.oauth.getSessionFromCookie(r)
+	if err != nil || session == nil {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Check session expiry (derived from the access token lifetime)
+	if time.Now().After(session.ExpiresAt) {
+		http.Error(w, `{"error":"session expired"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Use the ID token for verification — it is always a signed JWT per OIDC spec.
+	// This avoids the "compact JWS format must have three parts" error that occurs
+	// when providers (e.g. Authelia, Keycloak) issue opaque access tokens.
+	if session.IDToken != "" && m.idTokenVerifier != nil {
+		idToken, err := m.idTokenVerifier.Verify(r.Context(), session.IDToken)
+		if err != nil {
+			slog.Error("id token verification failed", "error", err)
+			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+			return
+		}
+
+		var claims Claims
+		if err := idToken.Claims(&claims); err != nil {
+			slog.Error("failed to parse claims", "error", err)
+			http.Error(w, `{"error":"invalid token claims"}`, http.StatusUnauthorized)
+			return
+		}
+
+		claims.Subject = idToken.Subject
+
+		// Supplement missing claims from session data
+		if claims.Email == "" {
+			claims.Email = session.Email
+		}
+		if claims.DisplayName == "" {
+			claims.DisplayName = session.Name
+		}
+
+		ctx := context.WithValue(r.Context(), UserContextKey, &claims)
+		next.ServeHTTP(w, r.WithContext(ctx))
+		return
+	}
+
+	// Fallback: try verifying the access token as a JWT (backward compat
+	// for providers that issue JWT access tokens and sessions without an ID token)
+	if session.AccessToken != "" {
+		idToken, err := m.verifier.Verify(r.Context(), session.AccessToken)
+		if err != nil {
+			slog.Error("token verification failed", "error", err)
+			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+			return
+		}
+
+		var claims Claims
+		if err := idToken.Claims(&claims); err != nil {
+			slog.Error("failed to parse claims", "error", err)
+			http.Error(w, `{"error":"invalid token claims"}`, http.StatusUnauthorized)
+			return
+		}
+
+		claims.Subject = idToken.Subject
+
+		if claims.Email == "" {
+			claims.Email = session.Email
+		}
+		if claims.DisplayName == "" {
+			claims.DisplayName = session.Name
+		}
+
+		ctx := context.WithValue(r.Context(), UserContextKey, &claims)
+		next.ServeHTTP(w, r.WithContext(ctx))
+		return
+	}
+
+	http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 }
 
 // authenticateLocal handles local (email/password) authentication
