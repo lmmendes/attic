@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +12,26 @@ import (
 	"github.com/google/uuid"
 	"github.com/lmmendes/attic/internal/domain"
 )
+
+type mockTokenVerifier struct {
+	verifyFn func(context.Context, string) (VerifiedToken, error)
+}
+
+type mockVerifiedToken struct {
+	subject string
+}
+
+func (m *mockTokenVerifier) Verify(ctx context.Context, token string) (VerifiedToken, error) {
+	return m.verifyFn(ctx, token)
+}
+
+func (t *mockVerifiedToken) Claims(v interface{}) error {
+	return nil
+}
+
+func (t *mockVerifiedToken) Subject() string {
+	return t.subject
+}
 
 // Tests for disabled middleware
 
@@ -500,5 +522,62 @@ func Test_Middleware_Local_ExpiredSession_ReturnsUnauthorized(t *testing.T) {
 	}
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("expected status 401, got %d", rec.Code)
+	}
+}
+
+func Test_Middleware_OIDC_UsesIDTokenFromSessionCookie(t *testing.T) {
+	session := Session{
+		AccessToken: "opaque-access-token",
+		IDToken:     "signed-id-token",
+		ExpiresAt:   time.Now().Add(1 * time.Hour),
+		Email:       "user@example.com",
+		Name:        "User Name",
+	}
+	data, err := json.Marshal(session)
+	if err != nil {
+		t.Fatalf("failed to marshal session: %v", err)
+	}
+	encoded := base64.StdEncoding.EncodeToString(data)
+
+	m := &Middleware{
+		oidcEnabled: true,
+		oauth:       &OAuthHandler{},
+		verifier: &mockTokenVerifier{
+			verifyFn: func(ctx context.Context, token string) (VerifiedToken, error) {
+				if token != "signed-id-token" {
+					t.Fatalf("expected ID token to be verified, got %q", token)
+				}
+				return &mockVerifiedToken{subject: "oidc-subject-123"}, nil
+			},
+		},
+	}
+
+	nextCalled := false
+	var claims *Claims
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+		claims = GetClaims(r.Context())
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: encoded})
+	rec := httptest.NewRecorder()
+
+	m.Authenticate(next).ServeHTTP(rec, req)
+
+	if !nextCalled {
+		t.Fatal("expected next handler to be called")
+	}
+	if claims == nil {
+		t.Fatal("expected claims to be set")
+	}
+	if claims.Subject != "oidc-subject-123" {
+		t.Errorf("expected subject oidc-subject-123, got %s", claims.Subject)
+	}
+	if claims.Email != "user@example.com" {
+		t.Errorf("expected email user@example.com, got %s", claims.Email)
+	}
+	if claims.DisplayName != "User Name" {
+		t.Errorf("expected display name User Name, got %s", claims.DisplayName)
 	}
 }

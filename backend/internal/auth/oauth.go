@@ -332,6 +332,15 @@ func (h *OAuthHandler) GetAccessToken(r *http.Request) string {
 	return session.AccessToken
 }
 
+// GetIDToken extracts ID token from session cookie
+func (h *OAuthHandler) GetIDToken(r *http.Request) string {
+	session, err := h.getSessionFromCookie(r)
+	if err != nil || session == nil {
+		return ""
+	}
+	return session.IDToken
+}
+
 func (h *OAuthHandler) setSessionCookie(w http.ResponseWriter, r *http.Request, session *Session) error {
 	data, err := json.Marshal(session)
 	if err != nil {

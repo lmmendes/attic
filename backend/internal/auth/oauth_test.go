@@ -251,6 +251,32 @@ func Test_OAuthHandler_GetAccessToken_ValidSession_ReturnsToken(t *testing.T) {
 	}
 }
 
+func Test_OAuthHandler_GetIDToken_ValidSession_ReturnsToken(t *testing.T) {
+	handler := &OAuthHandler{
+		disabled: false,
+		secret:   make([]byte, 32),
+	}
+
+	session := Session{
+		IDToken:   "my-id-token",
+		ExpiresAt: time.Now().Add(1 * time.Hour),
+	}
+	data, _ := json.Marshal(session)
+	encoded := base64.StdEncoding.EncodeToString(data)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{
+		Name:  sessionCookieName,
+		Value: encoded,
+	})
+
+	token := handler.GetIDToken(req)
+
+	if token != "my-id-token" {
+		t.Errorf("expected 'my-id-token', got '%s'", token)
+	}
+}
+
 func Test_OAuthHandler_setSessionCookie_EncodesSession(t *testing.T) {
 	handler := &OAuthHandler{
 		disabled: false,
