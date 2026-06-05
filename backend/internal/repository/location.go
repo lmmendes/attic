@@ -20,13 +20,13 @@ func NewLocationRepository(pool *pgxpool.Pool) *LocationRepository {
 
 func (r *LocationRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Location, error) {
 	query := `
-		SELECT id, organization_id, parent_id, name, description, created_at, updated_at
+		SELECT id, organization_id, parent_id, name, description, icon, created_at, updated_at
 		FROM locations
 		WHERE id = $1 AND deleted_at IS NULL
 	`
 	var l domain.Location
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&l.ID, &l.OrganizationID, &l.ParentID, &l.Name, &l.Description,
+		&l.ID, &l.OrganizationID, &l.ParentID, &l.Name, &l.Description, &l.Icon,
 		&l.CreatedAt, &l.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -40,7 +40,7 @@ func (r *LocationRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 
 func (r *LocationRepository) List(ctx context.Context, orgID uuid.UUID) ([]domain.Location, error) {
 	query := `
-		SELECT id, organization_id, parent_id, name, description, created_at, updated_at
+		SELECT id, organization_id, parent_id, name, description, icon, created_at, updated_at
 		FROM locations
 		WHERE organization_id = $1 AND deleted_at IS NULL
 		ORDER BY name
@@ -55,7 +55,7 @@ func (r *LocationRepository) List(ctx context.Context, orgID uuid.UUID) ([]domai
 	for rows.Next() {
 		var l domain.Location
 		if err := rows.Scan(
-			&l.ID, &l.OrganizationID, &l.ParentID, &l.Name, &l.Description,
+			&l.ID, &l.OrganizationID, &l.ParentID, &l.Name, &l.Description, &l.Icon,
 			&l.CreatedAt, &l.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -93,27 +93,27 @@ func buildLocationTree(locations []domain.Location) []domain.Location {
 
 func (r *LocationRepository) Create(ctx context.Context, l *domain.Location) error {
 	query := `
-		INSERT INTO locations (id, organization_id, parent_id, name, description)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO locations (id, organization_id, parent_id, name, description, icon)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING created_at, updated_at
 	`
 	if l.ID == uuid.Nil {
 		l.ID = uuid.New()
 	}
 	return r.pool.QueryRow(ctx, query,
-		l.ID, l.OrganizationID, l.ParentID, l.Name, l.Description,
+		l.ID, l.OrganizationID, l.ParentID, l.Name, l.Description, l.Icon,
 	).Scan(&l.CreatedAt, &l.UpdatedAt)
 }
 
 func (r *LocationRepository) Update(ctx context.Context, l *domain.Location) error {
 	query := `
 		UPDATE locations
-		SET parent_id = $2, name = $3, description = $4
+		SET parent_id = $2, name = $3, description = $4, icon = $5
 		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING updated_at
 	`
 	return r.pool.QueryRow(ctx, query,
-		l.ID, l.ParentID, l.Name, l.Description,
+		l.ID, l.ParentID, l.Name, l.Description, l.Icon,
 	).Scan(&l.UpdatedAt)
 }
 

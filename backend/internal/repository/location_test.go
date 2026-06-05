@@ -37,6 +37,36 @@ func Test_LocationRepository_Create_Success(t *testing.T) {
 	}
 }
 
+func Test_LocationRepository_Create_WithIcon(t *testing.T) {
+	ctx := context.Background()
+	if err := testDB.TruncateAll(ctx); err != nil {
+		t.Fatalf("failed to truncate: %v", err)
+	}
+
+	fixtures := testutil.NewFixtures(testDB.Pool)
+	org, _ := fixtures.CreateOrganization(ctx, "Test Org")
+
+	repo := NewLocationRepository(testDB.Pool)
+	icon := "i-lucide-home"
+	loc := &domain.Location{
+		OrganizationID: org.ID,
+		Name:           "Home",
+		Icon:           &icon,
+	}
+
+	if err := repo.Create(ctx, loc); err != nil {
+		t.Fatalf("failed to create location: %v", err)
+	}
+
+	fetched, err := repo.GetByID(ctx, loc.ID)
+	if err != nil {
+		t.Fatalf("failed to get location: %v", err)
+	}
+	if fetched == nil || fetched.Icon == nil || *fetched.Icon != icon {
+		t.Errorf("expected icon %q, got %+v", icon, fetched)
+	}
+}
+
 func Test_LocationRepository_Create_WithParent(t *testing.T) {
 	ctx := context.Background()
 	if err := testDB.TruncateAll(ctx); err != nil {

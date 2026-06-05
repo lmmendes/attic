@@ -676,6 +676,8 @@ components:
           type: string
         description:
           type: string
+        icon:
+          type: string
         created_at:
           type: string
           format: date-time
@@ -694,6 +696,8 @@ components:
         parent_id:
           type: string
           format: uuid
+        icon:
+          type: string
 
     Condition:
       type: object

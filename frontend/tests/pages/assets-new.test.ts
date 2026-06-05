@@ -81,19 +81,60 @@ describe('New Asset Page', () => {
       ])
     })
 
-    it('maps locations with "No location" option', () => {
+    it('maps locations with "No location" and hierarchy', () => {
       const locations = [
-        { id: 'loc-1', name: 'Living Room' },
-        { id: 'loc-2', name: 'Bedroom' }
+        { id: 'home', name: 'Home' },
+        { id: 'bedroom', name: 'Bedroom', parent_id: 'home' },
+        { id: 'closet', name: 'Closet', parent_id: 'bedroom' }
       ]
+
+      interface LocationTreeNode {
+        location: { id: string, name: string, parent_id?: string }
+        children: LocationTreeNode[]
+      }
+
+      const childrenMap = new Map<string | undefined, { id: string, name: string, parent_id?: string }[]>()
+      locations.forEach((location) => {
+        const parentId = location.parent_id || undefined
+        if (!childrenMap.has(parentId)) {
+          childrenMap.set(parentId, [])
+        }
+        childrenMap.get(parentId)!.push(location)
+      })
+
+      const buildTree = (parentId: string | undefined): LocationTreeNode[] => {
+        const children = childrenMap.get(parentId) || []
+        return children
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map(location => ({
+            location,
+            children: buildTree(location.id)
+          }))
+      }
+
+      const flattenTree = (nodes: LocationTreeNode[], depth = 0): { label: string, value: string }[] => {
+        return nodes.flatMap((node) => {
+          const indent = depth > 0 ? `${'\u00A0'.repeat(depth * 2)}└ ` : ''
+          return [
+            { label: `${indent}${node.location.name}`, value: node.location.id },
+            ...flattenTree(node.children, depth + 1)
+          ]
+        })
+      }
 
       const options = [
         { label: 'No location', value: undefined },
-        ...locations.map(l => ({ label: l.name, value: l.id }))
+        ...flattenTree(buildTree(undefined))
       ]
 
-      expect(options).toHaveLength(3)
+      expect(options).toHaveLength(4)
       expect(options[0].value).toBeUndefined()
+      expect(options).toEqual([
+        { label: 'No location', value: undefined },
+        { label: 'Home', value: 'home' },
+        { label: '\u00A0\u00A0└ Bedroom', value: 'bedroom' },
+        { label: '\u00A0\u00A0\u00A0\u00A0└ Closet', value: 'closet' }
+      ])
     })
 
     it('maps conditions with "No condition" option', () => {

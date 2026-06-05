@@ -17,7 +17,7 @@ services:
       retries: 5
 
   localstack:
-    image: localstack/localstack:latest
+    image: localstack/localstack:4.14.0
     container_name: attic-localstack
     environment:
       - SERVICES=s3

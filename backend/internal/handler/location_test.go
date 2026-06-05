@@ -175,6 +175,7 @@ func (h *testLocationHandler) createLocation(w http.ResponseWriter, r *http.Requ
 		OrganizationID: h.orgID,
 		Name:           req.Name,
 		Description:    req.Description,
+		Icon:           req.Icon,
 	}
 
 	if req.ParentID != nil {
@@ -220,6 +221,7 @@ func (h *testLocationHandler) updateLocation(w http.ResponseWriter, r *http.Requ
 
 	loc.Name = req.Name
 	loc.Description = req.Description
+	loc.Icon = req.Icon
 
 	if req.ParentID != nil {
 		parentID, err := uuid.Parse(*req.ParentID)
@@ -409,6 +411,65 @@ func Test_CreateLocation_ValidRequest_ReturnsCreated(t *testing.T) {
 	}
 }
 
+func Test_CreateLocation_WithIcon_SetsIcon(t *testing.T) {
+	h := newTestLocationHandler()
+
+	body := strings.NewReader(`{
+		"name": "New Office",
+		"icon": "i-lucide-briefcase"
+	}`)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/locations", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.createLocation(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Errorf("expected status 201, got %d; body: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp domain.Location
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Icon == nil || *resp.Icon != "i-lucide-briefcase" {
+		t.Errorf("expected icon i-lucide-briefcase, got %+v", resp.Icon)
+	}
+}
+
+func Test_CreateLocation_WithIcon_GetLocation_ReturnsSameIcon(t *testing.T) {
+	h := newTestLocationHandler()
+
+	createBody := strings.NewReader(`{
+		"name": "New Office",
+		"icon": "i-lucide-briefcase"
+	}`)
+	createReq := httptest.NewRequest(http.MethodPost, "/api/locations", createBody)
+	createReq.Header.Set("Content-Type", "application/json")
+	createRec := httptest.NewRecorder()
+	h.createLocation(createRec, createReq)
+
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d; body: %s", createRec.Code, createRec.Body.String())
+	}
+
+	var created domain.Location
+	json.NewDecoder(createRec.Body).Decode(&created)
+
+	getReq := httptest.NewRequest(http.MethodGet, "/api/locations/"+created.ID.String(), nil)
+	getReq = withChiURLParam(getReq, "id", created.ID.String())
+	getRec := httptest.NewRecorder()
+	h.getLocation(getRec, getReq)
+
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", getRec.Code)
+	}
+
+	var fetched domain.Location
+	json.NewDecoder(getRec.Body).Decode(&fetched)
+	if fetched.Icon == nil || *fetched.Icon != "i-lucide-briefcase" {
+		t.Errorf("expected fetched icon i-lucide-briefcase, got %+v", fetched.Icon)
+	}
+}
+
 func Test_CreateLocation_WithParent_SetsParentID(t *testing.T) {
 	h := newTestLocationHandler()
 	parent := createTestLocation("Building A", nil)
@@ -508,6 +569,69 @@ func Test_UpdateLocation_ValidRequest_ReturnsUpdated(t *testing.T) {
 	json.NewDecoder(rec.Body).Decode(&resp)
 	if resp.Name != "New Name" {
 		t.Errorf("expected name 'New Name', got '%s'", resp.Name)
+	}
+}
+
+func Test_UpdateLocation_WithIcon_ReturnsUpdatedIcon(t *testing.T) {
+	h := newTestLocationHandler()
+	loc := createTestLocation("Old Name", nil)
+	h.locationRepo.addLocation(loc)
+
+	body := strings.NewReader(`{
+		"name": "New Name",
+		"description": "Updated description",
+		"icon": "i-lucide-archive"
+	}`)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/locations/"+loc.ID.String(), body)
+	req = withChiURLParam(req, "id", loc.ID.String())
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.updateLocation(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+
+	var resp domain.Location
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Icon == nil || *resp.Icon != "i-lucide-archive" {
+		t.Errorf("expected updated icon i-lucide-archive, got %+v", resp.Icon)
+	}
+}
+
+func Test_UpdateLocation_WithIcon_GetLocation_ReturnsUpdatedIcon(t *testing.T) {
+	h := newTestLocationHandler()
+	loc := createTestLocation("Old Name", nil)
+	h.locationRepo.addLocation(loc)
+
+	updateBody := strings.NewReader(`{
+		"name": "New Name",
+		"icon": "i-lucide-archive"
+	}`)
+	updateReq := httptest.NewRequest(http.MethodPut, "/api/locations/"+loc.ID.String(), updateBody)
+	updateReq = withChiURLParam(updateReq, "id", loc.ID.String())
+	updateReq.Header.Set("Content-Type", "application/json")
+	updateRec := httptest.NewRecorder()
+	h.updateLocation(updateRec, updateReq)
+
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", updateRec.Code)
+	}
+
+	getReq := httptest.NewRequest(http.MethodGet, "/api/locations/"+loc.ID.String(), nil)
+	getReq = withChiURLParam(getReq, "id", loc.ID.String())
+	getRec := httptest.NewRecorder()
+	h.getLocation(getRec, getReq)
+
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", getRec.Code)
+	}
+
+	var fetched domain.Location
+	json.NewDecoder(getRec.Body).Decode(&fetched)
+	if fetched.Icon == nil || *fetched.Icon != "i-lucide-archive" {
+		t.Errorf("expected fetched icon i-lucide-archive, got %+v", fetched.Icon)
 	}
 }
 

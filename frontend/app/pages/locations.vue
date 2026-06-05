@@ -39,18 +39,46 @@ const editingLocation = ref<Location | null>(null)
 const form = reactive({
   name: '',
   description: '',
-  parent_id: undefined as string | undefined
+  parent_id: undefined as string | undefined,
+  icon: undefined as string | undefined
 })
 
 // Delete confirmation modal
 const deleteModalOpen = ref(false)
 const locationToDelete = ref<Location | null>(null)
 
+interface TreeNode {
+  location: Location
+  children: TreeNode[]
+  level: number
+}
+
+interface ParentOption {
+  label: string
+  value: string | undefined
+}
+
+const locationIcons = [
+  'i-lucide-map-pin',
+  'i-lucide-home',
+  'i-lucide-archive',
+  'i-lucide-box',
+  'i-lucide-bed',
+  'i-lucide-sofa',
+  'i-lucide-utensils',
+  'i-lucide-bath',
+  'i-lucide-car',
+  'i-lucide-briefcase',
+  'i-lucide-door-open',
+  'i-lucide-warehouse'
+]
+
 function openCreateModal(parentId?: string) {
   editingLocation.value = null
   form.name = ''
   form.description = ''
   form.parent_id = parentId
+  form.icon = undefined
   modalOpen.value = true
 }
 
@@ -59,6 +87,7 @@ function openEditModal(location: Location) {
   form.name = location.name
   form.description = location.description || ''
   form.parent_id = location.parent_id
+  form.icon = location.icon
   modalOpen.value = true
 }
 
@@ -111,19 +140,71 @@ async function deleteLocation() {
   }
 }
 
-// Parent options for the select (exclude the currently editing location and its children)
-const parentOptions = computed<{ label: string, value: string | undefined }[]>(() => {
-  const options: { label: string, value: string | undefined }[] = [
+// Build a map of location id to location for quick lookup
+const locationMap = computed(() => {
+  const map = new Map<string, Location>()
+  locations.value?.forEach(l => map.set(l.id, l))
+  return map
+})
+
+// Build hierarchical tree structure
+function buildTree(nodes: Location[]): TreeNode[] {
+  const childrenMap = new Map<string | undefined, Location[]>()
+  nodes.forEach((l) => {
+    const parentId = l.parent_id || undefined
+    if (!childrenMap.has(parentId)) {
+      childrenMap.set(parentId, [])
+    }
+    childrenMap.get(parentId)!.push(l)
+  })
+
+  const buildTreeRecursive = (parentId: string | undefined, level: number): TreeNode[] => {
+    const children = childrenMap.get(parentId) || []
+    return children
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(loc => ({
+        location: loc,
+        children: buildTreeRecursive(loc.id, level + 1),
+        level
+      }))
+  }
+
+  return buildTreeRecursive(undefined, 0)
+}
+
+const locationTree = computed<TreeNode[]>(() => {
+  if (!locations.value) return []
+  return buildTree(locations.value)
+})
+
+function buildParentOptions(nodes: TreeNode[], excludeIds: Set<string> = new Set(), depth = 0): ParentOption[] {
+  return nodes.flatMap((node) => {
+    if (excludeIds.has(node.location.id)) {
+      return []
+    }
+
+    const indent = depth > 0 ? `${'\u00A0'.repeat(depth * 2)}└ ` : ''
+    return [
+      {
+        label: `${indent}${node.location.name}`,
+        value: node.location.id
+      },
+      ...buildParentOptions(node.children, excludeIds, depth + 1)
+    ]
+  })
+}
+
+// Parent options for the select (exclude the currently editing location and its descendants)
+const parentOptions = computed<ParentOption[]>(() => {
+  const options: ParentOption[] = [
     { label: 'None (Top Level)', value: undefined }
   ]
 
   if (!locations.value) return options
 
-  // Get IDs to exclude (current location and all its descendants)
   const excludeIds = new Set<string>()
   if (editingLocation.value) {
     excludeIds.add(editingLocation.value.id)
-    // Add all descendants
     const addDescendants = (parentId: string) => {
       locations.value?.forEach((l) => {
         if (l.parent_id === parentId) {
@@ -135,55 +216,7 @@ const parentOptions = computed<{ label: string, value: string | undefined }[]>((
     addDescendants(editingLocation.value.id)
   }
 
-  locations.value.forEach((l) => {
-    if (!excludeIds.has(l.id)) {
-      options.push({ label: l.name, value: l.id })
-    }
-  })
-
-  return options
-})
-
-// Build a map of location id to location for quick lookup
-const locationMap = computed(() => {
-  const map = new Map<string, Location>()
-  locations.value?.forEach(l => map.set(l.id, l))
-  return map
-})
-
-// Build hierarchical tree structure
-interface TreeNode {
-  location: Location
-  children: TreeNode[]
-  level: number
-}
-
-const locationTree = computed<TreeNode[]>(() => {
-  if (!locations.value) return []
-
-  // Build a map of parent_id to children
-  const childrenMap = new Map<string | undefined, Location[]>()
-  locations.value.forEach((l) => {
-    const parentId = l.parent_id || undefined
-    if (!childrenMap.has(parentId)) {
-      childrenMap.set(parentId, [])
-    }
-    childrenMap.get(parentId)!.push(l)
-  })
-
-  // Recursively build tree
-  const buildTree = (parentId: string | undefined, level: number): TreeNode[] => {
-    const children = childrenMap.get(parentId) || []
-    return children
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(loc => ({
-        location: loc,
-        children: buildTree(loc.id, level + 1),
-        level
-      }))
-  }
-
-  return buildTree(undefined, 0)
+  return options.concat(buildParentOptions(locationTree.value, excludeIds))
 })
 
 // Filter tree based on search
@@ -281,8 +314,10 @@ const totalValue = computed(() => {
   return locationAssets.value.assets.reduce((sum, asset) => sum + (asset.purchase_price || 0), 0)
 })
 
-// Get icon for location based on name
+// Get icon for location based on explicit icon or fallback by name
 function getLocationIcon(location: Location): string {
+  if (location.icon) return location.icon
+
   const name = location.name.toLowerCase()
   if (name.includes('bedroom')) return 'i-lucide-bed'
   if (name.includes('living')) return 'i-lucide-sofa'
@@ -781,6 +816,29 @@ function getLocationIcon(location: Location): string {
                 placeholder="Optional description"
                 class="w-full bg-mist-50 dark:bg-mist-700 border border-mist-200 dark:border-mist-600 rounded-lg px-4 py-2.5 text-sm text-mist-950 dark:text-white placeholder-mist-400 focus:ring-2 focus:ring-attic-500 focus:border-transparent resize-none"
               />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-mist-700 dark:text-mist-300 mb-1.5">
+                Icon
+              </label>
+              <div class="grid grid-cols-6 gap-2">
+                <button
+                  v-for="icon in locationIcons"
+                  :key="icon"
+                  type="button"
+                  class="h-10 rounded-lg border transition-all flex items-center justify-center"
+                  :class="form.icon === icon
+                    ? 'bg-attic-500 text-white border-attic-500'
+                    : 'bg-mist-50 dark:bg-mist-700 text-mist-500 dark:text-mist-300 border-mist-200 dark:border-mist-600 hover:border-attic-400 hover:text-attic-500'"
+                  @click="form.icon = icon"
+                >
+                  <UIcon
+                    :name="icon"
+                    class="w-4 h-4"
+                  />
+                </button>
+              </div>
             </div>
 
             <div>

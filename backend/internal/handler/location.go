@@ -10,12 +10,14 @@ type CreateLocationRequest struct {
 	ParentID    *string `json:"parent_id,omitempty"`
 	Name        string  `json:"name"`
 	Description *string `json:"description,omitempty"`
+	Icon        *string `json:"icon,omitempty"`
 }
 
 type UpdateLocationRequest struct {
 	ParentID    *string `json:"parent_id,omitempty"`
 	Name        string  `json:"name"`
 	Description *string `json:"description,omitempty"`
+	Icon        *string `json:"icon,omitempty"`
 }
 
 func (h *Handler) ListLocations(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +80,7 @@ func (h *Handler) CreateLocation(w http.ResponseWriter, r *http.Request) {
 		OrganizationID: h.orgID,
 		Name:           req.Name,
 		Description:    req.Description,
+		Icon:           req.Icon,
 	}
 
 	if req.ParentID != nil {
@@ -122,6 +125,7 @@ func (h *Handler) UpdateLocation(w http.ResponseWriter, r *http.Request) {
 
 	loc.Name = req.Name
 	loc.Description = req.Description
+	loc.Icon = req.Icon
 
 	if req.ParentID != nil {
 		parentID, err := parseUUIDString(*req.ParentID)

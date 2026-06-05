@@ -33,9 +33,52 @@ const _categoryOptions = computed(() =>
   categories.value?.map(c => ({ label: c.name, value: c.id, icon: c.icon })) || []
 )
 
+interface LocationOption {
+  label: string
+  value: string
+}
+
+interface LocationTreeNode {
+  location: Location
+  children: LocationTreeNode[]
+}
+
+function buildHierarchicalLocationOptions(items: Location[]): LocationOption[] {
+  const childrenMap = new Map<string | undefined, Location[]>()
+  items.forEach((location) => {
+    const parentId = location.parent_id || undefined
+    if (!childrenMap.has(parentId)) {
+      childrenMap.set(parentId, [])
+    }
+    childrenMap.get(parentId)!.push(location)
+  })
+
+  const buildTree = (parentId: string | undefined): LocationTreeNode[] => {
+    const children = childrenMap.get(parentId) || []
+    return children
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(location => ({
+        location,
+        children: buildTree(location.id)
+      }))
+  }
+
+  const flattenTree = (nodes: LocationTreeNode[], depth = 0): LocationOption[] => {
+    return nodes.flatMap((node) => {
+      const indent = depth > 0 ? `${'\u00A0'.repeat(depth * 2)}└ ` : ''
+      return [
+        { label: `${indent}${node.location.name}`, value: node.location.id },
+        ...flattenTree(node.children, depth + 1)
+      ]
+    })
+  }
+
+  return flattenTree(buildTree(undefined))
+}
+
 const locationOptions = computed(() => [
   { label: 'No location', value: undefined },
-  ...(locations.value?.map(l => ({ label: l.name, value: l.id })) || [])
+  ...(locations.value ? buildHierarchicalLocationOptions(locations.value) : [])
 ])
 
 const conditionOptions = computed(() => [
