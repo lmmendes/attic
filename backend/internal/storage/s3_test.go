@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 	// Start LocalStack container
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "localstack/localstack:latest",
+			Image:        "localstack/localstack:4.14.0",
 			ExposedPorts: []string{"4566/tcp"},
 			Env: map[string]string{
 				"SERVICES":       "s3",
