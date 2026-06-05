@@ -232,17 +232,53 @@ describe('Assets Index Page', () => {
       ])
     })
 
-    it('maps locations to select options', () => {
+    it('maps locations to hierarchical select options', () => {
       const locations = [
-        { id: 'loc-1', name: 'Living Room' },
-        { id: 'loc-2', name: 'Bedroom' }
+        { id: 'home', name: 'Home' },
+        { id: 'bedroom', name: 'Bedroom', parent_id: 'home' },
+        { id: 'closet', name: 'Closet', parent_id: 'bedroom' }
       ]
 
-      const locationOptions = locations.map(l => ({ label: l.name, value: l.id }))
+      interface LocationTreeNode {
+        location: { id: string, name: string, parent_id?: string }
+        children: LocationTreeNode[]
+      }
+
+      const childrenMap = new Map<string | undefined, { id: string, name: string, parent_id?: string }[]>()
+      locations.forEach((location) => {
+        const parentId = location.parent_id || undefined
+        if (!childrenMap.has(parentId)) {
+          childrenMap.set(parentId, [])
+        }
+        childrenMap.get(parentId)!.push(location)
+      })
+
+      const buildTree = (parentId: string | undefined): LocationTreeNode[] => {
+        const children = childrenMap.get(parentId) || []
+        return children
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map(location => ({
+            location,
+            children: buildTree(location.id)
+          }))
+      }
+
+      const flattenTree = (nodes: LocationTreeNode[], depth = 0): { label: string, value: string }[] => {
+        return nodes.flatMap((node) => {
+          const indent = depth > 0 ? `${'\u00A0'.repeat(depth * 2)}└ ` : ''
+          return [
+            { label: `${indent}${node.location.name}`, value: node.location.id },
+            ...flattenTree(node.children, depth + 1)
+          ]
+        })
+      }
+
+      const locationOptions = flattenTree(buildTree(undefined))
 
       expect(locationOptions).toEqual([
-        { label: 'Living Room', value: 'loc-1' },
-        { label: 'Bedroom', value: 'loc-2' }
+        { label: 'Home', value: 'home' },
+        { label: '\u00A0\u00A0└ Bedroom', value: 'bedroom' },
+        { label: '\u00A0\u00A0\u00A0\u00A0└ Closet', value: 'closet' }
       ])
     })
 

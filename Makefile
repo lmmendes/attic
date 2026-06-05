@@ -34,7 +34,7 @@ clean:
 dev: dev-up backend-run
 
 dev-up:
-	docker compose up -d
+	docker compose up -d -f docker-compose.dev.yml
 
 dev-down:
 	docker compose down

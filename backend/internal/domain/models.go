@@ -124,6 +124,7 @@ type Location struct {
 	ParentID       *uuid.UUID `json:"parent_id,omitempty"`
 	Name           string     `json:"name"`
 	Description    *string    `json:"description,omitempty"`
+	Icon           *string    `json:"icon,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 	DeletedAt      *time.Time `json:"-"`

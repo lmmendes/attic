@@ -5,6 +5,7 @@ interface Location {
   name: string
   description?: string
   parent_id?: string
+  icon?: string
 }
 
 interface TreeNode {
@@ -270,6 +271,8 @@ describe('Locations Page', () => {
 
   describe('location icons', () => {
     const getLocationIcon = (location: Location): string => {
+      if (location.icon) return location.icon
+
       const name = location.name.toLowerCase()
       if (name.includes('bedroom')) return 'i-lucide-bed'
       if (name.includes('living')) return 'i-lucide-sofa'
@@ -281,6 +284,10 @@ describe('Locations Page', () => {
       if (name.includes('storage')) return 'i-lucide-box'
       return 'i-lucide-map-pin'
     }
+
+    it('returns explicit icon when provided', () => {
+      expect(getLocationIcon({ id: '1', name: 'Any', icon: 'i-lucide-archive' })).toBe('i-lucide-archive')
+    })
 
     it('returns bed icon for bedroom', () => {
       expect(getLocationIcon({ id: '1', name: 'Master Bedroom' })).toBe('i-lucide-bed')
@@ -333,11 +340,64 @@ describe('Locations Page', () => {
       expect(availableParents.map(l => l.name)).not.toContain('Bedroom')
       expect(availableParents.map(l => l.name)).not.toContain('Closet')
     })
+
+    it('keeps hierarchy when flattening parent options', () => {
+      const locations: Location[] = [
+        { id: 'home', name: 'Home' },
+        { id: 'bedroom', name: 'Bedroom', parent_id: 'home' },
+        { id: 'closet', name: 'Closet', parent_id: 'bedroom' }
+      ]
+
+      const buildTree = (items: Location[]): TreeNode[] => {
+        const childrenMap = new Map<string | undefined, Location[]>()
+        items.forEach((l) => {
+          const parentId = l.parent_id || undefined
+          if (!childrenMap.has(parentId)) {
+            childrenMap.set(parentId, [])
+          }
+          childrenMap.get(parentId)!.push(l)
+        })
+
+        const buildTreeRecursive = (parentId: string | undefined, level: number): TreeNode[] => {
+          const children = childrenMap.get(parentId) || []
+          return children
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map(loc => ({
+              location: loc,
+              children: buildTreeRecursive(loc.id, level + 1),
+              level
+            }))
+        }
+
+        return buildTreeRecursive(undefined, 0)
+      }
+
+      const flattenOptions = (nodes: TreeNode[], depth = 0): string[] => {
+        return nodes.flatMap((node) => {
+          const label = `${depth > 0 ? `${'\u00A0'.repeat(depth * 2)}└ ` : ''}${node.location.name}`
+          return [label, ...flattenOptions(node.children, depth + 1)]
+        })
+      }
+
+      const labels = ['None (Top Level)', ...flattenOptions(buildTree(locations))]
+
+      expect(labels).toEqual([
+        'None (Top Level)',
+        'Home',
+        '\u00A0\u00A0└ Bedroom',
+        '\u00A0\u00A0\u00A0\u00A0└ Closet'
+      ])
+    })
   })
 
   describe('CRUD operations', () => {
     it('creates a new location', async () => {
-      const form = { name: 'New Room', description: 'A new room', parent_id: undefined }
+      const form = {
+        name: 'New Room',
+        description: 'A new room',
+        parent_id: undefined,
+        icon: 'i-lucide-archive'
+      }
       mockApiFetch.mockResolvedValueOnce({ id: 'new-loc' })
 
       await mockApiFetch('/api/locations', {
@@ -352,7 +412,12 @@ describe('Locations Page', () => {
     })
 
     it('updates an existing location', async () => {
-      const form = { name: 'Updated Room', description: 'Updated description', parent_id: 'parent-1' }
+      const form = {
+        name: 'Updated Room',
+        description: 'Updated description',
+        parent_id: 'parent-1',
+        icon: 'i-lucide-briefcase'
+      }
       mockApiFetch.mockResolvedValueOnce({})
 
       await mockApiFetch('/api/locations/loc-1', {
@@ -364,6 +429,29 @@ describe('Locations Page', () => {
         method: 'PUT',
         body: JSON.stringify(form)
       })
+    })
+
+    it('prefills icon when opening edit modal', () => {
+      const form = {
+        name: '',
+        description: '',
+        parent_id: undefined as string | undefined,
+        icon: undefined as string | undefined
+      }
+      const location: Location = {
+        id: 'loc-1',
+        name: 'Office',
+        parent_id: 'root',
+        description: 'Main office',
+        icon: 'i-lucide-briefcase'
+      }
+
+      form.name = location.name
+      form.description = location.description || ''
+      form.parent_id = location.parent_id
+      form.icon = location.icon
+
+      expect(form.icon).toBe('i-lucide-briefcase')
     })
 
     it('deletes a location', async () => {
