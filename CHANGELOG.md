@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.1](https://github.com/lmmendes/attic/compare/v1.4.0...v1.4.1) (2026-06-27)
+
+
+### Bug Fixes
+
+* button to toggle light and dark mode is now always visible ([#27](https://github.com/lmmendes/attic/issues/27)) ([63df7c8](https://github.com/lmmendes/attic/commit/63df7c8ab1eb2d074b85d938120d615894a64e75))
+* category attributes sorting and key visibility ([#26](https://github.com/lmmendes/attic/issues/26)) ([ca50f97](https://github.com/lmmendes/attic/commit/ca50f97a29689925c60da7436a41f0ebccc1e6fb))
+* location were missing visual representation of hierarchy and custom icons ([#22](https://github.com/lmmendes/attic/issues/22)) ([f3ba0b8](https://github.com/lmmendes/attic/commit/f3ba0b8979cc238ea27f527f2cb7c30f40977eb2))
+
 ## [1.4.0](https://github.com/lmmendes/attic/compare/v1.3.4...v1.4.0) (2026-02-23)
 
 
