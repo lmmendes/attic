@@ -44,33 +44,13 @@ func (r *CategoryRepository) GetByIDWithAttributes(ctx context.Context, id uuid.
 		return cat, err
 	}
 
-	attrQuery := `
-		SELECT ca.id, ca.category_id, ca.attribute_id, ca.required, ca.sort_order, ca.created_at,
-		       a.id, a.organization_id, a.name, a.key, a.data_type, a.created_at, a.updated_at
-		FROM category_attributes ca
-		JOIN attributes a ON a.id = ca.attribute_id AND a.deleted_at IS NULL
-		WHERE ca.category_id = $1
-		ORDER BY ca.sort_order, a.name
-	`
-	rows, err := r.pool.Query(ctx, attrQuery, id)
-	if err != nil {
+	if err := r.loadCategoryAttributes(ctx, map[uuid.UUID]*domain.Category{cat.ID: cat}, `
+		ca.category_id = $1
+	`, id); err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var ca domain.CategoryAttribute
-		var attr domain.Attribute
-		if err := rows.Scan(
-			&ca.ID, &ca.CategoryID, &ca.AttributeID, &ca.Required, &ca.SortOrder, &ca.CreatedAt,
-			&attr.ID, &attr.OrganizationID, &attr.Name, &attr.Key, &attr.DataType, &attr.CreatedAt, &attr.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		ca.Attribute = &attr
-		cat.Attributes = append(cat.Attributes, ca)
-	}
-	return cat, rows.Err()
+	return cat, nil
 }
 
 func (r *CategoryRepository) List(ctx context.Context, orgID uuid.UUID) ([]domain.Category, error) {
@@ -97,7 +77,26 @@ func (r *CategoryRepository) List(ctx context.Context, orgID uuid.UUID) ([]domai
 		}
 		categories = append(categories, c)
 	}
-	return categories, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if len(categories) == 0 {
+		return categories, nil
+	}
+
+	categoriesByID := make(map[uuid.UUID]*domain.Category, len(categories))
+	for i := range categories {
+		categoriesByID[categories[i].ID] = &categories[i]
+	}
+
+	if err := r.loadCategoryAttributes(ctx, categoriesByID, `
+		c.organization_id = $1 AND c.deleted_at IS NULL
+	`, orgID); err != nil {
+		return nil, err
+	}
+
+	return categories, nil
 }
 
 func (r *CategoryRepository) ListTree(ctx context.Context, orgID uuid.UUID) ([]domain.Category, error) {
@@ -231,4 +230,42 @@ func (r *CategoryRepository) GetAssetCounts(ctx context.Context, orgID uuid.UUID
 		counts[categoryID] = count
 	}
 	return counts, rows.Err()
+}
+
+func (r *CategoryRepository) loadCategoryAttributes(ctx context.Context, categoriesByID map[uuid.UUID]*domain.Category, condition string, args ...any) error {
+	query := `
+		SELECT ca.id, ca.category_id, ca.attribute_id, ca.required, ca.sort_order, ca.created_at,
+		       a.id, a.organization_id, a.plugin_id, a.name, a.key, a.data_type, a.created_at, a.updated_at
+		FROM category_attributes ca
+		JOIN categories c ON c.id = ca.category_id
+		JOIN attributes a ON a.id = ca.attribute_id AND a.deleted_at IS NULL
+		WHERE ` + condition + `
+		ORDER BY ca.sort_order, a.name
+	`
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var categoryAttribute domain.CategoryAttribute
+		var attribute domain.Attribute
+		if err := rows.Scan(
+			&categoryAttribute.ID, &categoryAttribute.CategoryID, &categoryAttribute.AttributeID, &categoryAttribute.Required, &categoryAttribute.SortOrder, &categoryAttribute.CreatedAt,
+			&attribute.ID, &attribute.OrganizationID, &attribute.PluginID, &attribute.Name, &attribute.Key, &attribute.DataType, &attribute.CreatedAt, &attribute.UpdatedAt,
+		); err != nil {
+			return err
+		}
+
+		category, ok := categoriesByID[categoryAttribute.CategoryID]
+		if !ok {
+			continue
+		}
+
+		categoryAttribute.Attribute = &attribute
+		category.Attributes = append(category.Attributes, categoryAttribute)
+	}
+
+	return rows.Err()
 }

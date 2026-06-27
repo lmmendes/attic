@@ -34,6 +34,7 @@ interface AttributeSelection {
 }
 
 const selectedAttributes = ref<AttributeSelection[]>([])
+const draggedAttributeId = ref<string | null>(null)
 
 // Initialize form when category loads
 watch(category, (cat) => {
@@ -148,13 +149,51 @@ function addAttribute(attr: Attribute) {
     required: false,
     sort_order: selectedAttributes.value.length
   })
+  syncSelectedAttributeSortOrder()
 }
 
 // Remove attribute from selection
 function removeAttribute(index: number) {
   selectedAttributes.value.splice(index, 1)
-  // Update sort orders
-  selectedAttributes.value.forEach((a, i) => a.sort_order = i)
+  syncSelectedAttributeSortOrder()
+}
+
+function handleAttributeDragStart(attributeID: string) {
+  draggedAttributeId.value = attributeID
+}
+
+function handleAttributeDragEnd() {
+  draggedAttributeId.value = null
+}
+
+function handleAttributeDrop(targetIndex: number) {
+  if (!draggedAttributeId.value) {
+    return
+  }
+
+  const sourceIndex = selectedAttributes.value.findIndex(
+    attr => attr.attribute_id === draggedAttributeId.value
+  )
+  if (sourceIndex === -1 || sourceIndex === targetIndex) {
+    draggedAttributeId.value = null
+    return
+  }
+
+  const [movedAttribute] = selectedAttributes.value.splice(sourceIndex, 1)
+  if (!movedAttribute) {
+    draggedAttributeId.value = null
+    return
+  }
+
+  selectedAttributes.value.splice(targetIndex, 0, movedAttribute)
+  draggedAttributeId.value = null
+  syncSelectedAttributeSortOrder()
+}
+
+function syncSelectedAttributeSortOrder() {
+  selectedAttributes.value.forEach((attribute, index) => {
+    attribute.sort_order = index
+  })
 }
 
 // Get icon and color for attribute type
@@ -405,13 +444,21 @@ function cancel() {
                     v-for="(attr, index) in selectedAttributes"
                     :key="attr.attribute_id"
                     class="group bg-white dark:bg-mist-800 p-3 rounded-lg border border-mist-100 dark:border-mist-700 shadow-sm flex items-center gap-4 hover:border-attic-500/50 transition-colors"
+                    @dragover.prevent
+                    @drop.prevent="handleAttributeDrop(index)"
                   >
-                    <div class="text-mist-300 group-hover:text-mist-500">
+                    <button
+                      type="button"
+                      draggable="true"
+                      class="text-mist-300 group-hover:text-mist-500 cursor-grab active:cursor-grabbing"
+                      @dragstart="handleAttributeDragStart(attr.attribute_id)"
+                      @dragend="handleAttributeDragEnd"
+                    >
                       <UIcon
                         name="i-lucide-grip-vertical"
                         class="w-5 h-5"
                       />
-                    </div>
+                    </button>
                     <div
                       class="flex items-center justify-center size-10 rounded-md"
                       :class="[getAttributeStyle(getAttribute(attr.attribute_id)?.data_type || 'string').bgColor, getAttributeStyle(getAttribute(attr.attribute_id)?.data_type || 'string').textColor]"
@@ -426,7 +473,7 @@ function cancel() {
                         {{ getAttribute(attr.attribute_id)?.name || 'Unknown' }}
                       </p>
                       <p class="text-xs text-mist-500">
-                        {{ getAttribute(attr.attribute_id)?.data_type || 'string' }}
+                        {{ getAttribute(attr.attribute_id)?.key || 'unknown_key' }} · {{ getAttribute(attr.attribute_id)?.data_type || 'string' }}
                       </p>
                     </div>
                     <div class="flex items-center gap-4 border-l border-mist-100 dark:border-mist-700 pl-4">
@@ -551,7 +598,7 @@ function cancel() {
                         {{ attr.name }}
                       </p>
                       <p class="text-xs text-mist-400">
-                        {{ attr.data_type }}
+                        {{ attr.key }} · {{ attr.data_type }}
                       </p>
                     </div>
                     <UIcon
