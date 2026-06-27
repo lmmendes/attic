@@ -25,6 +25,7 @@ import (
 	"github.com/lmmendes/attic/internal/plugin"
 	"github.com/lmmendes/attic/internal/plugin/bgg"
 	"github.com/lmmendes/attic/internal/plugin/googlebooks"
+	"github.com/lmmendes/attic/internal/plugin/igdb"
 	"github.com/lmmendes/attic/internal/plugin/tmdb"
 	"github.com/lmmendes/attic/internal/repository"
 	"github.com/lmmendes/attic/internal/storage"
@@ -206,6 +207,9 @@ func main() {
 	}
 	if err := pluginRegistry.Register(bgg.New()); err != nil {
 		slog.Error("failed to register BGG plugin", "error", err)
+	}
+	if err := pluginRegistry.Register(igdb.New()); err != nil {
+		slog.Error("failed to register IGDB plugin", "error", err)
 	}
 	slog.Info("registered plugins", "count", len(pluginRegistry.List()))
 

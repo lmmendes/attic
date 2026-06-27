@@ -1,0 +1,15 @@
+services:
+  authelia:
+    image: authelia/authelia:4.39.0
+    container_name: attic-authelia
+    restart: unless-stopped
+    ports:
+      - "9091:9091"
+    volumes:
+      - ./scripts/authelia/configuration.yml:/config/configuration.yml
+      - ./scripts/authelia/users_database.yml:/config/users_database.yml
+      - ./scripts/authelia/certs:/config/certs:ro
+      - authelia_data:/var/lib/authelia
+
+volumes:
+  authelia_data:
