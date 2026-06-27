@@ -266,6 +266,7 @@ const sidebarOpen = ref(false)
                   </div>
                 </template>
               </UDropdownMenu>
+              <UColorModeButton />
             </div>
           </div>
         </aside>
