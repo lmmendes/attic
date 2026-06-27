@@ -392,7 +392,7 @@ function cancel() {
                       {{ getAttribute(attr.attribute_id)?.name || 'Unknown' }}
                     </p>
                     <p class="text-xs text-mist-500">
-                      {{ getAttribute(attr.attribute_id)?.data_type || 'string' }}
+                      {{ getAttribute(attr.attribute_id)?.key || 'unknown_key' }} · {{ getAttribute(attr.attribute_id)?.data_type || 'string' }}
                     </p>
                   </div>
                   <div class="flex items-center gap-4 border-l border-mist-100 dark:border-mist-700 pl-4">
@@ -517,7 +517,7 @@ function cancel() {
                       {{ attr.name }}
                     </p>
                     <p class="text-xs text-mist-400">
-                      {{ attr.data_type }}
+                      {{ attr.key }} · {{ attr.data_type }}
                     </p>
                   </div>
                   <UIcon

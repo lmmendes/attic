@@ -222,9 +222,46 @@ func Test_CategoryRepository_List_ReturnsCategoriesForOrg(t *testing.T) {
 	org2, _ := fixtures.CreateOrganization(ctx, "Org 2")
 
 	repo := NewCategoryRepository(testDB.Pool)
-	repo.Create(ctx, &domain.Category{OrganizationID: org1.ID, Name: "Electronics"})
-	repo.Create(ctx, &domain.Category{OrganizationID: org1.ID, Name: "Books"})
-	repo.Create(ctx, &domain.Category{OrganizationID: org2.ID, Name: "Other"})
+	attrRepo := NewAttributeRepository(testDB.Pool)
+
+	electronics := &domain.Category{OrganizationID: org1.ID, Name: "Electronics"}
+	books := &domain.Category{OrganizationID: org1.ID, Name: "Books"}
+	other := &domain.Category{OrganizationID: org2.ID, Name: "Other"}
+
+	repo.Create(ctx, electronics)
+	repo.Create(ctx, books)
+	repo.Create(ctx, other)
+
+	brand := &domain.Attribute{
+		OrganizationID: org1.ID,
+		Name:           "Brand",
+		Key:            "brand",
+		DataType:       domain.AttributeTypeString,
+	}
+	releaseYear := &domain.Attribute{
+		OrganizationID: org1.ID,
+		Name:           "Release Year",
+		Key:            "release_year",
+		DataType:       domain.AttributeTypeNumber,
+	}
+	otherOrgAttribute := &domain.Attribute{
+		OrganizationID: org2.ID,
+		Name:           "Shelf",
+		Key:            "shelf",
+		DataType:       domain.AttributeTypeString,
+	}
+
+	attrRepo.Create(ctx, brand)
+	attrRepo.Create(ctx, releaseYear)
+	attrRepo.Create(ctx, otherOrgAttribute)
+
+	repo.SetAttributes(ctx, electronics.ID, []domain.CategoryAttributeAssignment{
+		{AttributeID: brand.ID, Required: true, SortOrder: 1},
+		{AttributeID: releaseYear.ID, Required: false, SortOrder: 2},
+	})
+	repo.SetAttributes(ctx, other.ID, []domain.CategoryAttributeAssignment{
+		{AttributeID: otherOrgAttribute.ID, Required: true, SortOrder: 1},
+	})
 
 	categories, err := repo.List(ctx, org1.ID)
 	if err != nil {
@@ -232,6 +269,21 @@ func Test_CategoryRepository_List_ReturnsCategoriesForOrg(t *testing.T) {
 	}
 	if len(categories) != 2 {
 		t.Errorf("expected 2 categories for org1, got %d", len(categories))
+	}
+
+	categoryByName := make(map[string]domain.Category, len(categories))
+	for _, category := range categories {
+		categoryByName[category.Name] = category
+	}
+
+	if len(categoryByName["Electronics"].Attributes) != 2 {
+		t.Fatalf("expected Electronics to include 2 attributes, got %d", len(categoryByName["Electronics"].Attributes))
+	}
+	if categoryByName["Electronics"].Attributes[0].Attribute == nil || categoryByName["Electronics"].Attributes[0].Attribute.Name != "Brand" {
+		t.Fatalf("expected Electronics attributes to be hydrated")
+	}
+	if len(categoryByName["Books"].Attributes) != 0 {
+		t.Fatalf("expected Books to include 0 attributes, got %d", len(categoryByName["Books"].Attributes))
 	}
 }
 
