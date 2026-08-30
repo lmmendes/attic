@@ -286,6 +286,12 @@ func (r *AssetRepository) Update(ctx context.Context, a *domain.Asset) error {
 		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING updated_at
 	`
+	// The attributes column is NOT NULL with a `{}` default. Mirror Create()
+	// so callers that legitimately have no attributes don't trip the
+	// constraint and silently lose the whole update.
+	if a.Attributes == nil {
+		a.Attributes = []byte("{}")
+	}
 	return r.pool.QueryRow(ctx, query,
 		a.ID, a.CategoryID, a.LocationID, a.ConditionID, a.CollectionID,
 		a.Name, a.Description, a.Quantity, a.Attributes, a.PurchaseAt, a.PurchasePrice, a.PurchaseNote, a.Notes,

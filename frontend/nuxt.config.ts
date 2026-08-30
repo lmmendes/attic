@@ -23,11 +23,15 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2025-01-15',
 
-  // Output static files to backend for embedding
+  // Output static files to backend for embedding.
+  // publicDir is a subfolder of dist/ on purpose: Nitro wipes publicDir on
+  // every build, which would destroy dist/.gitkeep (needed by go:embed when
+  // the SPA hasn't been built yet). Keeping .gitkeep as a sibling of spa/
+  // ensures `//go:embed all:dist` always finds at least one file.
   nitro: {
     output: {
       dir: '../backend/cmd/server/.output',
-      publicDir: '../backend/cmd/server/dist'
+      publicDir: '../backend/cmd/server/dist/spa'
     }
   },
 

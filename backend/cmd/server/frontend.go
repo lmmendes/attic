@@ -14,9 +14,13 @@ var frontendFS embed.FS
 // spaHandler returns an http.Handler that serves the embedded SPA.
 // It serves static files from the embedded filesystem and falls back
 // to 200.html for client-side routing (Nuxt generates 200.html for SPA fallback).
+//
+// The Nuxt build writes to dist/spa/ rather than dist/ directly so that
+// dist/.gitkeep survives Nitro's publicDir-cleaning step; that .gitkeep is
+// what keeps `//go:embed all:dist` valid before the frontend has been built.
 func spaHandler() http.Handler {
-	// Strip the "dist" prefix from the embedded filesystem
-	distFS, err := fs.Sub(frontendFS, "dist")
+	// Narrow the embedded FS to the SPA output directory.
+	distFS, err := fs.Sub(frontendFS, "dist/spa")
 	if err != nil {
 		panic("failed to create sub filesystem: " + err.Error())
 	}

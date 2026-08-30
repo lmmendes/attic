@@ -25,7 +25,7 @@ build: frontend-build backend-build
 
 clean:
 	rm -rf backend/bin
-	rm -rf backend/cmd/server/dist/*
+	rm -rf backend/cmd/server/dist/spa
 	rm -rf backend/cmd/server/.output
 	touch backend/cmd/server/dist/.gitkeep
 	rm -rf frontend/.nuxt frontend/.output
