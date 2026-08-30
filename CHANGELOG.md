@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/lmmendes/attic/compare/v1.4.1...v1.4.2) (2026-08-30)
+
+
+### Bug Fixes
+
+* **oidc:** [#20](https://github.com/lmmendes/attic/issues/20) session flow uses id token instead of access token ([#24](https://github.com/lmmendes/attic/issues/24)) ([1ec0016](https://github.com/lmmendes/attic/commit/1ec001625cd594c51d52e0325f8ecb5eb65a7e19))
+
 ## [1.4.1](https://github.com/lmmendes/attic/compare/v1.4.0...v1.4.1) (2026-06-27)
 
 
