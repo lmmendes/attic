@@ -9,7 +9,7 @@ RUN bun install --frozen-lockfile
 COPY frontend/ .
 COPY backend/cmd/server/ /app/backend/cmd/server/
 
-# nuxt.config.ts outputs to ../backend/cmd/server/dist
+# nuxt.config.ts outputs to ../backend/cmd/server/dist/spa
 RUN bun run build
 
 # Stage 2: Build backend
@@ -26,7 +26,7 @@ RUN go mod download
 
 COPY backend/ .
 
-# Copy frontend build output (nuxt generates to backend/cmd/server/dist)
+# Copy frontend build output (nuxt generates to backend/cmd/server/dist/spa)
 COPY --from=frontend-builder /app/backend/cmd/server/dist ./cmd/server/dist
 
 RUN CGO_ENABLED=0 GOOS=linux go build \

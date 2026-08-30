@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -211,6 +212,7 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	asset.Notes = req.Notes
 
 	if err := h.repos.Assets.Create(r.Context(), asset); err != nil {
+		slog.Error("failed to create asset", "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to create asset")
 		return
 	}
@@ -258,7 +260,12 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "quantity exceeds maximum allowed value")
 		return
 	}
-	asset.Attributes = req.Attributes
+	// Only overwrite attributes when the client actually sent them. Omitting
+	// the field (or sending null) means "leave them alone"; sending {} means
+	// "clear all attributes".
+	if req.Attributes != nil {
+		asset.Attributes = req.Attributes
+	}
 
 	if req.LocationID != nil {
 		if id, err := parseUUIDString(*req.LocationID); err == nil {
@@ -293,6 +300,7 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	asset.Notes = req.Notes
 
 	if err := h.repos.Assets.Update(r.Context(), asset); err != nil {
+		slog.Error("failed to update asset", "asset_id", asset.ID, "error", err)
 		writeError(w, http.StatusInternalServerError, "failed to update asset")
 		return
 	}

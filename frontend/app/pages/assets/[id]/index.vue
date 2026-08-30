@@ -39,8 +39,16 @@ function getAttributeValue(key: string): string {
 
 const deleteModalOpen = ref(false)
 const warrantyModalOpen = ref(false)
-void refreshAsset // Mark as used
 const config = useRuntimeConfig()
+
+// Always re-fetch the asset (and its related data) when entering the page so
+// that returning from /assets/[id]/edit doesn't show a stale snapshot served
+// from Nuxt's useFetch cache.
+onMounted(() => {
+  refreshAsset()
+  refreshWarranty()
+  refreshAttachments()
+})
 
 // Warranty form
 const warrantyForm = reactive({

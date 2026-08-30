@@ -385,6 +385,48 @@ func Test_AssetRepository_Update_Success(t *testing.T) {
 	}
 }
 
+// Test_AssetRepository_Update_NilAttributes_DefaultsToEmptyJSON guards against
+// a regression where calling Update with a domain.Asset whose Attributes field
+// is nil would violate the NOT NULL constraint on the jsonb column and silently
+// fail the entire update (lost field changes, opaque 500 to the client).
+func Test_AssetRepository_Update_NilAttributes_DefaultsToEmptyJSON(t *testing.T) {
+	ctx := context.Background()
+	if err := testDB.TruncateAll(ctx); err != nil {
+		t.Fatalf("failed to truncate: %v", err)
+	}
+
+	fixtures := testutil.NewFixtures(testDB.Pool)
+	org, _ := fixtures.CreateOrganization(ctx, "Test Org")
+	cat, _ := fixtures.CreateCategory(ctx, org.ID, "Electronics", nil)
+	cond, _ := fixtures.CreateCondition(ctx, org.ID, "USED", "Used", 1)
+
+	repo := NewAssetRepository(testDB.Pool)
+	asset := &domain.Asset{
+		OrganizationID: org.ID,
+		CategoryID:     cat.ID,
+		Name:           "Asset",
+		Quantity:       1,
+	}
+	if err := repo.Create(ctx, asset); err != nil {
+		t.Fatalf("failed to create: %v", err)
+	}
+
+	asset.Attributes = nil
+	asset.ConditionID = &cond.ID
+
+	if err := repo.Update(ctx, asset); err != nil {
+		t.Fatalf("update with nil attributes failed: %v", err)
+	}
+
+	fetched, _ := repo.GetByID(ctx, asset.ID)
+	if fetched.ConditionID == nil || *fetched.ConditionID != cond.ID {
+		t.Error("expected condition_id to be persisted")
+	}
+	if string(fetched.Attributes) != "{}" {
+		t.Errorf("expected attributes to default to {}, got %q", string(fetched.Attributes))
+	}
+}
+
 func Test_AssetRepository_Delete_SoftDelete(t *testing.T) {
 	ctx := context.Background()
 	if err := testDB.TruncateAll(ctx); err != nil {

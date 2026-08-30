@@ -500,6 +500,15 @@ func (h *PluginHandler) downloadAndStoreImage(ctx context.Context, assetID uuid.
 		return fmt.Errorf("creating attachment record: %w", err)
 	}
 
+	// Mark the imported image as the asset's main image so it appears
+	// in lists and previews by default. Matches the upload-handler behavior.
+	if err := h.repos.Assets.SetMainAttachment(ctx, assetID, &attachment.ID); err != nil {
+		slog.Warn("failed to set imported image as main attachment",
+			"asset_id", assetID,
+			"attachment_id", attachment.ID,
+			"error", err)
+	}
+
 	slog.Info("downloaded and stored import image",
 		"asset_id", assetID,
 		"attachment_id", attachment.ID,
