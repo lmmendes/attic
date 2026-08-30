@@ -254,55 +254,6 @@ func Test_GetClaims_WithWrongType_ReturnsNil(t *testing.T) {
 	}
 }
 
-// Tests for Optional middleware
-
-func Test_Optional_NoAuthHeader_AllowsRequest(t *testing.T) {
-	m := &Middleware{disabled: false, oidcEnabled: false}
-
-	nextCalled := false
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		nextCalled = true
-		w.WriteHeader(http.StatusOK)
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-
-	m.Optional(next).ServeHTTP(rec, req)
-
-	if !nextCalled {
-		t.Error("expected next handler to be called without auth header")
-	}
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rec.Code)
-	}
-}
-
-func Test_Optional_WithAuthHeader_ValidatesToken(t *testing.T) {
-	sm := NewSessionManager("test-secret", 24)
-	m := &Middleware{
-		disabled:       false,
-		oidcEnabled:    false,
-		sessionManager: sm,
-	}
-
-	nextCalled := false
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		nextCalled = true
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Authorization", "Bearer invalid-token")
-	rec := httptest.NewRecorder()
-
-	m.Optional(next).ServeHTTP(rec, req)
-
-	// Should try to validate the token and fail
-	if nextCalled {
-		t.Error("expected next handler NOT to be called with invalid token")
-	}
-}
-
 // Tests for RequireAdmin middleware
 
 func Test_RequireAdmin_NoSession_ReturnsUnauthorized(t *testing.T) {
@@ -560,6 +511,7 @@ func Test_Middleware_OIDC_UsesIDTokenFromSessionCookie(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer opaque-access-token")
 	req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: encoded})
 	rec := httptest.NewRecorder()
 
@@ -579,5 +531,36 @@ func Test_Middleware_OIDC_UsesIDTokenFromSessionCookie(t *testing.T) {
 	}
 	if claims.DisplayName != "User Name" {
 		t.Errorf("expected display name User Name, got %s", claims.DisplayName)
+	}
+}
+
+func Test_Middleware_OIDC_RejectsBearerTokenWithoutSession(t *testing.T) {
+	m := &Middleware{
+		oidcEnabled: true,
+		oauth:       &OAuthHandler{},
+		verifier: &mockTokenVerifier{
+			verifyFn: func(context.Context, string) (VerifiedToken, error) {
+				t.Fatal("expected bearer token not to be verified")
+				return nil, nil
+			},
+		},
+	}
+
+	nextCalled := false
+	next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		nextCalled = true
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/assets", nil)
+	req.Header.Set("Authorization", "Bearer signed-access-token")
+	rec := httptest.NewRecorder()
+
+	m.Authenticate(next).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status 401, got %d", rec.Code)
+	}
+	if nextCalled {
+		t.Fatal("expected next handler not to be called")
 	}
 }
