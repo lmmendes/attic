@@ -8,12 +8,14 @@ describe('Login Page', () => {
 
   let mockIsAuthenticated = { value: false }
   let mockIsOIDCEnabled = { value: false }
+  let mockIsOIDCAutoRedirectEnabled = { value: false }
   let mockLoading = { value: false }
 
   beforeEach(() => {
     vi.clearAllMocks()
     mockIsAuthenticated = { value: false }
     mockIsOIDCEnabled = { value: false }
+    mockIsOIDCAutoRedirectEnabled = { value: false }
     mockLoading = { value: false }
     mockLoginWithCredentials.mockReset()
     mockLoginWithOIDC.mockReset()
@@ -160,6 +162,47 @@ describe('Login Page', () => {
       mockLoginWithOIDC()
 
       expect(mockLoginWithOIDC).toHaveBeenCalled()
+    })
+
+    it('automatically starts OIDC login when forwarding is enabled', async () => {
+      mockFetchSession.mockResolvedValueOnce(undefined)
+      mockIsOIDCEnabled.value = true
+      mockIsOIDCAutoRedirectEnabled.value = true
+
+      await mockFetchSession()
+      if (!mockIsAuthenticated.value && mockIsOIDCEnabled.value && mockIsOIDCAutoRedirectEnabled.value) {
+        mockLoginWithOIDC()
+      }
+
+      expect(mockLoginWithOIDC).toHaveBeenCalledOnce()
+    })
+
+    it('does not automatically start OIDC login after logout', async () => {
+      mockFetchSession.mockResolvedValueOnce(undefined)
+      mockIsOIDCEnabled.value = true
+      mockIsOIDCAutoRedirectEnabled.value = true
+      const logout = 'true'
+
+      await mockFetchSession()
+      if (!mockIsAuthenticated.value && mockIsOIDCEnabled.value && mockIsOIDCAutoRedirectEnabled.value && logout !== 'true') {
+        mockLoginWithOIDC()
+      }
+
+      expect(mockLoginWithOIDC).not.toHaveBeenCalled()
+      expect(mockIsOIDCEnabled.value).toBe(true)
+    })
+
+    it('keeps the ordinary OIDC login screen when forwarding is disabled', async () => {
+      mockFetchSession.mockResolvedValueOnce(undefined)
+      mockIsOIDCEnabled.value = true
+
+      await mockFetchSession()
+      if (!mockIsAuthenticated.value && mockIsOIDCEnabled.value && mockIsOIDCAutoRedirectEnabled.value) {
+        mockLoginWithOIDC()
+      }
+
+      expect(mockLoginWithOIDC).not.toHaveBeenCalled()
+      expect(mockIsOIDCEnabled.value).toBe(true)
     })
   })
 

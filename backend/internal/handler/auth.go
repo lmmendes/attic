@@ -15,16 +15,18 @@ type AuthHandler struct {
 	sessionManager    *auth.SessionManager
 	passwordMinLength int
 	oidcEnabled       bool
+	oidcAutoRedirect  bool
 	oauthHandler      *auth.OAuthHandler
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(userRepo *repository.UserRepository, sessionManager *auth.SessionManager, passwordMinLength int, oidcEnabled bool) *AuthHandler {
+func NewAuthHandler(userRepo *repository.UserRepository, sessionManager *auth.SessionManager, passwordMinLength int, oidcEnabled, oidcAutoRedirect bool) *AuthHandler {
 	return &AuthHandler{
 		userRepo:          userRepo,
 		sessionManager:    sessionManager,
 		passwordMinLength: passwordMinLength,
 		oidcEnabled:       oidcEnabled,
+		oidcAutoRedirect:  oidcEnabled && oidcAutoRedirect,
 	}
 }
 
@@ -108,6 +110,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	if h.oidcEnabled && h.oauthHandler != nil {
 		info := h.oauthHandler.GetSessionInfo(r)
+		info["oidc_auto_redirect"] = h.oidcAutoRedirect
 
 		// Enrich OIDC session with the user's role from the database
 		if userMap, ok := info["user"].(map[string]string); ok {
@@ -126,6 +129,7 @@ func (h *AuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	}
 	info := h.sessionManager.GetSessionInfo(r)
 	info["oidc_enabled"] = h.oidcEnabled
+	info["oidc_auto_redirect"] = h.oidcAutoRedirect
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(info)
 }

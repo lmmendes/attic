@@ -165,6 +165,17 @@ describe('useAuth', () => {
       expect(isOIDCEnabled.value).toBe(false)
     })
 
+    it('isOIDCAutoRedirectEnabled returns oidc_auto_redirect value from session', async () => {
+      const { useAuth } = await import('../../app/composables/useAuth')
+      const { isOIDCAutoRedirectEnabled, session } = useAuth()
+
+      session.value = { authenticated: false, oidc_enabled: true, oidc_auto_redirect: true }
+      expect(isOIDCAutoRedirectEnabled.value).toBe(true)
+
+      session.value = { authenticated: false, oidc_enabled: true, oidc_auto_redirect: false }
+      expect(isOIDCAutoRedirectEnabled.value).toBe(false)
+    })
+
     it('user computed returns user from session', async () => {
       const { useAuth } = await import('../../app/composables/useAuth')
       const { user, session } = useAuth()

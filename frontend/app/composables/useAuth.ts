@@ -1,6 +1,7 @@
 interface AuthSession {
   authenticated: boolean
   oidc_enabled?: boolean
+  oidc_auto_redirect?: boolean
   user?: {
     id?: string
     sub?: string
@@ -109,6 +110,7 @@ export function useAuth() {
 
   const isAuthenticated = computed(() => session.value?.authenticated ?? false)
   const isOIDCEnabled = computed(() => session.value?.oidc_enabled ?? false)
+  const isOIDCAutoRedirectEnabled = computed(() => session.value?.oidc_auto_redirect ?? false)
   const user = computed(() => session.value?.user ?? null)
   const isAdmin = computed(() => session.value?.user?.role === 'admin')
 
@@ -117,6 +119,7 @@ export function useAuth() {
     loading,
     isAuthenticated,
     isOIDCEnabled,
+    isOIDCAutoRedirectEnabled,
     user,
     isAdmin,
     fetchSession,

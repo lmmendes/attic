@@ -23,6 +23,52 @@ func Test_Load_PUID_PGID_NotSet(t *testing.T) {
 	}
 }
 
+func Test_Load_OIDCAutoRedirect_DefaultsToFalse(t *testing.T) {
+	t.Setenv("ATTIC_OIDC_ENABLED", "true")
+	t.Setenv("ATTIC_OIDC_ISSUER_URL", "")
+	t.Setenv("ATTIC_OIDC_CLIENT_ID", "")
+	t.Setenv("ATTIC_OIDC_AUTO_REDIRECT", "")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if cfg.OIDCAutoRedirect {
+		t.Error("expected OIDC auto redirect to default to false")
+	}
+}
+
+func Test_Load_OIDCAutoRedirect_ParsesTrue(t *testing.T) {
+	t.Setenv("ATTIC_OIDC_ENABLED", "true")
+	t.Setenv("ATTIC_OIDC_AUTO_REDIRECT", "true")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if !cfg.OIDCAutoRedirect {
+		t.Error("expected OIDC auto redirect to be true")
+	}
+}
+
+func Test_Load_OIDCAutoRedirect_IgnoredWhenOIDCDisabled(t *testing.T) {
+	t.Setenv("ATTIC_OIDC_ENABLED", "false")
+	t.Setenv("ATTIC_OIDC_ISSUER_URL", "")
+	t.Setenv("ATTIC_OIDC_CLIENT_ID", "")
+	t.Setenv("ATTIC_OIDC_AUTO_REDIRECT", "true")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if cfg.OIDCAutoRedirect {
+		t.Error("expected OIDC auto redirect to be false when OIDC is disabled")
+	}
+}
+
 func Test_Load_PUID_PGID_Set(t *testing.T) {
 	os.Setenv("ATTIC_PUID", "1000")
 	os.Setenv("ATTIC_PGID", "1000")

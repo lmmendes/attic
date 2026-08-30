@@ -212,7 +212,7 @@ func main() {
 	// Initialize handlers
 	h := handler.New(db, repos, fileStorage, defaultOrgID)
 	pluginHandler := handler.NewPluginHandler(pluginRegistry, repos, fileStorage, defaultOrgID)
-	authHandler := handler.NewAuthHandler(userRepo, sessionManager, cfg.PasswordMinLength, cfg.OIDCEnabled)
+	authHandler := handler.NewAuthHandler(userRepo, sessionManager, cfg.PasswordMinLength, cfg.OIDCEnabled, cfg.OIDCAutoRedirect)
 	if oauthHandler != nil {
 		authHandler.SetOAuthHandler(oauthHandler)
 	}
