@@ -385,6 +385,42 @@ func Test_AssetRepository_Update_Success(t *testing.T) {
 	}
 }
 
+func Test_AssetRepository_Update_WithNilAttributes_StoresEmptyObject(t *testing.T) {
+	ctx := context.Background()
+	if err := testDB.TruncateAll(ctx); err != nil {
+		t.Fatalf("failed to truncate: %v", err)
+	}
+
+	fixtures := testutil.NewFixtures(testDB.Pool)
+	org, _ := fixtures.CreateOrganization(ctx, "Test Org")
+	cat, _ := fixtures.CreateCategory(ctx, org.ID, "Electronics", nil)
+
+	repo := NewAssetRepository(testDB.Pool)
+	asset := &domain.Asset{
+		OrganizationID: org.ID,
+		CategoryID:     cat.ID,
+		Name:           "Test Asset",
+		Quantity:       1,
+	}
+	if err := repo.Create(ctx, asset); err != nil {
+		t.Fatalf("failed to create asset: %v", err)
+	}
+
+	asset.Attributes = nil
+	asset.Name = "Updated Asset"
+	if err := repo.Update(ctx, asset); err != nil {
+		t.Fatalf("failed to update asset without attributes: %v", err)
+	}
+
+	fetched, err := repo.GetByID(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("failed to get updated asset: %v", err)
+	}
+	if string(fetched.Attributes) != "{}" {
+		t.Errorf("expected empty attributes object, got %s", fetched.Attributes)
+	}
+}
+
 func Test_AssetRepository_Delete_SoftDelete(t *testing.T) {
 	ctx := context.Background()
 	if err := testDB.TruncateAll(ctx); err != nil {
