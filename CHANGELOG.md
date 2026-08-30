@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.3](https://github.com/lmmendes/attic/compare/v1.4.2...v1.4.3) (2026-08-30)
+
+
+### Bug Fixes
+
+* **api:** update asset with no custom attributes ([#32](https://github.com/lmmendes/attic/issues/32)) ([3009695](https://github.com/lmmendes/attic/commit/3009695873603a5ddd2b80275e6e32ae9694e0c1))
+
 ## [1.4.2](https://github.com/lmmendes/attic/compare/v1.4.1...v1.4.2) (2026-08-30)
 
 
