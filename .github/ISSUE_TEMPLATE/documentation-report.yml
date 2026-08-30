@@ -1,0 +1,62 @@
+name: Documentation or README issue
+description: Report missing, incorrect, or unclear documentation
+title: "[Docs]: "
+labels:
+  - documentation
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping make Attic's documentation clearer and more accurate.
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Type of documentation issue
+      options:
+        - Incorrect information
+        - Missing information
+        - Unclear or confusing content
+        - Outdated information
+        - Broken link or example
+        - Typo or formatting problem
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Documentation location
+      description: Link to the page or identify the file and section where the issue appears.
+      placeholder: e.g. README.md > Quick Start or https://...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Describe the issue
+      description: Explain what is incorrect, missing, outdated, or difficult to understand.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested improvement
+      description: Describe or draft the change you would like to see.
+      placeholder: Suggested wording, structure, example, or correction.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Include screenshots, related links, version details, or any other useful context.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission check
+      options:
+        - label: I searched for an existing issue that describes this documentation problem.
+          required: true

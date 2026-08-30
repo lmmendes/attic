@@ -1,0 +1,134 @@
+name: Bug report
+description: Report a issue with Attic
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Attic. Before submitting, please check for an existing issue that describes the same problem.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: Clearly describe what went wrong and how it affected you.
+      placeholder: A clear and concise description of the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest set of steps that consistently reproduces the problem.
+      placeholder: |
+        1. Go to ...
+        2. Click on ...
+        3. Enter ...
+        4. See the error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Include the exact error message, if there was one.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      description: Which part of Attic is affected?
+      options:
+        - Web interface
+        - API or backend
+        - Authentication or authorization
+        - Import or integration
+        - Storage or attachments
+        - Installation or deployment
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Attic version
+      description: Provide the release version, image tag, or commit SHA you are running.
+      placeholder: e.g. v1.2.3, latest, or abc1234
+    validations:
+      required: true
+
+  - type: input
+    id: installation
+    attributes:
+      label: Installation method
+      description: How are you running Attic?
+      placeholder: e.g. Docker Compose, Kubernetes, or from source
+    validations:
+      required: true
+
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating system
+      description: Include the operating system and version of the host running Attic.
+      placeholder: e.g. Ubuntu 24.04, macOS 15.1, or Windows 11
+    validations:
+      required: true
+
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Architecture
+      options:
+        - x86_64 / amd64
+        - ARM64 / aarch64
+        - ARM (32-bit)
+        - Other
+        - Unknown
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      description: If the web interface is affected, provide the browser and version.
+      placeholder: e.g. Firefox 142 or Chrome 139 (not applicable for backend-only issues)
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste relevant logs or stack traces. Remove passwords, tokens, personal data, and other secrets first.
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add screenshots, configuration details, or anything else that may help diagnose the problem.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched for an existing issue that describes this problem.
+          required: true
+        - label: I removed passwords, tokens, personal data, and other secrets from this report.
+          required: true
