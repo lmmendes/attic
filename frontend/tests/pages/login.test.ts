@@ -1,4 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
+import { mountSuspended, mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { ref } from 'vue'
+import LoginPage from '../../app/pages/login.vue'
+
+const { mockUseAuth } = vi.hoisted(() => ({
+  mockUseAuth: vi.fn()
+}))
+
+mockNuxtImport('useAuth', () => mockUseAuth)
 
 describe('Login Page', () => {
   const mockLoginWithCredentials = vi.fn()
@@ -6,18 +16,29 @@ describe('Login Page', () => {
   const mockFetchSession = vi.fn()
   const mockNavigateTo = vi.fn()
 
-  let mockIsAuthenticated = { value: false }
-  let mockIsOIDCEnabled = { value: false }
-  let mockLoading = { value: false }
+  let mockIsAuthenticated = ref(false)
+  let mockIsOIDCEnabled = ref(false)
+  let mockIsOIDCAutoRedirectEnabled = ref(false)
+  let mockLoading = ref(false)
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockIsAuthenticated = { value: false }
-    mockIsOIDCEnabled = { value: false }
-    mockLoading = { value: false }
+    mockIsAuthenticated = ref(false)
+    mockIsOIDCEnabled = ref(false)
+    mockIsOIDCAutoRedirectEnabled = ref(false)
+    mockLoading = ref(false)
     mockLoginWithCredentials.mockReset()
     mockLoginWithOIDC.mockReset()
     mockFetchSession.mockReset()
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: mockIsAuthenticated,
+      isOIDCEnabled: mockIsOIDCEnabled,
+      isOIDCAutoRedirectEnabled: mockIsOIDCAutoRedirectEnabled,
+      loginWithCredentials: mockLoginWithCredentials,
+      loginWithOIDC: mockLoginWithOIDC,
+      fetchSession: mockFetchSession,
+      loading: mockLoading
+    })
   })
 
   describe('initial state', () => {
@@ -160,6 +181,41 @@ describe('Login Page', () => {
       mockLoginWithOIDC()
 
       expect(mockLoginWithOIDC).toHaveBeenCalled()
+    })
+
+    it('automatically starts OIDC login when forwarding is enabled', async () => {
+      mockFetchSession.mockResolvedValueOnce(undefined)
+      mockIsOIDCEnabled.value = true
+      mockIsOIDCAutoRedirectEnabled.value = true
+
+      await mountSuspended(LoginPage, { route: '/login' })
+      await flushPromises()
+
+      expect(mockFetchSession).toHaveBeenCalledOnce()
+      expect(mockLoginWithOIDC).toHaveBeenCalledOnce()
+    })
+
+    it('does not automatically start OIDC login after logout', async () => {
+      mockFetchSession.mockResolvedValueOnce(undefined)
+      mockIsOIDCEnabled.value = true
+      mockIsOIDCAutoRedirectEnabled.value = true
+
+      const wrapper = await mountSuspended(LoginPage, { route: '/login?logout=true' })
+      await flushPromises()
+
+      expect(mockLoginWithOIDC).not.toHaveBeenCalled()
+      expect(wrapper.text()).toContain('Sign in with SSO')
+    })
+
+    it('keeps the ordinary OIDC login screen when forwarding is disabled', async () => {
+      mockFetchSession.mockResolvedValueOnce(undefined)
+      mockIsOIDCEnabled.value = true
+
+      const wrapper = await mountSuspended(LoginPage, { route: '/login' })
+      await flushPromises()
+
+      expect(mockLoginWithOIDC).not.toHaveBeenCalled()
+      expect(wrapper.text()).toContain('Sign in with SSO')
     })
   })
 

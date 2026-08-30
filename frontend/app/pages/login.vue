@@ -3,7 +3,8 @@ definePageMeta({
   layout: false
 })
 
-const { isAuthenticated, isOIDCEnabled, loginWithCredentials, loginWithOIDC, fetchSession, loading } = useAuth()
+const route = useRoute()
+const { isAuthenticated, isOIDCEnabled, isOIDCAutoRedirectEnabled, loginWithCredentials, loginWithOIDC, fetchSession, loading } = useAuth()
 
 const email = ref('')
 const password = ref('')
@@ -14,7 +15,12 @@ const isLoading = ref(false)
 onMounted(async () => {
   await fetchSession()
   if (isAuthenticated.value) {
-    navigateTo('/')
+    await navigateTo('/')
+    return
+  }
+
+  if (isOIDCEnabled.value && isOIDCAutoRedirectEnabled.value && route.query.logout !== 'true') {
+    loginWithOIDC()
   }
 })
 

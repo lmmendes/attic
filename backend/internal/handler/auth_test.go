@@ -16,16 +16,16 @@ import (
 
 // mockUserRepo implements a minimal user repository for testing
 type mockUserRepo struct {
-	users            map[uuid.UUID]*domain.User
-	usersByEmail     map[string]*domain.User
-	GetByIDError     error
-	GetByEmailError  error
-	UpdatePassError  error
-	ListError        error
-	CreateError      error
-	UpdateError      error
-	DeleteError      error
-	defaultOrgID     uuid.UUID
+	users           map[uuid.UUID]*domain.User
+	usersByEmail    map[string]*domain.User
+	GetByIDError    error
+	GetByEmailError error
+	UpdatePassError error
+	ListError       error
+	CreateError     error
+	UpdateError     error
+	DeleteError     error
+	defaultOrgID    uuid.UUID
 }
 
 func newMockUserRepo() *mockUserRepo {
@@ -495,6 +495,37 @@ func Test_GetSession_WithoutSession_ReturnsUnauthenticated(t *testing.T) {
 	}
 	if resp["authenticated"] != false {
 		t.Error("expected authenticated to be false")
+	}
+}
+
+func Test_AuthHandler_GetSession_ExposesOIDCAutoRedirect(t *testing.T) {
+	tests := []struct {
+		name             string
+		oidcEnabled      bool
+		oidcAutoRedirect bool
+		want             bool
+	}{
+		{name: "enabled", oidcEnabled: true, oidcAutoRedirect: true, want: true},
+		{name: "disabled by setting", oidcEnabled: true, oidcAutoRedirect: false, want: false},
+		{name: "ignored without OIDC", oidcEnabled: false, oidcAutoRedirect: true, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewAuthHandler(nil, auth.NewSessionManager("test-secret-key-32-bytes-long!!", 24), 8, tt.oidcEnabled, tt.oidcAutoRedirect)
+			req := httptest.NewRequest(http.MethodGet, "/auth/session", nil)
+			rec := httptest.NewRecorder()
+
+			h.GetSession(rec, req)
+
+			var resp map[string]any
+			if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+				t.Fatalf("failed to decode response: %v", err)
+			}
+			if resp["oidc_auto_redirect"] != tt.want {
+				t.Errorf("expected oidc_auto_redirect to be %v, got %v", tt.want, resp["oidc_auto_redirect"])
+			}
+		})
 	}
 }
 
