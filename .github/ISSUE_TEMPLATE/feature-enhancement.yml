@@ -1,0 +1,68 @@
+name: Feature enhancement
+description: Suggest an improvement to an existing Attic capability
+title: "[Enhancement]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: Use this form when an existing feature works but could be more useful, efficient, accessible, or intuitive.
+
+  - type: input
+    id: feature
+    attributes:
+      label: Existing feature
+      description: Which existing Attic feature or workflow would you like to improve?
+      placeholder: e.g. asset search, CSV import, or attachment management
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-behavior
+    attributes:
+      label: Current behavior and limitation
+      description: How does the feature work today, and what limitation or friction do you encounter?
+    validations:
+      required: true
+
+  - type: textarea
+    id: desired-improvement
+    attributes:
+      label: Desired improvement
+      description: Describe the behavior or workflow you would like instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: benefit
+    attributes:
+      label: Expected benefit
+      description: Who would benefit, and how would this improve their experience?
+    validations:
+      required: true
+
+  - type: textarea
+    id: approach
+    attributes:
+      label: Suggested approach
+      description: If you have an implementation or design in mind, describe it here.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches or workarounds have you considered or tried?
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add examples, mockups, links, or any other context that supports the enhancement.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission check
+      options:
+        - label: I searched for an existing request for this enhancement.
+          required: true
