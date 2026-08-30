@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/lmmendes/attic/internal/domain"
@@ -24,9 +23,28 @@ type Claims struct {
 	DisplayName string `json:"preferred_username"`
 }
 
+// TokenVerifier verifies OIDC tokens.
+type TokenVerifier interface {
+	Verify(context.Context, string) (VerifiedToken, error)
+}
+
+// VerifiedToken exposes the claims needed by the auth middleware.
+type VerifiedToken interface {
+	Claims(v interface{}) error
+	Subject() string
+}
+
+type oidcTokenVerifier struct {
+	verifier *oidc.IDTokenVerifier
+}
+
+type oidcVerifiedToken struct {
+	token *oidc.IDToken
+}
+
 // Middleware handles authentication (both OIDC and local)
 type Middleware struct {
-	verifier       *oidc.IDTokenVerifier
+	verifier       TokenVerifier
 	disabled       bool
 	oidcEnabled    bool
 	oauth          *OAuthHandler
@@ -60,13 +78,9 @@ func NewMiddleware(ctx context.Context, cfg Config) (*Middleware, error) {
 		}
 
 		verifier := provider.Verifier(&oidc.Config{
-			ClientID:                   cfg.ClientID,
-			SkipClientIDCheck:          true, // Keycloak access tokens use 'azp' not 'aud'
-			SkipExpiryCheck:            false,
-			SkipIssuerCheck:            false,
-			InsecureSkipSignatureCheck: false,
+			ClientID: cfg.ClientID,
 		})
-		m.verifier = verifier
+		m.verifier = &oidcTokenVerifier{verifier: verifier}
 	}
 
 	return m, nil
@@ -111,19 +125,8 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 // authenticateOIDC handles OIDC-based authentication
 func (m *Middleware) authenticateOIDC(w http.ResponseWriter, r *http.Request, next http.Handler) {
 	var tokenString string
-
-	// First, try Authorization header
-	authHeader := r.Header.Get("Authorization")
-	if authHeader != "" {
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
-			tokenString = parts[1]
-		}
-	}
-
-	// If no header, try session cookie
-	if tokenString == "" && m.oauth != nil {
-		tokenString = m.oauth.GetAccessToken(r)
+	if m.oauth != nil {
+		tokenString = m.oauth.GetIDToken(r)
 	}
 
 	if tokenString == "" {
@@ -131,8 +134,8 @@ func (m *Middleware) authenticateOIDC(w http.ResponseWriter, r *http.Request, ne
 		return
 	}
 
-	// Verify the token
-	idToken, err := m.verifier.Verify(r.Context(), tokenString)
+	// Verify the ID token from the OIDC session.
+	verifiedToken, err := m.verifier.Verify(r.Context(), tokenString)
 	if err != nil {
 		slog.Error("token verification failed", "error", err)
 		http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
@@ -141,15 +144,15 @@ func (m *Middleware) authenticateOIDC(w http.ResponseWriter, r *http.Request, ne
 
 	// Extract claims
 	var claims Claims
-	if err := idToken.Claims(&claims); err != nil {
+	if err := verifiedToken.Claims(&claims); err != nil {
 		slog.Error("failed to parse claims", "error", err)
 		http.Error(w, `{"error":"invalid token claims"}`, http.StatusUnauthorized)
 		return
 	}
 
-	claims.Subject = idToken.Subject
+	claims.Subject = verifiedToken.Subject()
 
-	// If claims are missing from access token, supplement from session cookie
+	// If claims are missing from the verified token, supplement from the session cookie.
 	if (claims.Email == "" || claims.DisplayName == "") && m.oauth != nil {
 		session, _ := m.oauth.getSessionFromCookie(r)
 		if session != nil {
@@ -202,18 +205,21 @@ func GetClaims(ctx context.Context) *Claims {
 	return claims
 }
 
-// Optional returns middleware that allows unauthenticated requests
-func (m *Middleware) Optional(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			next.ServeHTTP(w, r)
-			return
-		}
+func (v *oidcTokenVerifier) Verify(ctx context.Context, rawToken string) (VerifiedToken, error) {
+	token, err := v.verifier.Verify(ctx, rawToken)
+	if err != nil {
+		return nil, err
+	}
 
-		// If header is present, validate it
-		m.Authenticate(next).ServeHTTP(w, r)
-	})
+	return &oidcVerifiedToken{token: token}, nil
+}
+
+func (t *oidcVerifiedToken) Claims(v interface{}) error {
+	return t.token.Claims(v)
+}
+
+func (t *oidcVerifiedToken) Subject() string {
+	return t.token.Subject
 }
 
 // RequireAdmin middleware checks if the user has admin role

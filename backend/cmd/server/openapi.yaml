@@ -58,7 +58,7 @@ paths:
       tags: [Auth]
       summary: Get current user
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       responses:
         '200':
           description: Current user info
@@ -74,7 +74,7 @@ paths:
       tags: [Categories]
       summary: List categories
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       responses:
         '200':
           description: List of categories
@@ -88,7 +88,7 @@ paths:
       tags: [Categories]
       summary: Create category
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       requestBody:
         required: true
         content:
@@ -108,7 +108,7 @@ paths:
       tags: [Categories]
       summary: Get category by ID
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -124,7 +124,7 @@ paths:
       tags: [Categories]
       summary: Update category
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -144,7 +144,7 @@ paths:
       tags: [Categories]
       summary: Delete category
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -156,7 +156,7 @@ paths:
       tags: [Locations]
       summary: List locations
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       responses:
         '200':
           description: List of locations
@@ -170,7 +170,7 @@ paths:
       tags: [Locations]
       summary: Create location
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       requestBody:
         required: true
         content:
@@ -190,7 +190,7 @@ paths:
       tags: [Locations]
       summary: Get location by ID
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -204,7 +204,7 @@ paths:
       tags: [Locations]
       summary: Update location
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -220,7 +220,7 @@ paths:
       tags: [Locations]
       summary: Delete location
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -232,7 +232,7 @@ paths:
       tags: [Conditions]
       summary: List conditions
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       responses:
         '200':
           description: List of conditions
@@ -246,7 +246,7 @@ paths:
       tags: [Conditions]
       summary: Create condition
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       requestBody:
         required: true
         content:
@@ -262,7 +262,7 @@ paths:
       tags: [Conditions]
       summary: Get condition by ID
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -276,7 +276,7 @@ paths:
       tags: [Conditions]
       summary: Update condition
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -292,7 +292,7 @@ paths:
       tags: [Conditions]
       summary: Delete condition
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -304,7 +304,7 @@ paths:
       tags: [Assets]
       summary: List assets
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - name: q
           in: query
@@ -347,7 +347,7 @@ paths:
       tags: [Assets]
       summary: Create asset
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       requestBody:
         required: true
         content:
@@ -367,7 +367,7 @@ paths:
       tags: [Assets]
       summary: Get asset by ID
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -381,7 +381,7 @@ paths:
       tags: [Assets]
       summary: Update asset
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -397,7 +397,7 @@ paths:
       tags: [Assets]
       summary: Delete asset
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -409,7 +409,7 @@ paths:
       tags: [Warranties]
       summary: Get asset warranty
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -425,7 +425,7 @@ paths:
       tags: [Warranties]
       summary: Create warranty for asset
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -441,7 +441,7 @@ paths:
       tags: [Warranties]
       summary: Update asset warranty
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -457,7 +457,7 @@ paths:
       tags: [Warranties]
       summary: Delete asset warranty
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -469,7 +469,7 @@ paths:
       tags: [Warranties]
       summary: List expiring warranties
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - name: days
           in: query
@@ -492,7 +492,7 @@ paths:
       tags: [Attachments]
       summary: List asset attachments
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -508,7 +508,7 @@ paths:
       tags: [Attachments]
       summary: Upload attachment
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -530,7 +530,7 @@ paths:
       tags: [Attachments]
       summary: Get attachment download URL
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - name: attachmentId
           in: path
@@ -553,7 +553,7 @@ paths:
       tags: [Attachments]
       summary: Delete attachment
       security:
-        - bearerAuth: []
+        - sessionCookie: []
       parameters:
         - name: attachmentId
           in: path
@@ -567,11 +567,11 @@ paths:
 
 components:
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: JWT token from Keycloak OIDC
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+      description: OIDC session cookie set after a successful login
 
   parameters:
     id:
