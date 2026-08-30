@@ -11,23 +11,37 @@ const password = ref('')
 const error = ref('')
 const isLoading = ref(false)
 
+const returnTo = computed(() => {
+  const value = typeof route.query.return_to === 'string' ? route.query.return_to : ''
+  return value.startsWith('/oauth/authorize?') ? value : ''
+})
+
+const continueAfterLogin = async () => {
+  if (returnTo.value) {
+    const config = useRuntimeConfig()
+    window.location.href = `${config.public.apiBase}${returnTo.value}`
+    return
+  }
+  await navigateTo('/')
+}
+
 // Check if already authenticated
 onMounted(async () => {
   await fetchSession()
   if (isAuthenticated.value) {
-    await navigateTo('/')
+    await continueAfterLogin()
     return
   }
 
   if (isOIDCEnabled.value && isOIDCAutoRedirectEnabled.value && route.query.logout !== 'true') {
-    loginWithOIDC()
+    loginWithOIDC(returnTo.value)
   }
 })
 
 // Watch for authentication changes
 watch(isAuthenticated, (authenticated) => {
   if (authenticated) {
-    navigateTo('/')
+    continueAfterLogin()
   }
 })
 
@@ -45,7 +59,7 @@ const handleLogin = async () => {
 }
 
 const handleOIDCLogin = () => {
-  loginWithOIDC()
+  loginWithOIDC(returnTo.value)
 }
 </script>
 

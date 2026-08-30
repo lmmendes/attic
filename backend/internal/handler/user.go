@@ -10,6 +10,7 @@ type CurrentUserResponse struct {
 	ID          string  `json:"id"`
 	Email       string  `json:"email"`
 	DisplayName *string `json:"display_name,omitempty"`
+	Role        string  `json:"role"`
 }
 
 func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
@@ -23,6 +24,7 @@ func (h *Handler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 		ID:          user.ID.String(),
 		Email:       user.Email,
 		DisplayName: user.DisplayName,
+		Role:        string(user.Role),
 	}
 
 	writeJSON(w, http.StatusOK, response)

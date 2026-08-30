@@ -3,7 +3,6 @@ package auth
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -34,9 +33,10 @@ type keycloakTokenResponse struct {
 }
 
 var (
-	keycloakOnce     sync.Once
-	keycloakInstance *keycloakProvider
-	keycloakErr      error
+	keycloakOnce         sync.Once
+	keycloakInstance     *keycloakProvider
+	keycloakErr          error
+	integrationCookieKey = make([]byte, 32)
 )
 
 func TestMain(m *testing.M) {
@@ -50,6 +50,9 @@ func TestMain(m *testing.M) {
 }
 
 func Test_Middleware_OIDC_KeycloakSession_UsesIDTokenFromCookie(t *testing.T) {
+	if os.Getenv("ATTIC_RUN_OIDC_INTEGRATION") != "true" {
+		t.Skip("set ATTIC_RUN_OIDC_INTEGRATION=true to run the Keycloak integration test")
+	}
 	ctx := context.Background()
 	provider, err := getKeycloakProvider()
 	if err != nil {
@@ -70,7 +73,7 @@ func Test_Middleware_OIDC_KeycloakSession_UsesIDTokenFromCookie(t *testing.T) {
 		t.Fatalf("failed to create middleware: %v", err)
 	}
 
-	middleware.SetOAuthHandler(&OAuthHandler{})
+	middleware.SetOAuthHandler(&OAuthHandler{secret: integrationCookieKey})
 
 	session := Session{
 		AccessToken: "definitely-not-a-valid-jwt",
@@ -316,9 +319,5 @@ func (p *keycloakProvider) getUserToken(ctx context.Context) (*keycloakTokenResp
 }
 
 func encodeSessionCookie(session Session) (string, error) {
-	data, err := json.Marshal(session)
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(data), nil
+	return encodeCookie(integrationCookieKey, sessionCookieName, session)
 }

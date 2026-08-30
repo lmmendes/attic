@@ -5,6 +5,36 @@ import (
 	"testing"
 )
 
+func Test_Load_SessionSecret_GeneratesEphemeralSecretWhenUnset(t *testing.T) {
+	t.Setenv("ATTIC_SESSION_SECRET", "")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+	if len(cfg.SessionSecret) < 32 {
+		t.Fatalf("expected a strong generated session secret, got %d characters", len(cfg.SessionSecret))
+	}
+	if !cfg.SessionSecretEphemeral {
+		t.Fatal("expected generated secret to be marked ephemeral")
+	}
+}
+
+func Test_Load_SessionSecret_UsesConfiguredSecret(t *testing.T) {
+	t.Setenv("ATTIC_SESSION_SECRET", "configured-session-secret-with-32-characters")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+	if cfg.SessionSecret != "configured-session-secret-with-32-characters" {
+		t.Fatal("expected configured session secret")
+	}
+	if cfg.SessionSecretEphemeral {
+		t.Fatal("expected configured secret to be persistent")
+	}
+}
+
 func Test_Load_PUID_PGID_NotSet(t *testing.T) {
 	// Clear any existing values
 	os.Unsetenv("ATTIC_PUID")

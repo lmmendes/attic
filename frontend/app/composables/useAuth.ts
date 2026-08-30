@@ -62,8 +62,9 @@ export function useAuth() {
     }
   }
 
-  const loginWithOIDC = () => {
-    window.location.href = `${config.public.apiBase}/auth/oidc/login`
+  const loginWithOIDC = (returnTo?: string) => {
+    const query = returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : ''
+    window.location.href = `${config.public.apiBase}/auth/oidc/login${query}`
   }
 
   const login = () => {

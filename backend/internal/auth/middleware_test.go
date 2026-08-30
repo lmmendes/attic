@@ -2,8 +2,6 @@ package auth
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -484,15 +482,15 @@ func Test_Middleware_OIDC_UsesIDTokenFromSessionCookie(t *testing.T) {
 		Email:       "user@example.com",
 		Name:        "User Name",
 	}
-	data, err := json.Marshal(session)
+	key := make([]byte, 32)
+	encoded, err := encodeCookie(key, sessionCookieName, session)
 	if err != nil {
-		t.Fatalf("failed to marshal session: %v", err)
+		t.Fatalf("failed to encode session: %v", err)
 	}
-	encoded := base64.StdEncoding.EncodeToString(data)
 
 	m := &Middleware{
 		oidcEnabled: true,
-		oauth:       &OAuthHandler{},
+		oauth:       &OAuthHandler{secret: key},
 		verifier: &mockTokenVerifier{
 			verifyFn: func(ctx context.Context, token string) (VerifiedToken, error) {
 				if token != "signed-id-token" {

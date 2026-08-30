@@ -3,7 +3,6 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -28,21 +27,15 @@ type LocalSession struct {
 
 // SessionManager handles local session management
 type SessionManager struct {
-	secret          []byte
-	durationHours   int
-	cookieSecure    bool
+	secret        []byte
+	durationHours int
+	cookieSecure  bool
 }
 
 // NewSessionManager creates a new session manager
 func NewSessionManager(secret string, durationHours int) *SessionManager {
-	secretBytes := []byte(secret)
-	if len(secretBytes) < 32 {
-		padded := make([]byte, 32)
-		copy(padded, secretBytes)
-		secretBytes = padded
-	}
 	return &SessionManager{
-		secret:        secretBytes[:32],
+		secret:        cookieKey(secret),
 		durationHours: durationHours,
 	}
 }
@@ -65,12 +58,10 @@ func (m *SessionManager) CreateSession(w http.ResponseWriter, r *http.Request, u
 		Token:     token,
 	}
 
-	data, err := json.Marshal(session)
+	encoded, err := encodeCookie(m.secret, sessionCookieNameLocal, session)
 	if err != nil {
-		return fmt.Errorf("marshaling session: %w", err)
+		return fmt.Errorf("encoding session: %w", err)
 	}
-
-	encoded := base64.StdEncoding.EncodeToString(data)
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieNameLocal,
@@ -92,14 +83,9 @@ func (m *SessionManager) GetSession(r *http.Request) (*LocalSession, error) {
 		return nil, err
 	}
 
-	data, err := base64.StdEncoding.DecodeString(cookie.Value)
-	if err != nil {
-		return nil, fmt.Errorf("decoding session: %w", err)
-	}
-
 	var session LocalSession
-	if err := json.Unmarshal(data, &session); err != nil {
-		return nil, fmt.Errorf("unmarshaling session: %w", err)
+	if err := decodeCookie(m.secret, sessionCookieNameLocal, cookie.Value, &session); err != nil {
+		return nil, fmt.Errorf("decoding session: %w", err)
 	}
 
 	if time.Now().After(session.ExpiresAt) {

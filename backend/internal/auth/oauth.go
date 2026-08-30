@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	stateCookieName   = "oauth_state"
-	sessionCookieName = "session"
-	cookieMaxAge      = 24 * time.Hour
+	stateCookieName    = "oauth_state"
+	returnToCookieName = "oauth_return_to"
+	sessionCookieName  = "session"
+	cookieMaxAge       = 24 * time.Hour
 )
 
 // Session represents a user session stored in a cookie
@@ -83,14 +84,6 @@ func NewOAuthHandler(ctx context.Context, cfg OAuthConfig) (*OAuthHandler, error
 		ClientID: cfg.ClientID,
 	})
 
-	secret := []byte(cfg.SessionSecret)
-	if len(secret) < 32 {
-		// Pad secret if too short
-		padded := make([]byte, 32)
-		copy(padded, secret)
-		secret = padded
-	}
-
 	// Extract end_session_endpoint from OIDC discovery document
 	var providerClaims struct {
 		EndSessionEndpoint string `json:"end_session_endpoint"`
@@ -104,7 +97,7 @@ func NewOAuthHandler(ctx context.Context, cfg OAuthConfig) (*OAuthHandler, error
 		oauth2Config,
 		verifier,
 		cfg.BaseURL,
-		secret[:32],
+		cookieKey(cfg.SessionSecret),
 		false,
 		providerClaims.EndSessionEndpoint,
 	}, nil
@@ -121,16 +114,33 @@ func (h *OAuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Generate state for CSRF protection
 	state := generateRandomString(32)
 
-	// Store state in cookie
+	encodedState, err := encodeCookie(h.secret, stateCookieName, state)
+	if err != nil {
+		http.Error(w, "Failed to start login", http.StatusInternalServerError)
+		return
+	}
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     stateCookieName,
-		Value:    state,
+		Value:    encodedState,
 		Path:     "/",
 		MaxAge:   300, // 5 minutes
 		HttpOnly: true,
 		Secure:   isSecureRequest(r),
 		SameSite: http.SameSiteLaxMode,
 	})
+
+	if returnTo := safeReturnTo(r.URL.Query().Get("return_to")); returnTo != "" {
+		encodedReturnTo, err := encodeCookie(h.secret, returnToCookieName, returnTo)
+		if err != nil {
+			http.Error(w, "Failed to start login", http.StatusInternalServerError)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name: returnToCookieName, Value: encodedReturnTo, Path: "/", MaxAge: 300,
+			HttpOnly: true, Secure: isSecureRequest(r), SameSite: http.SameSiteLaxMode,
+		})
+	}
 
 	// Redirect to OAuth provider
 	authURL := h.oauth2Config.AuthCodeURL(state, oauth2.AccessTypeOffline)
@@ -152,7 +162,8 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.URL.Query().Get("state") != stateCookie.Value {
+	var expectedState string
+	if err := decodeCookie(h.secret, stateCookieName, stateCookie.Value, &expectedState); err != nil || r.URL.Query().Get("state") != expectedState {
 		slog.Error("state mismatch")
 		http.Error(w, "State mismatch", http.StatusBadRequest)
 		return
@@ -228,8 +239,17 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Redirect to home
-	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	redirectTo := "/"
+	if returnToCookie, err := r.Cookie(returnToCookieName); err == nil {
+		var returnTo string
+		if decodeCookie(h.secret, returnToCookieName, returnToCookie.Value, &returnTo) == nil {
+			if safe := safeReturnTo(returnTo); safe != "" {
+				redirectTo = safe
+			}
+		}
+		http.SetCookie(w, &http.Cookie{Name: returnToCookieName, Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
+	}
+	http.Redirect(w, r, redirectTo, http.StatusTemporaryRedirect)
 }
 
 // Logout clears the session
@@ -342,13 +362,10 @@ func (h *OAuthHandler) GetIDToken(r *http.Request) string {
 }
 
 func (h *OAuthHandler) setSessionCookie(w http.ResponseWriter, r *http.Request, session *Session) error {
-	data, err := json.Marshal(session)
+	encoded, err := encodeCookie(h.secret, sessionCookieName, session)
 	if err != nil {
 		return err
 	}
-
-	// Encode as base64
-	encoded := base64.StdEncoding.EncodeToString(data)
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
@@ -369,17 +386,16 @@ func (h *OAuthHandler) getSessionFromCookie(r *http.Request) (*Session, error) {
 		return nil, err
 	}
 
-	data, err := base64.StdEncoding.DecodeString(cookie.Value)
-	if err != nil {
-		return nil, err
-	}
-
 	var session Session
-	if err := json.Unmarshal(data, &session); err != nil {
+	if err := decodeCookie(h.secret, sessionCookieName, cookie.Value, &session); err != nil {
 		return nil, err
 	}
 
 	return &session, nil
+}
+
+func (h *OAuthHandler) GetSessionData(r *http.Request) (*Session, error) {
+	return h.getSessionFromCookie(r)
 }
 
 // isSecureRequest checks if the request originated over HTTPS,
@@ -395,4 +411,12 @@ func generateRandomString(length int) string {
 	b := make([]byte, length)
 	rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)[:length]
+}
+
+func safeReturnTo(value string) string {
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.Path != "/oauth/authorize" {
+		return ""
+	}
+	return parsed.RequestURI()
 }

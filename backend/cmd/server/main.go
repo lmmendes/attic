@@ -54,6 +54,9 @@ func main() {
 		slog.Error("failed to load config", "error", err)
 		os.Exit(1)
 	}
+	if cfg.SessionSecretEphemeral && !cfg.AuthDisabled {
+		slog.Warn("ATTIC_SESSION_SECRET is not set; generated an ephemeral secret and browser sessions will end on restart")
+	}
 
 	ctx := context.Background()
 
@@ -116,6 +119,7 @@ func main() {
 
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db.Pool)
+	oauthRepo := repository.NewOAuthRepository(db.Pool)
 	repos := &handler.Repositories{
 		Organizations: repository.NewOrganizationRepository(db.Pool),
 		Users:         userRepo,
@@ -163,6 +167,7 @@ func main() {
 
 	// Set session manager for local auth
 	authMiddleware.SetSessionManager(sessionManager)
+	authMiddleware.SetBearerTokenStore(oauthRepo)
 
 	// OAuth handler for OIDC login flow (only if OIDC enabled)
 	var oauthHandler *auth.OAuthHandler
@@ -217,6 +222,7 @@ func main() {
 		authHandler.SetOAuthHandler(oauthHandler)
 	}
 	userMgmtHandler := handler.NewUserManagementHandler(userRepo, sessionManager, cfg.PasswordMinLength, defaultOrgID)
+	oauthProtocolHandler := handler.NewOAuthProtocolHandler(cfg.BaseURL, cfg.OIDCEnabled, defaultOrgID, userRepo, oauthRepo, sessionManager, oauthHandler)
 
 	r := chi.NewRouter()
 
@@ -240,6 +246,7 @@ func main() {
 	// Health check (no auth required)
 	r.Get("/health", h.Health)
 	r.Get("/ready", h.Ready)
+	r.Get("/.well-known/oauth-authorization-server", oauthProtocolHandler.Metadata)
 
 	// OpenAPI documentation
 	r.Get("/api/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
@@ -266,6 +273,7 @@ func main() {
 		r.Post("/logout", authHandler.Logout)
 		r.Get("/session", authHandler.GetSession)
 		r.Get("/mode", authHandler.GetAuthMode)
+		r.Get("/methods", oauthProtocolHandler.AuthMethods)
 
 		// OIDC endpoints (only when OIDC enabled)
 		if cfg.OIDCEnabled && oauthHandler != nil {
@@ -273,6 +281,12 @@ func main() {
 			r.Get("/oidc/callback", oauthHandler.Callback)
 			r.Get("/oidc/logout", oauthHandler.Logout)
 		}
+	})
+
+	r.Route("/oauth", func(r chi.Router) {
+		r.Get("/authorize", oauthProtocolHandler.Authorize)
+		r.Post("/token", oauthProtocolHandler.Token)
+		r.Post("/revoke", oauthProtocolHandler.Revoke)
 	})
 
 	// API routes (auth required)

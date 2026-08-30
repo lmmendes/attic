@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -148,8 +147,7 @@ func Test_OAuthHandler_GetSession_ExpiredSession_ReturnsUnauthenticated(t *testi
 		Subject:     "user-123",
 		Email:       "test@example.com",
 	}
-	data, _ := json.Marshal(session)
-	encoded := base64.StdEncoding.EncodeToString(data)
+	encoded, _ := encodeCookie(handler.secret, sessionCookieName, session)
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/session", nil)
 	req.AddCookie(&http.Cookie{
@@ -183,8 +181,7 @@ func Test_OAuthHandler_GetSession_ValidSession_ReturnsAuthenticated(t *testing.T
 		Email:       "test@example.com",
 		Name:        "Test User",
 	}
-	data, _ := json.Marshal(session)
-	encoded := base64.StdEncoding.EncodeToString(data)
+	encoded, _ := encodeCookie(handler.secret, sessionCookieName, session)
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/session", nil)
 	req.AddCookie(&http.Cookie{
@@ -235,8 +232,7 @@ func Test_OAuthHandler_GetAccessToken_ValidSession_ReturnsToken(t *testing.T) {
 		AccessToken: "my-access-token",
 		ExpiresAt:   time.Now().Add(1 * time.Hour),
 	}
-	data, _ := json.Marshal(session)
-	encoded := base64.StdEncoding.EncodeToString(data)
+	encoded, _ := encodeCookie(handler.secret, sessionCookieName, session)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
@@ -261,8 +257,7 @@ func Test_OAuthHandler_GetIDToken_ValidSession_ReturnsToken(t *testing.T) {
 		IDToken:   "my-id-token",
 		ExpiresAt: time.Now().Add(1 * time.Hour),
 	}
-	data, _ := json.Marshal(session)
-	encoded := base64.StdEncoding.EncodeToString(data)
+	encoded, _ := encodeCookie(handler.secret, sessionCookieName, session)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
@@ -313,14 +308,10 @@ func Test_OAuthHandler_setSessionCookie_EncodesSession(t *testing.T) {
 		t.Fatal("expected session cookie to be set")
 	}
 
-	// Decode and verify
-	data, err := base64.StdEncoding.DecodeString(sessionCookie.Value)
-	if err != nil {
+	var decoded Session
+	if err := decodeCookie(handler.secret, sessionCookieName, sessionCookie.Value, &decoded); err != nil {
 		t.Fatalf("failed to decode cookie: %v", err)
 	}
-
-	var decoded Session
-	json.Unmarshal(data, &decoded)
 
 	if decoded.AccessToken != "access-123" {
 		t.Errorf("expected access token 'access-123', got '%s'", decoded.AccessToken)
@@ -341,8 +332,7 @@ func Test_OAuthHandler_getSessionFromCookie_DecodesSession(t *testing.T) {
 		Subject:     "sub-456",
 		Email:       "decode@example.com",
 	}
-	data, _ := json.Marshal(session)
-	encoded := base64.StdEncoding.EncodeToString(data)
+	encoded, _ := encodeCookie(handler.secret, sessionCookieName, session)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
@@ -381,14 +371,14 @@ func Test_OAuthHandler_getSessionFromCookie_InvalidBase64_ReturnsError(t *testin
 	}
 }
 
-func Test_OAuthHandler_getSessionFromCookie_InvalidJSON_ReturnsError(t *testing.T) {
+func Test_OAuthHandler_getSessionFromCookie_TamperedCookie_ReturnsError(t *testing.T) {
 	handler := &OAuthHandler{
 		disabled: false,
 		secret:   make([]byte, 32),
 	}
 
-	// Valid base64 but invalid JSON
-	encoded := base64.StdEncoding.EncodeToString([]byte("not json"))
+	encoded, _ := encodeCookie(handler.secret, sessionCookieName, Session{AccessToken: "token"})
+	encoded = encoded[:len(encoded)-1] + "A"
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{

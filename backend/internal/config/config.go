@@ -1,28 +1,31 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strconv"
 )
 
 type Config struct {
-	Port             string
-	DatabaseURL      string
-	S3Endpoint       string
-	S3Bucket         string
-	S3Region         string
-	S3AccessKey      string
-	S3SecretKey      string
-	OIDCEnabled      bool
-	OIDCAutoRedirect bool
-	OIDCIssuer       string
-	OIDCClientID     string
-	OIDCClientSecret string
-	AuthDisabled     bool
-	CORSOrigins      string
-	BaseURL          string
-	SessionSecret    string
+	Port                   string
+	DatabaseURL            string
+	S3Endpoint             string
+	S3Bucket               string
+	S3Region               string
+	S3AccessKey            string
+	S3SecretKey            string
+	OIDCEnabled            bool
+	OIDCAutoRedirect       bool
+	OIDCIssuer             string
+	OIDCClientID           string
+	OIDCClientSecret       string
+	AuthDisabled           bool
+	CORSOrigins            string
+	BaseURL                string
+	SessionSecret          string
+	SessionSecretEphemeral bool
 
 	// Storage settings
 	LocalStoragePath string // Path for local file storage (used when S3 is not configured)
@@ -47,6 +50,16 @@ func (c *Config) HasFileOwnership() bool {
 }
 
 func Load() (*Config, error) {
+	sessionSecret := os.Getenv("ATTIC_SESSION_SECRET")
+	sessionSecretEphemeral := sessionSecret == ""
+	if sessionSecretEphemeral {
+		secretBytes := make([]byte, 32)
+		if _, err := rand.Read(secretBytes); err != nil {
+			return nil, fmt.Errorf("generating session secret: %w", err)
+		}
+		sessionSecret = base64.RawURLEncoding.EncodeToString(secretBytes)
+	}
+
 	sessionHours, _ := strconv.Atoi(getEnv("ATTIC_SESSION_DURATION_HOURS", "24"))
 	if sessionHours <= 0 {
 		sessionHours = 24
@@ -71,20 +84,21 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Port:             getEnv("ATTIC_PORT", "8080"),
-		DatabaseURL:      getEnv("ATTIC_DATABASE_URL", "postgres://attic:attic@localhost:5432/attic?sslmode=disable"),
-		S3Endpoint:       getEnv("ATTIC_S3_ENDPOINT", "http://localhost:4566"),
-		S3Bucket:         getEnv("ATTIC_S3_BUCKET", "attic-attachments"),
-		S3Region:         getEnv("ATTIC_S3_REGION", "us-east-1"),
-		S3AccessKey:      getEnv("ATTIC_S3_ACCESS_KEY", ""), // Empty = use local storage
-		S3SecretKey:      getEnv("ATTIC_S3_SECRET_KEY", ""), // Empty = use local storage
-		OIDCIssuer:       getEnv("ATTIC_OIDC_ISSUER_URL", ""),
-		OIDCClientID:     getEnv("ATTIC_OIDC_CLIENT_ID", ""),
-		OIDCClientSecret: getEnv("ATTIC_OIDC_CLIENT_SECRET", ""),
-		AuthDisabled:     getEnv("ATTIC_AUTH_DISABLED", "false") == "true",
-		CORSOrigins:      getEnv("ATTIC_CORS_ORIGINS", "http://localhost:3000"),
-		BaseURL:          getEnv("ATTIC_BASE_URL", "http://localhost:8080"),
-		SessionSecret:    getEnv("ATTIC_SESSION_SECRET", "change-me-in-production-32chars!"),
+		Port:                   getEnv("ATTIC_PORT", "8080"),
+		DatabaseURL:            getEnv("ATTIC_DATABASE_URL", "postgres://attic:attic@localhost:5432/attic?sslmode=disable"),
+		S3Endpoint:             getEnv("ATTIC_S3_ENDPOINT", "http://localhost:4566"),
+		S3Bucket:               getEnv("ATTIC_S3_BUCKET", "attic-attachments"),
+		S3Region:               getEnv("ATTIC_S3_REGION", "us-east-1"),
+		S3AccessKey:            getEnv("ATTIC_S3_ACCESS_KEY", ""), // Empty = use local storage
+		S3SecretKey:            getEnv("ATTIC_S3_SECRET_KEY", ""), // Empty = use local storage
+		OIDCIssuer:             getEnv("ATTIC_OIDC_ISSUER_URL", ""),
+		OIDCClientID:           getEnv("ATTIC_OIDC_CLIENT_ID", ""),
+		OIDCClientSecret:       getEnv("ATTIC_OIDC_CLIENT_SECRET", ""),
+		AuthDisabled:           getEnv("ATTIC_AUTH_DISABLED", "false") == "true",
+		CORSOrigins:            getEnv("ATTIC_CORS_ORIGINS", "http://localhost:3000"),
+		BaseURL:                getEnv("ATTIC_BASE_URL", "http://localhost:8080"),
+		SessionSecret:          sessionSecret,
+		SessionSecretEphemeral: sessionSecretEphemeral,
 
 		LocalStoragePath: getEnv("ATTIC_LOCAL_STORAGE_PATH", "./uploads"),
 		PUID:             puid,

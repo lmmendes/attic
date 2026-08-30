@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/lmmendes/attic/internal/domain"
@@ -49,6 +50,11 @@ type Middleware struct {
 	oidcEnabled    bool
 	oauth          *OAuthHandler
 	sessionManager *SessionManager
+	bearerTokens   BearerTokenStore
+}
+
+type BearerTokenStore interface {
+	GetUserByAccessToken(context.Context, string) (*domain.User, error)
 }
 
 // Config for auth middleware
@@ -96,6 +102,10 @@ func (m *Middleware) SetSessionManager(sm *SessionManager) {
 	m.sessionManager = sm
 }
 
+func (m *Middleware) SetBearerTokenStore(store BearerTokenStore) {
+	m.bearerTokens = store
+}
+
 // Authenticate is HTTP middleware that validates authentication
 func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -112,6 +122,11 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
+		if authorization := r.Header.Get("Authorization"); authorization != "" && m.bearerTokens != nil {
+			m.authenticateBearer(w, r, next, authorization)
+			return
+		}
+
 		if m.oidcEnabled {
 			// OIDC authentication
 			m.authenticateOIDC(w, r, next)
@@ -120,6 +135,32 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 			m.authenticateLocal(w, r, next)
 		}
 	})
+}
+
+func (m *Middleware) authenticateBearer(w http.ResponseWriter, r *http.Request, next http.Handler, authorization string) {
+	parts := strings.Fields(authorization)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || m.bearerTokens == nil {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+	user, err := m.bearerTokens.GetUserByAccessToken(r.Context(), parts[1])
+	if err != nil {
+		slog.Error("failed to authenticate bearer token", "error", err)
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+	if user == nil {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+	name := ""
+	if user.DisplayName != nil {
+		name = *user.DisplayName
+	}
+	claims := &Claims{Subject: user.ID.String(), Email: user.Email, Name: name, DisplayName: name}
+	ctx := context.WithValue(r.Context(), UserContextKey, claims)
+	ctx = context.WithValue(ctx, DomainUserContextKey, user)
+	next.ServeHTTP(w, r.WithContext(ctx))
 }
 
 // authenticateOIDC handles OIDC-based authentication
@@ -190,9 +231,17 @@ func (m *Middleware) authenticateLocal(w http.ResponseWriter, r *http.Request, n
 		Name:        session.Name,
 		DisplayName: session.Name,
 	}
+	var displayName *string
+	if session.Name != "" {
+		displayName = &session.Name
+	}
+	user := &domain.User{
+		ID: session.UserID, Email: session.Email, DisplayName: displayName, Role: session.Role,
+	}
 
 	// Add claims to context
 	ctx := context.WithValue(r.Context(), UserContextKey, claims)
+	ctx = context.WithValue(ctx, DomainUserContextKey, user)
 	next.ServeHTTP(w, r.WithContext(ctx))
 }
 

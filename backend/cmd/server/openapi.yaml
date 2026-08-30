@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Attic Asset Management API
-  description: API for managing organizational assets, warranties, and attachments
+  description: API for managing organizational assets, warranties, and attachments. Protected API routes accept either the web session cookie or an Attic bearer access token.
   version: 1.0.0
   contact:
     name: Attic
@@ -52,6 +52,95 @@ paths:
           description: Service is ready
         '503':
           description: Service is not ready
+
+  /auth/methods:
+    get:
+      tags: [Auth]
+      summary: Discover authentication settings for native clients
+      responses:
+        '200':
+          description: Authentication endpoints and registered mobile client
+
+  /oauth/authorize:
+    get:
+      tags: [Auth]
+      summary: Begin Authorization Code with PKCE
+      parameters:
+        - name: response_type
+          in: query
+          required: true
+          schema: { type: string, enum: [code] }
+        - name: client_id
+          in: query
+          required: true
+          schema: { type: string, enum: [attic-mobile] }
+        - name: redirect_uri
+          in: query
+          required: true
+          schema: { type: string }
+        - name: code_challenge
+          in: query
+          required: true
+          schema: { type: string }
+        - name: code_challenge_method
+          in: query
+          required: true
+          schema: { type: string, enum: [S256] }
+        - name: state
+          in: query
+          schema: { type: string }
+      responses:
+        '302':
+          description: Redirect to login or to the registered native callback
+
+  /oauth/token:
+    post:
+      tags: [Auth]
+      summary: Exchange an authorization code or rotate a refresh token
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type, client_id]
+              properties:
+                grant_type:
+                  type: string
+                  enum: [authorization_code, refresh_token]
+                client_id:
+                  type: string
+                redirect_uri:
+                  type: string
+                code:
+                  type: string
+                code_verifier:
+                  type: string
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Attic access and rotating refresh tokens
+        '400':
+          description: Invalid grant or request
+
+  /oauth/revoke:
+    post:
+      tags: [Auth]
+      summary: Revoke a mobile refresh-token family
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Token is revoked or was already inactive
 
   /api/me:
     get:
@@ -572,6 +661,10 @@ components:
       in: cookie
       name: session
       description: OIDC session cookie set after a successful login
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Short-lived opaque Attic access token issued by /oauth/token
 
   parameters:
     id:
