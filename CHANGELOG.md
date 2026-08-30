@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/lmmendes/attic/compare/v1.4.3...v1.5.0) (2026-08-30)
+
+
+### Features
+
+* **oidc:** Ability of skip login page if OIDC and OIDC_AUTO_REDIRECT… ([#35](https://github.com/lmmendes/attic/issues/35)) ([2de5929](https://github.com/lmmendes/attic/commit/2de5929410c7aeae41e13fd67dc505f4232e51c9))
+
 ## [1.4.3](https://github.com/lmmendes/attic/compare/v1.4.2...v1.4.3) (2026-08-30)
 
 
