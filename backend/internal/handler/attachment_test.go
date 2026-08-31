@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"testing"
 	"time"
 
@@ -83,11 +84,11 @@ func (m *mockAttachmentRepo) addAttachment(a *domain.Attachment) {
 
 // mockStorage implements storage interface for testing
 type mockStorage struct {
-	files         map[string][]byte
-	uploadErr     error
-	deleteErr     error
-	presignedErr  error
-	presignedURL  string
+	files        map[string][]byte
+	uploadErr    error
+	deleteErr    error
+	presignedErr error
+	presignedURL string
 }
 
 func newMockStorage() *mockStorage {
@@ -151,11 +152,18 @@ func (h *testAttachmentHandler) ListAttachments(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if attachments == nil {
-		attachments = []domain.Attachment{}
+	responses := make([]AttachmentResponse, len(attachments))
+	for i, attachment := range attachments {
+		responses[i] = AttachmentResponse{Attachment: attachment}
+		if h.storage != nil {
+			url, err := h.storage.GetPresignedURL(r.Context(), attachment.FileKey, 15*time.Minute)
+			if err == nil {
+				responses[i].URL = url
+			}
+		}
 	}
 
-	writeJSON(w, http.StatusOK, attachments)
+	writeJSON(w, http.StatusOK, responses)
 }
 
 func (h *testAttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request) {
@@ -266,7 +274,14 @@ func (h *testAttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, attachment)
+	if isImageContentType(contentType) && asset.MainAttachmentID == nil {
+		asset.MainAttachmentID = &attachment.ID
+	}
+	response := AttachmentResponse{Attachment: *attachment}
+	if url, err := h.storage.GetPresignedURL(r.Context(), attachment.FileKey, 15*time.Minute); err == nil {
+		response.URL = url
+	}
+	writeJSON(w, http.StatusCreated, response)
 }
 
 func (h *testAttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Request) {
@@ -336,6 +351,27 @@ func createMultipartRequest(filename string, content []byte, description string)
 	return req, nil
 }
 
+func createImageMultipartRequest(filename string, content []byte) (*http.Request, error) {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", `form-data; name="file"; filename="`+filename+`"`)
+	header.Set("Content-Type", "image/png")
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := part.Write(content); err != nil {
+		return nil, err
+	}
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+	req := httptest.NewRequest(http.MethodPost, "/", &buf)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	return req, nil
+}
+
 // Tests for ListAttachments
 
 func Test_ListAttachments_EmptyList_ReturnsEmptyArray(t *testing.T) {
@@ -352,7 +388,7 @@ func Test_ListAttachments_EmptyList_ReturnsEmptyArray(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var attachments []domain.Attachment
+	var attachments []AttachmentResponse
 	json.NewDecoder(rec.Body).Decode(&attachments)
 	if len(attachments) != 0 {
 		t.Errorf("expected empty array, got %d attachments", len(attachments))
@@ -384,13 +420,16 @@ func Test_ListAttachments_WithAttachments_ReturnsAll(t *testing.T) {
 		t.Errorf("expected status 200, got %d", rec.Code)
 	}
 
-	var attachments []domain.Attachment
+	var attachments []AttachmentResponse
 	json.NewDecoder(rec.Body).Decode(&attachments)
 	if len(attachments) != 1 {
 		t.Errorf("expected 1 attachment, got %d", len(attachments))
 	}
 	if attachments[0].FileName != "file1.png" {
 		t.Errorf("expected filename file1.png, got %s", attachments[0].FileName)
+	}
+	if attachments[0].URL == "" {
+		t.Error("expected presigned URL to be set")
 	}
 }
 
@@ -522,13 +561,57 @@ func Test_UploadAttachment_ValidRequest_ReturnsCreated(t *testing.T) {
 		t.Errorf("expected status 201, got %d", rec.Code)
 	}
 
-	var attachment domain.Attachment
+	var attachment AttachmentResponse
 	json.NewDecoder(rec.Body).Decode(&attachment)
 	if attachment.FileName != "test.txt" {
 		t.Errorf("expected filename test.txt, got %s", attachment.FileName)
 	}
 	if attachment.Description == nil || *attachment.Description != "Test description" {
 		t.Error("expected description to be set")
+	}
+	if attachment.URL == "" {
+		t.Error("expected presigned URL to be set")
+	}
+}
+
+func Test_UploadAttachment_OnlyFirstImageBecomesMain(t *testing.T) {
+	h := newTestAttachmentHandler()
+	assetID := uuid.New()
+	existingMainID := uuid.New()
+	asset := &domain.Asset{ID: assetID, Name: "Test Asset", MainAttachmentID: &existingMainID}
+	h.assetRepo.addAsset(asset)
+
+	req, _ := createImageMultipartRequest("second.png", []byte("image content"))
+	req = withAttachmentChiURLParam(req, "id", assetID.String())
+	rec := httptest.NewRecorder()
+
+	h.UploadAttachment(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d", rec.Code)
+	}
+	if asset.MainAttachmentID == nil || *asset.MainAttachmentID != existingMainID {
+		t.Fatal("expected existing main image to remain unchanged")
+	}
+}
+
+func Test_UploadAttachment_FirstImageBecomesMain(t *testing.T) {
+	h := newTestAttachmentHandler()
+	assetID := uuid.New()
+	asset := &domain.Asset{ID: assetID, Name: "Test Asset"}
+	h.assetRepo.addAsset(asset)
+
+	req, _ := createImageMultipartRequest("first.png", []byte("image content"))
+	req = withAttachmentChiURLParam(req, "id", assetID.String())
+	rec := httptest.NewRecorder()
+
+	h.UploadAttachment(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d", rec.Code)
+	}
+	if asset.MainAttachmentID == nil {
+		t.Fatal("expected first image to become main")
 	}
 }
 

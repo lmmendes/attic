@@ -61,6 +61,38 @@ paths:
         '200':
           description: Authentication endpoints and registered mobile client
 
+  /oauth/password:
+    post:
+      tags: [Auth]
+      summary: Authenticate the built-in first-party mobile client with a local password
+      description: Available only when the server uses local authentication. This is not the OAuth password grant.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_id, email, password]
+              properties:
+                client_id:
+                  type: string
+                  enum: [attic-mobile]
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Attic access and rotating refresh tokens
+        '400':
+          description: Invalid request or authentication method
+        '401':
+          description: Invalid credentials
+        '429':
+          description: Too many failed sign-in attempts
+
   /oauth/authorize:
     get:
       tags: [Auth]
@@ -148,6 +180,7 @@ paths:
       summary: Get current user
       security:
         - sessionCookie: []
+        - bearerAuth: []
       responses:
         '200':
           description: Current user info
@@ -164,6 +197,7 @@ paths:
       summary: List categories
       security:
         - sessionCookie: []
+        - bearerAuth: []
       responses:
         '200':
           description: List of categories
@@ -198,6 +232,7 @@ paths:
       summary: Get category by ID
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -246,6 +281,7 @@ paths:
       summary: List locations
       security:
         - sessionCookie: []
+        - bearerAuth: []
       responses:
         '200':
           description: List of locations
@@ -322,6 +358,7 @@ paths:
       summary: List conditions
       security:
         - sessionCookie: []
+        - bearerAuth: []
       responses:
         '200':
           description: List of conditions
@@ -394,6 +431,7 @@ paths:
       summary: List assets
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - name: q
           in: query
@@ -437,6 +475,7 @@ paths:
       summary: Create asset
       security:
         - sessionCookie: []
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -457,6 +496,7 @@ paths:
       summary: Get asset by ID
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -471,6 +511,7 @@ paths:
       summary: Update asset
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -487,6 +528,7 @@ paths:
       summary: Delete asset
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -582,6 +624,7 @@ paths:
       summary: List asset attachments
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -598,6 +641,7 @@ paths:
       summary: Upload attachment
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -613,6 +657,42 @@ paths:
       responses:
         '201':
           description: Attachment uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attachment'
+
+  /api/assets/{id}/main-image/{attachmentId}:
+    put:
+      tags: [Attachments]
+      summary: Select an image attachment as the asset main image
+      security:
+        - sessionCookie: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+        - name: attachmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Main image selected
+
+  /api/assets/{id}/main-image:
+    delete:
+      tags: [Attachments]
+      summary: Clear the asset main image
+      security:
+        - sessionCookie: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Main image cleared
 
   /api/attachments/{attachmentId}:
     get:
@@ -620,6 +700,7 @@ paths:
       summary: Get attachment download URL
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - name: attachmentId
           in: path
@@ -643,6 +724,7 @@ paths:
       summary: Delete attachment
       security:
         - sessionCookie: []
+        - bearerAuth: []
       parameters:
         - name: attachmentId
           in: path
@@ -707,6 +789,40 @@ components:
           format: email
         display_name:
           type: string
+        role:
+          type: string
+          enum: [user, admin]
+
+    Attribute:
+      type: object
+      required: [id, name, key, data_type]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        key:
+          type: string
+        data_type:
+          type: string
+          enum: [string, number, boolean, text, date]
+
+    CategoryAttribute:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        attribute_id:
+          type: string
+          format: uuid
+        required:
+          type: boolean
+        sort_order:
+          type: integer
+        attribute:
+          $ref: '#/components/schemas/Attribute'
 
     Category:
       type: object
@@ -727,8 +843,10 @@ components:
           type: string
         icon:
           type: string
-        color:
-          type: string
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryAttribute'
         created_at:
           type: string
           format: date-time
@@ -748,8 +866,6 @@ components:
           type: string
           format: uuid
         icon:
-          type: string
-        color:
           type: string
 
     Location:
@@ -801,14 +917,14 @@ components:
         organization_id:
           type: string
           format: uuid
-        name:
+        code:
+          type: string
+        label:
           type: string
         description:
           type: string
-        display_order:
+        sort_order:
           type: integer
-        color:
-          type: string
         created_at:
           type: string
           format: date-time
@@ -818,16 +934,16 @@ components:
 
     ConditionInput:
       type: object
-      required: [name]
+      required: [code, label]
       properties:
-        name:
+        code:
+          type: string
+        label:
           type: string
         description:
           type: string
-        display_order:
+        sort_order:
           type: integer
-        color:
-          type: string
 
     Asset:
       type: object
@@ -849,7 +965,11 @@ components:
           type: string
           format: uuid
           nullable: true
-        parent_id:
+        collection_id:
+          type: string
+          format: uuid
+          nullable: true
+        main_attachment_id:
           type: string
           format: uuid
           nullable: true
@@ -862,6 +982,23 @@ components:
         attributes:
           type: object
           additionalProperties: true
+        purchase_at:
+          type: string
+          format: date-time
+          nullable: true
+        purchase_price:
+          type: number
+          format: double
+          nullable: true
+        purchase_note:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        main_attachment_url:
+          type: string
+          format: uri
         category:
           $ref: '#/components/schemas/Category'
         location:
@@ -892,7 +1029,7 @@ components:
         condition_id:
           type: string
           format: uuid
-        parent_id:
+        collection_id:
           type: string
           format: uuid
         quantity:
@@ -901,6 +1038,16 @@ components:
         attributes:
           type: object
           additionalProperties: true
+        purchase_at:
+          type: string
+          format: date
+        purchase_price:
+          type: number
+          format: double
+        purchase_note:
+          type: string
+        notes:
+          type: string
 
     AssetList:
       type: object
@@ -969,14 +1116,21 @@ components:
         asset_id:
           type: string
           format: uuid
-        filename:
+        file_name:
           type: string
         content_type:
           type: string
-        size:
+        file_size:
           type: integer
-        storage_key:
+          format: int64
+        file_key:
           type: string
+        description:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: Short-lived presigned URL
         created_at:
           type: string
           format: date-time

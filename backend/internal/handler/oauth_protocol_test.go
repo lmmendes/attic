@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -9,7 +10,26 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
+	"github.com/lmmendes/attic/internal/domain"
 )
+
+type oauthTestUsers struct {
+	user *domain.User
+}
+
+func (u oauthTestUsers) GetByID(context.Context, uuid.UUID) (*domain.User, error) {
+	return u.user, nil
+}
+
+func (u oauthTestUsers) GetByEmail(context.Context, string) (*domain.User, error) {
+	return u.user, nil
+}
+
+func (u oauthTestUsers) GetOrCreate(context.Context, uuid.UUID, string, string, string) (*domain.User, bool, error) {
+	return u.user, false, nil
+}
 
 func Test_OAuthProtocolHandler_Metadata_AdvertisesSecureCodeFlow(t *testing.T) {
 	handler := &OAuthProtocolHandler{baseURL: "https://attic.example.com"}
@@ -29,6 +49,37 @@ func Test_OAuthProtocolHandler_Metadata_AdvertisesSecureCodeFlow(t *testing.T) {
 	methods := response["code_challenge_methods_supported"].([]any)
 	if len(methods) != 1 || methods[0] != "S256" {
 		t.Fatalf("expected only S256 PKCE, got %v", methods)
+	}
+}
+
+func Test_OAuthProtocolHandler_AuthMethods_AdvertisesNativePasswordEndpoint(t *testing.T) {
+	handler := &OAuthProtocolHandler{baseURL: "https://attic.example.com"}
+	recorder := httptest.NewRecorder()
+
+	handler.AuthMethods(recorder, httptest.NewRequest(http.MethodGet, "/auth/methods", nil))
+
+	var response map[string]any
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response["password_token_endpoint"] != "https://attic.example.com/oauth/password" {
+		t.Fatalf("unexpected password endpoint: %v", response["password_token_endpoint"])
+	}
+}
+
+func Test_OAuthProtocolHandler_PasswordToken_RejectsInvalidCredentials(t *testing.T) {
+	handler := &OAuthProtocolHandler{users: oauthTestUsers{}}
+	request := httptest.NewRequest(http.MethodPost, "/oauth/password", strings.NewReader(`{"client_id":"attic-mobile","email":"user@example.com","password":"wrong"}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	handler.PasswordToken(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status 401, got %d", recorder.Code)
+	}
+	if !strings.Contains(recorder.Body.String(), "invalid_credentials") {
+		t.Fatalf("expected invalid_credentials, got %s", recorder.Body.String())
 	}
 }
 

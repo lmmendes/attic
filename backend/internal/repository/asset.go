@@ -344,6 +344,18 @@ func (r *AssetRepository) SetMainAttachment(ctx context.Context, assetID uuid.UU
 	return err
 }
 
+// SetMainAttachmentIfEmpty selects a default image without overwriting a
+// concurrent upload or a main image explicitly chosen by the user.
+func (r *AssetRepository) SetMainAttachmentIfEmpty(ctx context.Context, assetID, attachmentID uuid.UUID) error {
+	query := `
+		UPDATE assets
+		SET main_attachment_id = $2
+		WHERE id = $1 AND deleted_at IS NULL AND main_attachment_id IS NULL
+	`
+	_, err := r.pool.Exec(ctx, query, assetID, attachmentID)
+	return err
+}
+
 func (r *AssetRepository) GetMainAttachmentID(ctx context.Context, assetID uuid.UUID) (*uuid.UUID, error) {
 	query := `SELECT main_attachment_id FROM assets WHERE id = $1 AND deleted_at IS NULL`
 	var mainID *uuid.UUID

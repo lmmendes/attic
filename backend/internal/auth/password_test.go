@@ -94,6 +94,21 @@ func Test_CheckPassword_InvalidHash_ReturnsFalse(t *testing.T) {
 	}
 }
 
+func Test_CheckPasswordHash_HandlesMissingAndValidHashes(t *testing.T) {
+	password := "mySecurePassword123"
+	hash, err := HashPassword(password)
+	if err != nil {
+		t.Fatalf("failed to hash password: %v", err)
+	}
+
+	if CheckPasswordHash(password, nil) {
+		t.Fatal("expected a missing hash to be rejected")
+	}
+	if !CheckPasswordHash(password, &hash) {
+		t.Fatal("expected a valid password and hash to match")
+	}
+}
+
 func Test_ValidatePassword_ValidLength_ReturnsNil(t *testing.T) {
 	tests := []struct {
 		name      string

@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -26,19 +28,26 @@ const (
 )
 
 type OAuthProtocolHandler struct {
-	baseURL      string
-	oidcEnabled  bool
-	defaultOrgID uuid.UUID
-	users        *repository.UserRepository
-	tokens       *repository.OAuthRepository
-	sessions     *auth.SessionManager
-	oauth        *auth.OAuthHandler
+	baseURL          string
+	oidcEnabled      bool
+	defaultOrgID     uuid.UUID
+	users            oauthUserRepository
+	tokens           *repository.OAuthRepository
+	sessions         *auth.SessionManager
+	oauth            *auth.OAuthHandler
+	passwordAttempts *passwordAttemptLimiter
 }
 
-func NewOAuthProtocolHandler(baseURL string, oidcEnabled bool, defaultOrgID uuid.UUID, users *repository.UserRepository, tokens *repository.OAuthRepository, sessions *auth.SessionManager, oauth *auth.OAuthHandler) *OAuthProtocolHandler {
+type oauthUserRepository interface {
+	GetByID(context.Context, uuid.UUID) (*domain.User, error)
+	GetByEmail(context.Context, string) (*domain.User, error)
+	GetOrCreate(context.Context, uuid.UUID, string, string, string) (*domain.User, bool, error)
+}
+
+func NewOAuthProtocolHandler(baseURL string, oidcEnabled bool, defaultOrgID uuid.UUID, users oauthUserRepository, tokens *repository.OAuthRepository, sessions *auth.SessionManager, oauth *auth.OAuthHandler) *OAuthProtocolHandler {
 	return &OAuthProtocolHandler{
 		baseURL: strings.TrimRight(baseURL, "/"), oidcEnabled: oidcEnabled, defaultOrgID: defaultOrgID,
-		users: users, tokens: tokens, sessions: sessions, oauth: oauth,
+		users: users, tokens: tokens, sessions: sessions, oauth: oauth, passwordAttempts: newPasswordAttemptLimiter(),
 	}
 }
 
@@ -60,14 +69,69 @@ func (h *OAuthProtocolHandler) AuthMethods(w http.ResponseWriter, _ *http.Reques
 	if h.oidcEnabled {
 		methods = []string{"oidc"}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
+	response := map[string]any{
 		"issuer":                 h.baseURL,
 		"authorization_endpoint": h.baseURL + "/oauth/authorize",
 		"token_endpoint":         h.baseURL + "/oauth/token",
 		"client_id":              mobileClientID,
 		"redirect_uri":           mobileRedirectURI,
 		"methods":                methods,
-	})
+	}
+	if !h.oidcEnabled {
+		response["password_token_endpoint"] = h.baseURL + "/oauth/password"
+	}
+	writeJSON(w, http.StatusOK, response)
+}
+
+type passwordTokenRequest struct {
+	ClientID string `json:"client_id"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// PasswordToken authenticates Attic's built-in first-party native client.
+// It is deliberately separate from /oauth/token: OAuth's password grant stays
+// disabled, while OIDC and passkeys continue to use Authorization Code + PKCE.
+func (h *OAuthProtocolHandler) PasswordToken(w http.ResponseWriter, r *http.Request) {
+	if h.oidcEnabled {
+		writeOAuthError(w, http.StatusBadRequest, "unsupported_authentication_method", "password authentication is disabled")
+		return
+	}
+	var request passwordTokenRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64*1024)).Decode(&request); err != nil {
+		writeOAuthError(w, http.StatusBadRequest, "invalid_request", "invalid JSON body")
+		return
+	}
+	if request.ClientID != mobileClientID {
+		writeOAuthError(w, http.StatusBadRequest, "invalid_client", "unknown client")
+		return
+	}
+	if strings.TrimSpace(request.Email) == "" || request.Password == "" {
+		writeOAuthError(w, http.StatusBadRequest, "invalid_request", "email and password are required")
+		return
+	}
+	now := time.Now().UTC()
+	if !h.passwordAttempts.allow(r, request.Email, now) {
+		w.Header().Set("Retry-After", "900")
+		writeOAuthError(w, http.StatusTooManyRequests, "temporarily_unavailable", "too many failed sign-in attempts; try again later")
+		return
+	}
+	user, err := h.users.GetByEmail(r.Context(), request.Email)
+	if err != nil {
+		writeOAuthError(w, http.StatusInternalServerError, "server_error", "failed to authenticate")
+		return
+	}
+	var passwordHash *string
+	if user != nil {
+		passwordHash = user.PasswordHash
+	}
+	if user == nil || !auth.CheckPasswordHash(request.Password, passwordHash) {
+		h.passwordAttempts.failure(r, request.Email, now)
+		writeOAuthError(w, http.StatusUnauthorized, "invalid_credentials", "invalid email or password")
+		return
+	}
+	h.passwordAttempts.success(r, request.Email)
+	h.issueTokens(w, r, user.ID, mobileClientID, "attic offline_access")
 }
 
 func (h *OAuthProtocolHandler) Authorize(w http.ResponseWriter, r *http.Request) {

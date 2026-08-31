@@ -285,6 +285,7 @@ func main() {
 
 	r.Route("/oauth", func(r chi.Router) {
 		r.Get("/authorize", oauthProtocolHandler.Authorize)
+		r.Post("/password", oauthProtocolHandler.PasswordToken)
 		r.Post("/token", oauthProtocolHandler.Token)
 		r.Post("/revoke", oauthProtocolHandler.Revoke)
 	})

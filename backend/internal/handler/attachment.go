@@ -29,11 +29,12 @@ func (h *Handler) ListAttachments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if attachments == nil {
-		attachments = []domain.Attachment{}
+	responses := make([]AttachmentResponse, len(attachments))
+	for i, attachment := range attachments {
+		responses[i] = h.attachmentResponse(r, attachment)
 	}
 
-	writeJSON(w, http.StatusOK, attachments)
+	writeJSON(w, http.StatusOK, responses)
 }
 
 func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
@@ -117,12 +118,27 @@ func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto-set as main image for any image upload
-	if isImageContentType(contentType) {
-		h.repos.Assets.SetMainAttachment(r.Context(), assetID, &attachment.ID)
+	// The first image is a useful default. Later uploads must not unexpectedly
+	// replace a main image explicitly selected by the user.
+	if isImageContentType(contentType) && asset.MainAttachmentID == nil {
+		if err := h.repos.Assets.SetMainAttachmentIfEmpty(r.Context(), assetID, attachment.ID); err != nil {
+			slog.Warn("failed to set first image as main attachment", "error", err, "asset_id", assetID)
+		}
 	}
 
-	writeJSON(w, http.StatusCreated, attachment)
+	writeJSON(w, http.StatusCreated, h.attachmentResponse(r, *attachment))
+}
+
+func (h *Handler) attachmentResponse(r *http.Request, attachment domain.Attachment) AttachmentResponse {
+	response := AttachmentResponse{Attachment: attachment}
+	if h.storage == nil {
+		return response
+	}
+	url, err := h.storage.GetPresignedURL(r.Context(), attachment.FileKey, 15*time.Minute)
+	if err == nil {
+		response.URL = url
+	}
+	return response
 }
 
 func (h *Handler) GetAttachment(w http.ResponseWriter, r *http.Request) {

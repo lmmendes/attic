@@ -66,17 +66,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if user == nil {
-		writeError(w, http.StatusUnauthorized, "invalid email or password")
-		return
+	var passwordHash *string
+	if user != nil {
+		passwordHash = user.PasswordHash
 	}
-
-	if !user.HasPassword() {
-		writeError(w, http.StatusUnauthorized, "invalid email or password")
-		return
-	}
-
-	if !auth.CheckPassword(req.Password, *user.PasswordHash) {
+	if user == nil || !auth.CheckPasswordHash(req.Password, passwordHash) {
 		writeError(w, http.StatusUnauthorized, "invalid email or password")
 		return
 	}
