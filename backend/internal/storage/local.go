@@ -138,5 +138,11 @@ func (s *LocalStorage) chown(path string) error {
 	if s.puid == nil || s.pgid == nil {
 		return nil
 	}
+	// Container startup runs the process as the requested user/group. Files it
+	// creates already have the requested ownership, and a non-root process is
+	// not allowed to call chown even when the ownership would be unchanged.
+	if os.Geteuid() == *s.puid && os.Getegid() == *s.pgid {
+		return nil
+	}
 	return os.Chown(path, *s.puid, *s.pgid)
 }

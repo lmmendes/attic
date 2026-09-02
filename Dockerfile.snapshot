@@ -38,16 +38,19 @@ FROM alpine:3.20
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates su-exec tzdata
 
 COPY --from=backend-builder /app/attic /app/attic
+COPY --chmod=755 backend/docker-entrypoint.sh /app/docker-entrypoint.sh
 
-RUN adduser -D -g '' appuser
-USER appuser
+RUN adduser -D -g '' appuser \
+    && mkdir -p /data/uploads \
+    && chown appuser:appuser /data/uploads
 
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
-ENTRYPOINT ["/app/attic"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["/app/attic"]

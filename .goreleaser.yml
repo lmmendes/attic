@@ -31,6 +31,8 @@ dockers_v2:
   - ids:
       - attic
     dockerfile: Dockerfile.goreleaser
+    extra_files:
+      - backend/docker-entrypoint.sh
     images:
       - ghcr.io/lmmendes/attic
       - lmmendes/attic
