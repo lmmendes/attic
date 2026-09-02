@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/lmmendes/attic/compare/v1.5.0...v1.5.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* **storage:** initialize Docker volume ownership before dropping privileges ([#39](https://github.com/lmmendes/attic/issues/39)) ([2ab2684](https://github.com/lmmendes/attic/commit/2ab268406ee04e7052e3d7beca44eb3776ebda93))
+
 ## [1.5.0](https://github.com/lmmendes/attic/compare/v1.4.3...v1.5.0) (2026-08-30)
 
 
