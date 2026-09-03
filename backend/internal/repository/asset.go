@@ -323,14 +323,19 @@ func (r *AssetRepository) SetTags(ctx context.Context, assetID uuid.UUID, tagIDs
 	return tx.Commit(ctx)
 }
 
-func (r *AssetRepository) GetTotalValue(ctx context.Context, orgID uuid.UUID) (float64, error) {
+func (r *AssetRepository) GetTotalValue(ctx context.Context, orgID uuid.UUID, filter domain.AssetFilter) (float64, error) {
 	query := `
 		SELECT COALESCE(SUM(purchase_price * quantity), 0)
 		FROM assets
 		WHERE organization_id = $1 AND deleted_at IS NULL
 	`
+	args := []any{orgID}
+	if filter.LocationID != nil {
+		query += " AND location_id = $2"
+		args = append(args, *filter.LocationID)
+	}
 	var total float64
-	err := r.pool.QueryRow(ctx, query, orgID).Scan(&total)
+	err := r.pool.QueryRow(ctx, query, args...).Scan(&total)
 	return total, err
 }
 

@@ -324,7 +324,17 @@ type AssetStatsResponse struct {
 }
 
 func (h *Handler) GetAssetStats(w http.ResponseWriter, r *http.Request) {
-	totalValue, err := h.repos.Assets.GetTotalValue(r.Context(), h.orgID)
+	filter := domain.AssetFilter{}
+	if locID := r.URL.Query().Get("location_id"); locID != "" {
+		id, err := uuid.Parse(locID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid location ID")
+			return
+		}
+		filter.LocationID = &id
+	}
+
+	totalValue, err := h.repos.Assets.GetTotalValue(r.Context(), h.orgID, filter)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get asset stats")
 		return

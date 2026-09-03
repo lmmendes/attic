@@ -16,12 +16,12 @@ import (
 
 // mockAssetRepo implements a minimal asset repository for testing
 type mockAssetRepo struct {
-	assets       map[uuid.UUID]*domain.Asset
-	ListError    error
-	GetError     error
-	CreateError  error
-	UpdateError  error
-	DeleteError  error
+	assets      map[uuid.UUID]*domain.Asset
+	ListError   error
+	GetError    error
+	CreateError error
+	UpdateError error
+	DeleteError error
 }
 
 func newMockAssetRepo() *mockAssetRepo {
@@ -107,11 +107,14 @@ func (r *mockAssetRepo) SetTags(_ context.Context, _ uuid.UUID, _ []uuid.UUID) e
 	return nil
 }
 
-func (r *mockAssetRepo) GetTotalValue(_ context.Context, _ uuid.UUID) (float64, error) {
+func (r *mockAssetRepo) GetTotalValue(_ context.Context, _ uuid.UUID, filter domain.AssetFilter) (float64, error) {
 	var total float64
 	for _, a := range r.assets {
+		if filter.LocationID != nil && (a.LocationID == nil || *a.LocationID != *filter.LocationID) {
+			continue
+		}
 		if a.PurchasePrice != nil {
-			total += *a.PurchasePrice
+			total += *a.PurchasePrice * float64(a.Quantity)
 		}
 	}
 	return total, nil
@@ -314,7 +317,17 @@ func (h *testAssetHandler) deleteAsset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *testAssetHandler) getAssetStats(w http.ResponseWriter, r *http.Request) {
-	totalValue, err := h.assetRepo.GetTotalValue(r.Context(), h.orgID)
+	filter := domain.AssetFilter{}
+	if locID := r.URL.Query().Get("location_id"); locID != "" {
+		id, err := uuid.Parse(locID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid location ID")
+			return
+		}
+		filter.LocationID = &id
+	}
+
+	totalValue, err := h.assetRepo.GetTotalValue(r.Context(), h.orgID, filter)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get asset stats")
 		return
@@ -742,5 +755,50 @@ func Test_GetAssetStats_NoAssets_ReturnsZero(t *testing.T) {
 
 	if resp.TotalValue != 0 {
 		t.Errorf("expected total value 0, got %.2f", resp.TotalValue)
+	}
+}
+
+func Test_GetAssetStats_FiltersByLocation(t *testing.T) {
+	h := newTestAssetHandler()
+	catID := uuid.New()
+	selectedLocationID := uuid.New()
+	otherLocationID := uuid.New()
+	selectedPrice := 125.0
+	otherPrice := 300.0
+
+	selectedAsset := createTestAsset("Selected asset", catID, &selectedPrice)
+	selectedAsset.LocationID = &selectedLocationID
+	h.assetRepo.addAsset(selectedAsset)
+
+	otherAsset := createTestAsset("Other asset", catID, &otherPrice)
+	otherAsset.LocationID = &otherLocationID
+	h.assetRepo.addAsset(otherAsset)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/assets/stats?location_id="+selectedLocationID.String(), nil)
+	rec := httptest.NewRecorder()
+	h.getAssetStats(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+
+	var resp AssetStatsResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.TotalValue != selectedPrice {
+		t.Errorf("expected total value %.2f, got %.2f", selectedPrice, resp.TotalValue)
+	}
+}
+
+func Test_GetAssetStats_InvalidLocation_ReturnsBadRequest(t *testing.T) {
+	h := newTestAssetHandler()
+	req := httptest.NewRequest(http.MethodGet, "/api/assets/stats?location_id=not-a-uuid", nil)
+	rec := httptest.NewRecorder()
+
+	h.getAssetStats(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", rec.Code)
 	}
 }

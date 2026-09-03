@@ -498,7 +498,7 @@ func Test_AssetRepository_GetTotalValue(t *testing.T) {
 	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: cat.ID, Name: "Asset 1", Quantity: 2, PurchasePrice: &price1})
 	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: cat.ID, Name: "Asset 2", Quantity: 1, PurchasePrice: &price2})
 
-	total, err := repo.GetTotalValue(ctx, org.ID)
+	total, err := repo.GetTotalValue(ctx, org.ID, domain.AssetFilter{})
 	if err != nil {
 		t.Fatalf("failed to get total value: %v", err)
 	}

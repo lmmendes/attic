@@ -4,11 +4,66 @@ import type { Asset, AssetStats, Category, Location, Warranty } from '~/types/ap
 definePageMeta({ middleware: 'auth' })
 
 const { user } = useAuth()
-const { data: assets } = useApi<{ assets: Asset[], total: number }>('/api/assets?limit=4')
-const { data: assetStats } = useApi<AssetStats>('/api/assets/stats')
 const { data: categories } = useApi<Category[]>('/api/categories')
 const { data: locations } = useApi<Location[]>('/api/locations')
 const { data: expiringWarranties } = useApi<Warranty[]>('/api/warranties/expiring?days=30')
+
+const selectedLocationId = ref('all')
+
+interface LocationTreeNode {
+  location: Location
+  children: LocationTreeNode[]
+}
+
+function buildLocationOptions(items: Location[]): { label: string, value: string }[] {
+  const childrenMap = new Map<string | undefined, Location[]>()
+  items.forEach((location) => {
+    const parentId = location.parent_id || undefined
+    if (!childrenMap.has(parentId)) childrenMap.set(parentId, [])
+    childrenMap.get(parentId)!.push(location)
+  })
+
+  const buildTree = (parentId: string | undefined): LocationTreeNode[] =>
+    (childrenMap.get(parentId) || [])
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(location => ({ location, children: buildTree(location.id) }))
+
+  const flattenTree = (nodes: LocationTreeNode[], depth = 0): { label: string, value: string }[] =>
+    nodes.flatMap((node) => {
+      const indent = depth > 0 ? `${'\u00A0'.repeat(depth * 2)}└ ` : ''
+      return [
+        { label: `${indent}${node.location.name}`, value: node.location.id },
+        ...flattenTree(node.children, depth + 1)
+      ]
+    })
+
+  return [
+    { label: 'All locations', value: 'all' },
+    ...flattenTree(buildTree(undefined))
+  ]
+}
+
+const locationOptions = computed(() => buildLocationOptions(locations.value || []))
+const selectedLocation = computed(() =>
+  locations.value?.find(location => location.id === selectedLocationId.value)
+)
+const selectedLocationQuery = computed(() =>
+  selectedLocationId.value === 'all' ? '' : `&location_id=${encodeURIComponent(selectedLocationId.value)}`
+)
+const assetsUrl = computed(() => `/api/assets?limit=4${selectedLocationQuery.value}`)
+const assetStatsUrl = computed(() =>
+  selectedLocationId.value === 'all'
+    ? '/api/assets/stats'
+    : `/api/assets/stats?location_id=${encodeURIComponent(selectedLocationId.value)}`
+)
+const assetsPageUrl = computed(() =>
+  selectedLocationId.value === 'all'
+    ? '/assets'
+    : `/assets?location_id=${encodeURIComponent(selectedLocationId.value)}`
+)
+
+const { data: assets } = useApi<{ assets: Asset[], total: number }>(() => assetsUrl.value)
+const { data: assetStats } = useApi<AssetStats>(() => assetStatsUrl.value)
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-US', {
   style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0
@@ -40,7 +95,7 @@ const formatRelativeTime = (dateString: string) => {
 }
 
 const overviewMetrics = computed(() => [
-  { label: 'Assets', value: assets.value?.total || 0, icon: 'i-lucide-package', to: '/assets' },
+  { label: 'Assets', value: assets.value?.total || 0, icon: 'i-lucide-package', to: assetsPageUrl.value },
   { label: 'Locations', value: locations.value?.length || 0, icon: 'i-lucide-map-pin', to: '/locations' },
   { label: 'Expiring', value: expiringWarranties.value?.length || 0, icon: 'i-lucide-shield-alert', to: '/warranties' }
 ])
@@ -48,7 +103,7 @@ const overviewMetrics = computed(() => [
 const quickLinks = computed(() => [
   {
     label: 'Browse assets', description: `${assets.value?.total || 0} items catalogued`,
-    icon: 'i-lucide-package-search', to: '/assets',
+    icon: 'i-lucide-package-search', to: assetsPageUrl.value,
     iconClass: 'bg-attic-100 text-attic-600 dark:bg-attic-500/15 dark:text-attic-300'
   },
   {
@@ -121,13 +176,24 @@ const quickLinks = computed(() => [
                 <p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/60">
                   Collection overview
                 </p>
-                <p class="text-sm font-bold text-white/95">
-                  All locations
-                </p>
+                <USelectMenu
+                  v-model="selectedLocationId"
+                  :items="locationOptions"
+                  value-key="value"
+                  aria-label="Filter dashboard by location"
+                  variant="none"
+                  size="xs"
+                  class="-ml-1 mt-0.5 w-auto max-w-44"
+                  :ui="{
+                    base: 'min-h-0 gap-1 rounded-md px-1 py-0.5 text-sm font-bold text-white/90 hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/50',
+                    value: 'truncate',
+                    trailingIcon: 'size-3.5 text-white/50'
+                  }"
+                />
               </div>
             </div>
             <NuxtLink
-              to="/assets"
+              :to="assetsPageUrl"
               aria-label="Open all assets"
               class="flex size-9 items-center justify-center rounded-xl border border-white/15 bg-white/10 transition hover:bg-white/20"
             >
@@ -219,7 +285,7 @@ const quickLinks = computed(() => [
           </h2>
         </div>
         <NuxtLink
-          to="/assets"
+          :to="assetsPageUrl"
           class="group flex items-center gap-1.5 text-sm font-bold text-attic-500 hover:text-attic-700"
         >
           View all <UIcon
@@ -280,6 +346,33 @@ const quickLinks = computed(() => [
             <p class="mt-2.5 text-[11px] font-semibold text-mist-400">{{ formatRelativeTime(asset.created_at) }}</p>
           </div>
         </NuxtLink>
+      </div>
+
+      <div
+        v-else-if="selectedLocation"
+        class="attic-panel rounded-[24px] px-6 py-14 text-center"
+      >
+        <div class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-attic-50 text-attic-500 dark:bg-attic-500/10">
+          <UIcon
+            name="i-lucide-map-pin-off"
+            class="size-6"
+          />
+        </div>
+        <h3 class="mt-4 font-extrabold text-mist-950 dark:text-white">
+          No assets in {{ selectedLocation.name }}
+        </h3>
+        <p class="mx-auto mt-1 max-w-sm text-sm text-mist-500">
+          Try another location or view the full collection.
+        </p>
+        <UButton
+          variant="outline"
+          color="neutral"
+          icon="i-lucide-layers"
+          class="mt-5 rounded-xl"
+          @click="selectedLocationId = 'all'"
+        >
+          View all locations
+        </UButton>
       </div>
 
       <div

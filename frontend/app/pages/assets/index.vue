@@ -25,7 +25,7 @@ function onImported(assetId: string) {
 const filters = reactive<AssetFilters>({
   q: '',
   category_id: undefined,
-  location_id: undefined,
+  location_id: typeof route.query.location_id === 'string' ? route.query.location_id : undefined,
   condition_id: undefined,
   limit: 24,
   offset: 0
