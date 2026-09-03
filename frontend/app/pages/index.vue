@@ -86,7 +86,7 @@ const quickLinks = computed(() => [
       </div>
       <div class="flex items-center gap-2">
         <UButton
-          to="/assets"
+          to="/assets?focus=search"
           color="neutral"
           variant="outline"
           icon="i-lucide-search"

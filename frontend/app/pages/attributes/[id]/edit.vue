@@ -248,11 +248,18 @@ function cancel() {
               <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-3">
                 Data Type
               </label>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div
+                class="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                role="radiogroup"
+                aria-label="Data type"
+              >
                 <button
                   v-for="type in dataTypes"
                   :key="type.value"
                   type="button"
+                  role="radio"
+                  :aria-label="`${type.label}: ${type.description}`"
+                  :aria-checked="form.data_type === type.value"
                   class="flex items-start gap-3 p-4 rounded-lg border-2 transition-all text-left"
                   :class="form.data_type === type.value
                     ? [getTypeStyle(type.value).bgColor, getTypeStyle(type.value).borderColor, 'ring-2 ring-offset-2', `ring-${type.value === 'string' ? 'slate' : type.value === 'text' ? 'indigo' : type.value === 'number' ? 'orange' : type.value === 'boolean' ? 'green' : 'purple'}-500/50`]

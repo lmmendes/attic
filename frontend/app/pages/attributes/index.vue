@@ -216,8 +216,8 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
     </header>
 
     <section class="attic-panel rounded-[18px] p-3 sm:p-4">
-      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div class="flex gap-2 overflow-x-auto pb-1 lg:pb-0">
+      <div class="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
+        <div class="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 2xl:pb-0">
           <button
             v-for="type in dataTypes"
             :key="type.value"
@@ -245,7 +245,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
           v-model="searchQuery"
           icon="i-lucide-search"
           placeholder="Search name or key"
-          class="w-full lg:w-64"
+          class="w-full shrink-0 2xl:w-64"
           size="lg"
         />
       </div>
@@ -422,7 +422,11 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
     </section>
 
     <!-- Delete Confirmation Modal -->
-    <UModal v-model:open="deleteModalOpen">
+    <UModal
+      v-model:open="deleteModalOpen"
+      title="Delete field"
+      description="Confirm deletion of this field and review the impact on categories that use it."
+    >
       <template #content>
         <div class="max-w-md rounded-[20px] bg-white p-6 shadow-xl dark:bg-mist-800">
           <div class="flex items-start gap-4">

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { isValidAssetQuantity, QUANTITY_VALIDATION_MESSAGE } from '../../app/utils/assetValidation'
 
 describe('New Asset Page', () => {
   const mockApiFetch = vi.fn()
@@ -10,6 +11,15 @@ describe('New Asset Page', () => {
   })
 
   describe('form validation', () => {
+    it.each([0, -1, 1.5, Number.NaN, '', undefined])('rejects invalid quantity %s before create or update', (quantity) => {
+      expect(isValidAssetQuantity(quantity)).toBe(false)
+      expect(QUANTITY_VALIDATION_MESSAGE).toBe('Quantity must be a whole number of at least 1')
+    })
+
+    it.each([1, 2, 100])('accepts positive whole-number quantity %s', (quantity) => {
+      expect(isValidAssetQuantity(quantity)).toBe(true)
+    })
+
     it('requires name field', () => {
       const form = { name: '', category_id: 'cat-1' }
 

@@ -6,7 +6,16 @@ definePageMeta({
 })
 
 const router = useRouter()
+const route = useRoute()
 const importModalOpen = ref(false)
+const searchContainer = ref<HTMLElement | null>(null)
+
+onMounted(async () => {
+  if (route.query.focus !== 'search') return
+
+  await nextTick()
+  searchContainer.value?.querySelector<HTMLInputElement>('input')?.focus()
+})
 
 function onImported(assetId: string) {
   // Navigate to the newly imported asset's edit page
@@ -33,7 +42,7 @@ const queryString = computed(() => {
   return params.toString()
 })
 
-const { data: assetsResponse, status } = useApi<AssetsResponse>(
+const { data: assetsResponse, status, error, refresh } = useApi<AssetsResponse>(
   () => `/api/assets?${queryString.value}`
 )
 
@@ -140,8 +149,8 @@ watch(searchQuery, (val: string) => {
 <template>
   <div class="flex min-h-full flex-col gap-5 pb-6">
     <!-- Page Header -->
-    <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div class="flex flex-col gap-1">
+    <header class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div>
         <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
           Inventory
         </p>
@@ -149,7 +158,7 @@ watch(searchQuery, (val: string) => {
           All Assets
         </h1>
         <p class="text-sm text-mist-500">
-          Manage and track {{ assetsResponse?.total || 0 }} items across your inventory
+          Manage and track everything you keep and care for.
         </p>
       </div>
       <div class="flex items-center gap-2">
@@ -173,9 +182,12 @@ watch(searchQuery, (val: string) => {
     </header>
 
     <!-- Filters Bar -->
-    <div class="attic-panel rounded-[20px] p-3">
-      <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div class="min-w-0 flex-1">
+    <section class="attic-panel rounded-[18px] p-3 sm:p-4">
+      <div class="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
+        <div
+          ref="searchContainer"
+          class="min-w-0 flex-1"
+        >
           <UInput
             v-model="searchQuery"
             placeholder="Search by name, tag, or serial number..."
@@ -184,7 +196,7 @@ watch(searchQuery, (val: string) => {
             class="w-full"
           />
         </div>
-        <div class="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+        <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center 2xl:justify-end">
           <USelectMenu
             v-model="filters.category_id"
             :items="categoryOptions"
@@ -220,11 +232,24 @@ watch(searchQuery, (val: string) => {
           </UButton>
         </div>
       </div>
-    </div>
+    </section>
 
     <!-- Assets Table -->
     <div class="flex-1">
       <div class="attic-panel overflow-hidden rounded-[20px]">
+        <div class="flex items-center justify-between border-b border-mist-100 px-4 py-4 dark:border-mist-700 sm:px-5">
+          <div>
+            <h2 class="font-extrabold text-mist-950 dark:text-white">
+              Asset inventory
+            </h2>
+            <p class="text-xs text-mist-500">
+              Browse, filter, and manage every item in your collection.
+            </p>
+          </div>
+          <span class="rounded-lg bg-mist-50 px-2.5 py-1 text-xs font-bold text-mist-500 dark:bg-mist-700/60">
+            {{ assetsResponse?.total || 0 }} shown
+          </span>
+        </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse">
             <thead>
@@ -266,6 +291,35 @@ watch(searchQuery, (val: string) => {
                 </td>
               </tr>
 
+              <!-- Error State -->
+              <tr v-else-if="error">
+                <td
+                  colspan="6"
+                  class="p-10 text-center"
+                >
+                  <div class="flex flex-col items-center">
+                    <UIcon
+                      name="i-lucide-circle-alert"
+                      class="mb-3 size-10 text-red-400"
+                    />
+                    <p class="font-bold text-mist-950 dark:text-white">
+                      Could not load assets
+                    </p>
+                    <p class="mt-1 text-sm text-mist-500">
+                      Check your connection and try again.
+                    </p>
+                    <UButton
+                      class="mt-4"
+                      variant="soft"
+                      icon="i-lucide-refresh-cw"
+                      @click="refresh()"
+                    >
+                      Try again
+                    </UButton>
+                  </div>
+                </td>
+              </tr>
+
               <!-- Empty State -->
               <tr v-else-if="!assetsResponse?.assets?.length">
                 <td
@@ -293,8 +347,7 @@ watch(searchQuery, (val: string) => {
                 v-for="asset in assetsResponse?.assets"
                 v-else
                 :key="asset.id"
-                class="group cursor-pointer transition-colors hover:bg-attic-50/55 dark:hover:bg-attic-500/5"
-                @click="$router.push(`/assets/${asset.id}`)"
+                class="group transition-colors hover:bg-attic-50/55 dark:hover:bg-attic-500/5"
               >
                 <td class="p-3">
                   <div class="flex size-11 items-center justify-center overflow-hidden rounded-xl border border-mist-100 bg-gradient-to-br from-attic-50 to-mist-100 dark:border-mist-700 dark:from-mist-700 dark:to-mist-800">
@@ -312,9 +365,12 @@ watch(searchQuery, (val: string) => {
                   </div>
                 </td>
                 <td class="max-w-[360px] p-3">
-                  <p class="text-sm font-bold text-mist-950 dark:text-white group-hover:text-attic-500 transition-colors">
+                  <NuxtLink
+                    :to="`/assets/${asset.id}`"
+                    class="text-sm font-bold text-mist-950 transition-colors hover:text-attic-500 focus-visible:text-attic-500 dark:text-white"
+                  >
                     {{ asset.name }}
-                  </p>
+                  </NuxtLink>
                   <p class="mt-0.5 truncate text-xs text-mist-500">
                     {{ asset.description || `${asset.quantity} ${asset.quantity === 1 ? 'item' : 'items'} in inventory` }}
                   </p>
@@ -379,6 +435,8 @@ watch(searchQuery, (val: string) => {
                       color="neutral"
                       icon="i-lucide-more-horizontal"
                       size="sm"
+                      :aria-label="`Actions for ${asset.name}`"
+                      :title="`Actions for ${asset.name}`"
                     />
                   </UDropdownMenu>
                 </td>
@@ -386,61 +444,59 @@ watch(searchQuery, (val: string) => {
             </tbody>
           </table>
         </div>
+
+        <!-- Footer / Pagination -->
+        <footer class="flex flex-col gap-3 border-t border-mist-100 bg-mist-50/50 px-4 py-3 dark:border-mist-700 dark:bg-mist-700/20 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <p class="text-xs font-medium text-mist-500">
+            <template v-if="assetsResponse?.total">
+              Showing {{ ((page - 1) * (filters.limit ?? 24)) + 1 }}–{{ Math.min(page * (filters.limit ?? 24), assetsResponse.total) }} of {{ assetsResponse.total }} assets
+            </template>
+            <template v-else>
+              No assets to show
+            </template>
+          </p>
+          <div
+            v-if="totalPages > 1"
+            class="flex items-center gap-2"
+          >
+            <UButton
+              variant="outline"
+              color="neutral"
+              icon="i-lucide-chevron-left"
+              size="sm"
+              :disabled="page <= 1"
+              @click="page--"
+            />
+            <template v-for="p in Math.min(totalPages, 5)">
+              <UButton
+                v-if="p <= 3 || p === totalPages || p === page"
+                :key="p"
+                :variant="p === page ? 'solid' : 'outline'"
+                :color="p === page ? 'primary' : 'neutral'"
+                size="sm"
+                class="w-9"
+                @click="page = p"
+              >
+                {{ p }}
+              </UButton>
+              <span
+                v-else-if="p === 4 && totalPages > 5"
+                :key="`ellipsis-${p}`"
+                class="px-1 text-mist-400"
+              >...</span>
+            </template>
+            <UButton
+              variant="outline"
+              color="neutral"
+              icon="i-lucide-chevron-right"
+              size="sm"
+              :disabled="page >= totalPages"
+              @click="page++"
+            />
+          </div>
+        </footer>
       </div>
     </div>
-
-    <!-- Footer / Pagination -->
-    <footer class="pt-1">
-      <div class="flex items-center justify-between">
-        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">
-          <template v-if="assetsResponse?.total">
-            Showing {{ ((page - 1) * (filters.limit ?? 24)) + 1 }}–{{ Math.min(page * (filters.limit ?? 24), assetsResponse.total) }} of {{ assetsResponse.total }}
-          </template>
-          <template v-else>
-            No assets to show
-          </template>
-        </p>
-        <div
-          v-if="totalPages > 1"
-          class="flex items-center gap-2"
-        >
-          <UButton
-            variant="outline"
-            color="neutral"
-            icon="i-lucide-chevron-left"
-            size="sm"
-            :disabled="page <= 1"
-            @click="page--"
-          />
-          <template v-for="p in Math.min(totalPages, 5)">
-            <UButton
-              v-if="p <= 3 || p === totalPages || p === page"
-              :key="p"
-              :variant="p === page ? 'solid' : 'outline'"
-              :color="p === page ? 'primary' : 'neutral'"
-              size="sm"
-              class="w-9"
-              @click="page = p"
-            >
-              {{ p }}
-            </UButton>
-            <span
-              v-else-if="p === 4 && totalPages > 5"
-              :key="`ellipsis-${p}`"
-              class="px-1 text-gray-400"
-            >...</span>
-          </template>
-          <UButton
-            variant="outline"
-            color="neutral"
-            icon="i-lucide-chevron-right"
-            size="sm"
-            :disabled="page >= totalPages"
-            @click="page++"
-          />
-        </div>
-      </div>
-    </footer>
 
     <!-- Import Modal -->
     <ImportModal

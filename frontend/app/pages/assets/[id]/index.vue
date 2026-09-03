@@ -409,6 +409,8 @@ function getShortId(): string {
             color="error"
             variant="soft"
             icon="i-lucide-trash-2"
+            :aria-label="`Delete ${asset.name}`"
+            :title="`Delete ${asset.name}`"
             @click="deleteModalOpen = true"
           />
         </div>
@@ -850,7 +852,11 @@ function getShortId(): string {
     </div>
 
     <!-- Delete Asset Modal -->
-    <UModal v-model:open="deleteModalOpen">
+    <UModal
+      v-model:open="deleteModalOpen"
+      title="Delete Asset"
+      description="This action cannot be undone."
+    >
       <template #content>
         <div class="bg-white dark:bg-gray-800 rounded-xl p-6">
           <div class="flex items-center gap-4 mb-4">
@@ -891,7 +897,11 @@ function getShortId(): string {
     </UModal>
 
     <!-- Warranty Modal -->
-    <UModal v-model:open="warrantyModalOpen">
+    <UModal
+      v-model:open="warrantyModalOpen"
+      :title="warranty ? 'Edit warranty' : 'Add warranty'"
+      description="Keep provider, policy, and coverage dates together."
+    >
       <template #content>
         <div class="w-full max-w-lg overflow-hidden rounded-[20px] bg-white shadow-xl dark:bg-mist-800">
           <div class="flex items-start gap-3 border-b border-mist-100 px-6 py-5 dark:border-mist-700">

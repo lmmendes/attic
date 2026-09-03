@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { Location, Asset } from '~/types/api'
+import { getIconLabel } from '~/utils/iconLabel'
+import { getLocationNameError } from '~/utils/locationValidation'
 
 definePageMeta({
   middleware: 'auth'
@@ -42,6 +44,7 @@ const form = reactive({
   parent_id: undefined as string | undefined,
   icon: undefined as string | undefined
 })
+const nameError = ref('')
 
 // Delete confirmation modal
 const deleteModalOpen = ref(false)
@@ -79,6 +82,7 @@ function openCreateModal(parentId?: string) {
   form.description = ''
   form.parent_id = parentId
   form.icon = undefined
+  nameError.value = ''
   modalOpen.value = true
 }
 
@@ -88,10 +92,14 @@ function openEditModal(location: Location) {
   form.description = location.description || ''
   form.parent_id = location.parent_id
   form.icon = location.icon
+  nameError.value = ''
   modalOpen.value = true
 }
 
 async function saveLocation() {
+  nameError.value = getLocationNameError(form.name) || ''
+  if (nameError.value) return
+
   try {
     const url = editingLocation.value
       ? `/api/locations/${editingLocation.value.id}`
@@ -99,7 +107,7 @@ async function saveLocation() {
 
     await apiFetch(url, {
       method: editingLocation.value ? 'PUT' : 'POST',
-      body: JSON.stringify(form)
+      body: JSON.stringify({ ...form, name: form.name.trim() })
     })
 
     toast.add({
@@ -808,7 +816,11 @@ function getLocationIcon(location: Location): string {
     </div>
 
     <!-- Create/Edit Modal -->
-    <UModal v-model:open="modalOpen">
+    <UModal
+      v-model:open="modalOpen"
+      :title="editingLocation ? 'Edit Location' : 'New Location'"
+      description="Enter the location details and choose how it appears in the location tree."
+    >
       <template #content>
         <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl">
           <div class="p-6 border-b border-mist-100 dark:border-mist-700">
@@ -822,16 +834,29 @@ function getLocationIcon(location: Location): string {
             @submit.prevent="saveLocation"
           >
             <div>
-              <label class="block text-sm font-medium text-mist-700 dark:text-mist-300 mb-1.5">
+              <label
+                for="location-name"
+                class="block text-sm font-medium text-mist-700 dark:text-mist-300 mb-1.5"
+              >
                 Name <span class="text-red-500">*</span>
               </label>
               <input
+                id="location-name"
                 v-model="form.name"
                 type="text"
                 required
                 placeholder="Location name"
+                :aria-invalid="!!nameError"
+                :aria-describedby="nameError ? 'location-name-error' : undefined"
                 class="w-full bg-mist-50 dark:bg-mist-700 border border-mist-200 dark:border-mist-600 rounded-lg px-4 py-2.5 text-sm text-mist-950 dark:text-white placeholder-mist-400 focus:ring-2 focus:ring-attic-500 focus:border-transparent"
               >
+              <p
+                v-if="nameError"
+                id="location-name-error"
+                class="mt-1.5 text-sm text-red-600 dark:text-red-400"
+              >
+                {{ nameError }}
+              </p>
             </div>
 
             <div>
@@ -855,6 +880,9 @@ function getLocationIcon(location: Location): string {
                   v-for="icon in locationIcons"
                   :key="icon"
                   type="button"
+                  :aria-label="`${getIconLabel(icon)} icon`"
+                  :title="`${getIconLabel(icon)} icon`"
+                  :aria-pressed="form.icon === icon"
                   class="h-10 rounded-lg border transition-all flex items-center justify-center"
                   :class="form.icon === icon
                     ? 'bg-attic-500 text-white border-attic-500'
@@ -906,7 +934,11 @@ function getLocationIcon(location: Location): string {
     </UModal>
 
     <!-- Delete Confirmation Modal -->
-    <UModal v-model:open="deleteModalOpen">
+    <UModal
+      v-model:open="deleteModalOpen"
+      title="Delete Location"
+      description="Confirm permanent deletion of this location."
+    >
       <template #content>
         <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl p-6">
           <div class="flex items-start gap-4">

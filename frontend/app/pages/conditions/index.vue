@@ -386,7 +386,11 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <UModal v-model:open="deleteModalOpen">
+    <UModal
+      v-model:open="deleteModalOpen"
+      title="Delete Condition"
+      description="Confirm deletion of this condition and review the impact on assets that use it."
+    >
       <template #content>
         <div class="max-w-md rounded-[20px] bg-white p-6 shadow-xl dark:bg-mist-800">
           <div class="flex items-start gap-4">

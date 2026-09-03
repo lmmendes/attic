@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DialogDescription, DialogTitle } from 'reka-ui'
 import type { Plugin, PluginSearchResult, PluginsResponse, PluginSearchResponse, PluginImportResponse } from '~/types/api'
 
 const props = defineProps<{
@@ -22,6 +23,18 @@ const searchQuery = ref('')
 const searchResults = ref<PluginSearchResult[]>([])
 const searching = ref(false)
 const importing = ref(false)
+
+const modalTitle = computed(() => {
+  if (step.value === 'select') return 'Choose a source'
+  if (step.value === 'search') return `Search ${selectedPlugin.value?.name || 'catalog'}`
+  return 'Adding to your collection'
+})
+
+const modalDescription = computed(() => {
+  if (step.value === 'select') return 'Select the catalog that best matches the asset you are adding.'
+  if (step.value === 'search') return `Search ${selectedPlugin.value?.name || 'the selected catalog'} for an item to import.`
+  return 'The selected item is being added to your collection.'
+})
 
 // Load plugins from API
 const { data: pluginsData } = useApi<PluginsResponse>('/api/plugins')
@@ -187,31 +200,26 @@ function close() {
           <p class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-attic-500">
             Catalog import
           </p>
-          <h3 class="font-extrabold text-mist-950 dark:text-white">
-            <template v-if="step === 'select'">
-              Choose a source
-            </template>
-            <template v-else-if="step === 'search'">
-              Search {{ selectedPlugin?.name }}
-            </template>
-            <template v-else>
-              Adding to your collection
-            </template>
-          </h3>
+          <DialogTitle
+            as="h3"
+            class="font-extrabold text-mist-950 dark:text-white"
+          >
+            {{ modalTitle }}
+          </DialogTitle>
         </div>
       </div>
     </template>
 
     <template #body>
+      <DialogDescription :class="step === 'select' ? 'mb-4 text-sm text-mist-500' : 'sr-only'">
+        {{ modalDescription }}
+      </DialogDescription>
+
       <!-- Step 1: Select Plugin -->
       <div
         v-if="step === 'select'"
         class="space-y-3"
       >
-        <p class="mb-4 text-sm text-mist-500">
-          Select the catalog that best matches the asset you are adding.
-        </p>
-
         <div
           v-for="plugin in plugins"
           :key="plugin.id"

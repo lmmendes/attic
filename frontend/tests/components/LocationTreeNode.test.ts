@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { h } from 'vue'
+import ActualLocationTreeNode from '../../app/components/LocationTreeNode.vue'
 
 const LocationTreeNode = {
   name: 'LocationTreeNode',
@@ -81,6 +82,45 @@ describe('LocationTreeNode', () => {
     getIcon: () => 'i-lucide-home',
     hasChildren: () => false
   }
+
+  it('uses a focusable button-semantic control to select the location', async () => {
+    const wrapper = mount(ActualLocationTreeNode, {
+      props: defaultProps,
+      global: {
+        stubs: { UIcon: true }
+      }
+    })
+
+    const selectionButton = wrapper.get('[role="button"][aria-label="View Living Room"]')
+    expect(selectionButton.attributes('tabindex')).toBe('0')
+    expect(selectionButton.attributes('aria-pressed')).toBe('false')
+
+    await selectionButton.trigger('click')
+
+    expect(wrapper.emitted('select')).toEqual([[defaultProps.node.location]])
+  })
+
+  it('exposes the selected row state', () => {
+    const wrapper = mount(ActualLocationTreeNode, {
+      props: { ...defaultProps, selectedId: 'loc-1' },
+      global: {
+        stubs: { UIcon: true }
+      }
+    })
+
+    expect(wrapper.get('[role="button"][aria-label="View Living Room"]').attributes('aria-pressed')).toBe('true')
+  })
+
+  it('does not nest interactive buttons', () => {
+    const wrapper = mount(ActualLocationTreeNode, {
+      props: defaultProps,
+      global: {
+        stubs: { UIcon: true }
+      }
+    })
+
+    expect(wrapper.findAll('button button')).toHaveLength(0)
+  })
 
   it('renders location name', () => {
     const wrapper = mount(LocationTreeNode, {

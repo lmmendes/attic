@@ -42,7 +42,6 @@ const hasChildrenComputed = computed(() => props.node.children.length > 0)
           ? 'bg-attic-50 border-attic-100 shadow-sm dark:bg-attic-500/15 dark:border-attic-500/20'
           : 'hover:bg-mist-50 dark:hover:bg-mist-700/50'
       ]"
-      @click="emit('select', node.location)"
     >
       <!-- Expand/collapse toggle -->
       <button
@@ -64,24 +63,34 @@ const hasChildrenComputed = computed(() => props.node.children.length > 0)
         <div class="size-1.5 rounded-full bg-mist-300 dark:bg-mist-500" />
       </span>
 
-      <!-- Location icon -->
-      <UIcon
-        :name="getIcon(node.location)"
-        class="w-5 h-5 transition-colors"
-        :class="isSelected ? 'text-attic-500' : 'text-mist-400'"
-      />
-
-      <!-- Location name -->
-      <span
-        class="text-sm flex-1 truncate"
-        :class="[
-          isSelected
-            ? 'font-bold text-attic-500'
-            : 'font-medium text-mist-950 dark:text-white'
-        ]"
+      <!-- Location selection -->
+      <div
+        role="button"
+        tabindex="0"
+        :aria-pressed="isSelected"
+        :aria-label="`View ${node.location.name}`"
+        class="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-attic-500"
+        @click="emit('select', node.location)"
+        @keydown.enter.prevent="emit('select', node.location)"
+        @keydown.space.prevent="emit('select', node.location)"
       >
-        {{ node.location.name }}
-      </span>
+        <UIcon
+          :name="getIcon(node.location)"
+          class="w-5 h-5 transition-colors"
+          :class="isSelected ? 'text-attic-500' : 'text-mist-400'"
+        />
+
+        <span
+          class="min-w-0 flex-1 truncate text-sm"
+          :class="[
+            isSelected
+              ? 'font-bold text-attic-500'
+              : 'font-medium text-mist-950 dark:text-white'
+          ]"
+        >
+          {{ node.location.name }}
+        </span>
+      </div>
 
       <!-- Add child button (shown on hover) -->
       <button

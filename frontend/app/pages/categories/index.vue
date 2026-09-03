@@ -358,7 +358,11 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <UModal v-model:open="deleteModalOpen">
+    <UModal
+      v-model:open="deleteModalOpen"
+      title="Delete Category"
+      description="Confirm permanent deletion of this category."
+    >
       <template #content>
         <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl p-6 max-w-md">
           <div class="flex items-start gap-4">
@@ -397,7 +401,11 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
     </UModal>
 
     <!-- Attributes View Modal -->
-    <UModal v-model:open="attributesModalOpen">
+    <UModal
+      v-model:open="attributesModalOpen"
+      :title="`${viewingCategory?.name || 'Category'} Attributes`"
+      :description="`${viewingCategory?.attributes?.length || 0} attributes defined`"
+    >
       <template #content>
         <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl max-w-md w-full">
           <div class="p-6 border-b border-mist-100 dark:border-mist-700">

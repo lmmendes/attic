@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getIconLabel } from '~/utils/iconLabel'
 import type { Attribute } from '~/types/api'
 
 definePageMeta({
@@ -296,12 +297,15 @@ function cancel() {
               Icon
             </h3>
           </div>
-          <div class="max-h-[280px] overflow-y-auto custom-scrollbar pr-1">
+          <div class="pr-1 sm:max-h-[280px] sm:overflow-y-auto custom-scrollbar">
             <div class="grid grid-cols-5 gap-3">
               <button
                 v-for="icon in icons"
                 :key="icon"
                 type="button"
+                :aria-label="`${getIconLabel(icon)} icon`"
+                :title="`${getIconLabel(icon)} icon`"
+                :aria-pressed="form.icon === icon"
                 class="aspect-square rounded-xl flex items-center justify-center transition-all"
                 :class="form.icon === icon
                   ? 'bg-attic-500 text-white ring-2 ring-offset-2 ring-attic-500 dark:ring-offset-mist-800'

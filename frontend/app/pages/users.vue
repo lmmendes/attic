@@ -612,7 +612,11 @@ function formatRelativeDate(dateString: string): string {
     </div>
 
     <!-- Create User Modal -->
-    <UModal v-model:open="isCreateModalOpen">
+    <UModal
+      v-model:open="isCreateModalOpen"
+      title="Add a person"
+      description="Create their sign-in and choose organization access."
+    >
       <template #content>
         <div class="w-full max-w-lg overflow-hidden rounded-[22px] bg-white shadow-xl dark:bg-mist-800">
           <div class="flex items-center gap-4 border-b border-mist-100 bg-mist-50/70 px-6 py-5 dark:border-mist-700 dark:bg-mist-900/30">
@@ -757,7 +761,11 @@ function formatRelativeDate(dateString: string): string {
     </UModal>
 
     <!-- Edit User Modal -->
-    <UModal v-model:open="isEditModalOpen">
+    <UModal
+      v-model:open="isEditModalOpen"
+      :title="`Edit ${selectedUser?.name || selectedUser?.email.split('@')[0] || 'person'}`"
+      :description="selectedUser?.email || 'Update account details and organization access.'"
+    >
       <template #content>
         <div class="w-full max-w-lg overflow-hidden rounded-[22px] bg-white shadow-xl dark:bg-mist-800">
           <div class="flex items-center gap-4 border-b border-mist-100 bg-mist-50/70 px-6 py-5 dark:border-mist-700 dark:bg-mist-900/30">
@@ -881,53 +889,108 @@ function formatRelativeDate(dateString: string): string {
     </UModal>
 
     <!-- Reset Password Modal -->
-    <UModal v-model:open="isResetPasswordModalOpen">
+    <UModal
+      v-model:open="isResetPasswordModalOpen"
+      title="Reset Password"
+      :description="`Set a new password for ${selectedUser?.email || 'this user'}.`"
+    >
       <template #content>
-        <div class="w-full max-w-md rounded-[20px] bg-white p-6 shadow-xl dark:bg-mist-800">
-          <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
-            Reset Password
-          </h3>
-          <p class="text-sm text-mist-500 mb-4">
-            Set a new password for <strong class="text-mist-700 dark:text-mist-300">{{ selectedUser?.email }}</strong>
-          </p>
+        <div class="w-full max-w-lg overflow-hidden rounded-[24px] bg-white shadow-xl ring-1 ring-mist-200/80 dark:bg-mist-800 dark:ring-mist-700">
+          <div class="relative overflow-hidden bg-gradient-to-br from-attic-500 via-attic-600 to-[#174AE8] px-6 py-6 text-white sm:px-7">
+            <div class="pointer-events-none absolute -right-12 -top-16 size-44 rounded-full border-[24px] border-white/10" />
+            <div class="relative flex items-start gap-4">
+              <div class="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20">
+                <UIcon
+                  name="i-lucide-key-round"
+                  class="size-6"
+                />
+              </div>
+              <div>
+                <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/70">
+                  Account administration
+                </p>
+                <h2 class="mt-1 text-xl font-extrabold tracking-[-0.03em]">
+                  Reset password
+                </h2>
+                <p class="mt-1 text-sm text-white/75">
+                  Set a fresh sign-in password for this team member.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <form
-            class="space-y-4"
+            class="space-y-5 p-6 sm:p-7"
             @submit.prevent="resetPassword"
           >
-            <div>
-              <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
-                New Password
-              </label>
-              <input
+            <div class="flex items-center gap-3 rounded-2xl bg-attic-50 px-4 py-3 dark:bg-attic-500/10">
+              <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-attic-500 shadow-sm dark:bg-mist-800">
+                <UIcon
+                  name="i-lucide-user-round"
+                  class="size-4"
+                />
+              </div>
+              <div class="min-w-0">
+                <p class="text-[11px] font-extrabold uppercase tracking-[0.12em] text-attic-600 dark:text-attic-300">
+                  Resetting for
+                </p>
+                <p class="truncate text-sm font-bold text-mist-800 dark:text-white">
+                  {{ selectedUser?.email || 'Selected user' }}
+                </p>
+              </div>
+            </div>
+
+            <UFormField
+              label="New password"
+              name="resetPassword"
+              help="Use at least 8 characters."
+            >
+              <UInput
                 v-model="resetPasswordForm.password"
                 type="password"
-                placeholder="Minimum 8 characters"
+                placeholder="Create a temporary password"
+                autocomplete="new-password"
+                icon="i-lucide-lock-keyhole"
+                size="lg"
                 required
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 text-sm text-mist-950 dark:text-white"
+              />
+            </UFormField>
+
+            <div class="flex flex-col-reverse gap-2 border-t border-mist-100 pt-5 sm:flex-row sm:justify-end dark:border-mist-700">
+              <UButton
+                type="button"
+                variant="ghost"
+                color="neutral"
+                class="rounded-xl font-bold"
+                @click="isResetPasswordModalOpen = false"
               >
+                Cancel
+              </UButton>
+              <UButton
+                type="submit"
+                class="rounded-xl font-bold shadow-primary"
+                :loading="isLoading"
+                :disabled="isLoading || !resetPasswordForm.password"
+              >
+                <UIcon
+                  v-if="!isLoading"
+                  name="i-lucide-key-round"
+                  class="size-4"
+                />
+                Reset password
+              </UButton>
             </div>
           </form>
-          <div class="flex justify-end gap-3 mt-6">
-            <UButton
-              variant="ghost"
-              color="neutral"
-              @click="isResetPasswordModalOpen = false"
-            >
-              Cancel
-            </UButton>
-            <UButton
-              :loading="isLoading"
-              @click="resetPassword"
-            >
-              Reset Password
-            </UButton>
-          </div>
         </div>
       </template>
     </UModal>
 
     <!-- Delete User Modal -->
-    <UModal v-model:open="isDeleteModalOpen">
+    <UModal
+      v-model:open="isDeleteModalOpen"
+      title="Delete User"
+      description="Confirm permanent deletion of this user account."
+    >
       <template #content>
         <div class="w-full max-w-md rounded-[20px] bg-white p-6 shadow-xl dark:bg-mist-800">
           <div class="flex items-start gap-4">

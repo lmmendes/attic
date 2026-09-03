@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Category, Location, Condition } from '~/types/api'
+import { isValidAssetQuantity, QUANTITY_VALIDATION_MESSAGE } from '~/utils/assetValidation'
 
 definePageMeta({
   middleware: 'auth'
@@ -134,6 +135,11 @@ function getInputType(dataType: string): string {
 async function submitForm() {
   if (!form.name || !form.category_id) {
     toast.add({ title: 'Name and category are required', color: 'error' })
+    return
+  }
+
+  if (!isValidAssetQuantity(form.quantity)) {
+    toast.add({ title: QUANTITY_VALIDATION_MESSAGE, color: 'error' })
     return
   }
 
