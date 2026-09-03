@@ -87,9 +87,13 @@ const locationOptions = computed(() =>
   locations.value ? buildLocationOptions(locations.value) : []
 )
 
-const _conditionOptions = computed(() =>
+const conditionOptions = computed(() =>
   conditions.value?.map(c => ({ label: c.label, value: c.id })) || []
 )
+
+const hasActiveFilters = computed(() => Boolean(
+  filters.q || filters.category_id || filters.location_id || filters.condition_id
+))
 
 function clearFilters() {
   filters.q = ''
@@ -131,83 +135,61 @@ watch(searchQuery, (val: string) => {
     filters.offset = 0
   }, 300)
 })
-
-// Selected assets for bulk actions
-const selectedAssets = ref<string[]>([])
-const allSelected = computed({
-  get: () => assetsResponse.value?.assets?.length
-    ? selectedAssets.value.length === assetsResponse.value.assets.length
-    : false,
-  set: (val: boolean) => {
-    if (val && assetsResponse.value?.assets) {
-      selectedAssets.value = assetsResponse.value.assets.map(a => a.id)
-    } else {
-      selectedAssets.value = []
-    }
-  }
-})
-
-function toggleAssetSelection(assetId: string) {
-  const index = selectedAssets.value.indexOf(assetId)
-  if (index === -1) {
-    selectedAssets.value.push(assetId)
-  } else {
-    selectedAssets.value.splice(index, 1)
-  }
-}
 </script>
 
 <template>
-  <div class="flex flex-col min-h-full">
+  <div class="flex min-h-full flex-col gap-5 pb-6">
     <!-- Page Header -->
-    <header class="bg-white dark:bg-mist-900 border-b border-gray-100 dark:border-gray-800 px-0 py-6 sticky top-0 z-10">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="flex flex-col gap-1">
-          <h2 class="text-mist-950 dark:text-white text-3xl font-extrabold tracking-tight">
-            All Assets
-          </h2>
-          <p class="text-mist-500 dark:text-gray-400 text-sm font-medium">
-            Manage and track {{ assetsResponse?.total || 0 }} items across your inventory
-          </p>
-        </div>
-        <div class="flex items-center gap-3">
-          <UButton
-            variant="outline"
-            class="h-11 px-5 font-bold"
-            icon="i-lucide-puzzle"
-            @click="importModalOpen = true"
-          >
-            Import via Plugin
-          </UButton>
-          <UButton
-            to="/assets/new"
-            class="h-11 px-6 font-bold shadow-lg shadow-attic-500/20"
-            icon="i-lucide-plus"
-          >
-            Add Asset
-          </UButton>
-        </div>
+    <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div class="flex flex-col gap-1">
+        <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
+          Inventory
+        </p>
+        <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
+          All Assets
+        </h1>
+        <p class="text-sm text-mist-500">
+          Manage and track {{ assetsResponse?.total || 0 }} items across your inventory
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <UButton
+          variant="outline"
+          color="neutral"
+          class="rounded-xl font-bold"
+          icon="i-lucide-puzzle"
+          @click="importModalOpen = true"
+        >
+          Import
+        </UButton>
+        <UButton
+          to="/assets/new"
+          class="rounded-xl font-bold shadow-primary"
+          icon="i-lucide-plus"
+        >
+          Add Asset
+        </UButton>
       </div>
     </header>
 
     <!-- Filters Bar -->
-    <div class="py-4 bg-white/50 dark:bg-mist-900/50 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800">
-      <div class="flex flex-wrap items-center gap-4">
-        <div class="flex-1 min-w-[300px]">
+    <div class="attic-panel rounded-[20px] p-3">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div class="min-w-0 flex-1">
           <UInput
             v-model="searchQuery"
-            placeholder="Search assets by name, tag, or serial number..."
+            placeholder="Search by name, tag, or serial number..."
             icon="i-lucide-search"
             size="lg"
             class="w-full"
           />
         </div>
-        <div class="flex items-center gap-3">
+        <div class="grid grid-cols-2 gap-2 sm:flex sm:items-center">
           <USelectMenu
             v-model="filters.category_id"
             :items="categoryOptions"
             placeholder="Category"
-            class="w-40"
+            class="min-w-0 sm:w-40"
             value-key="value"
             icon="i-lucide-folder"
           />
@@ -215,13 +197,20 @@ function toggleAssetSelection(assetId: string) {
             v-model="filters.location_id"
             :items="locationOptions"
             placeholder="Location"
-            class="w-40"
+            class="min-w-0 sm:w-40"
             value-key="value"
             icon="i-lucide-map-pin"
           />
-          <div class="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1" />
+          <USelectMenu
+            v-model="filters.condition_id"
+            :items="conditionOptions"
+            placeholder="Condition"
+            class="min-w-0 sm:w-36"
+            value-key="value"
+            icon="i-lucide-sparkles"
+          />
           <UButton
-            v-if="filters.q || filters.category_id || filters.location_id || filters.condition_id"
+            v-if="hasActiveFilters"
             variant="ghost"
             color="neutral"
             icon="i-lucide-x"
@@ -234,46 +223,37 @@ function toggleAssetSelection(assetId: string) {
     </div>
 
     <!-- Assets Table -->
-    <div class="py-6 flex-1">
-      <div class="bg-white dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+    <div class="flex-1">
+      <div class="attic-panel overflow-hidden rounded-[20px]">
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse">
             <thead>
-              <tr class="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-700">
-                <th class="p-4 w-12">
-                  <div class="flex items-center justify-center">
-                    <input
-                      v-model="allSelected"
-                      type="checkbox"
-                      class="rounded border-gray-300 dark:border-gray-600 text-attic-500 focus:ring-attic-500 h-4 w-4"
-                    >
-                  </div>
+              <tr class="border-b border-mist-200/80 bg-mist-50/70 dark:border-mist-700 dark:bg-mist-800/80">
+                <th class="w-16 p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-mist-400">
+                  Item
                 </th>
-                <th class="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-20">
-                  Thumbnail
+                <th class="p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-mist-400">
+                  Asset
                 </th>
-                <th class="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Asset Name
-                </th>
-                <th class="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-mist-400 md:table-cell">
                   Category
                 </th>
-                <th class="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-mist-400 lg:table-cell">
                   Location
                 </th>
-                <th class="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-mist-400 xl:table-cell">
                   ID
                 </th>
-                <th class="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-20 text-right">
-                  Actions
+                <th class="w-16 p-3 text-right text-[10px] font-extrabold uppercase tracking-[0.14em] text-mist-400">
+                  <span class="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+            <tbody class="divide-y divide-mist-100 dark:divide-mist-800">
               <!-- Loading State -->
               <tr v-if="status === 'pending'">
                 <td
-                  colspan="7"
+                  colspan="6"
                   class="p-8 text-center"
                 >
                   <div class="flex items-center justify-center gap-2 text-gray-400">
@@ -289,7 +269,7 @@ function toggleAssetSelection(assetId: string) {
               <!-- Empty State -->
               <tr v-else-if="!assetsResponse?.assets?.length">
                 <td
-                  colspan="7"
+                  colspan="6"
                   class="p-12 text-center"
                 >
                   <UIcon
@@ -313,24 +293,11 @@ function toggleAssetSelection(assetId: string) {
                 v-for="asset in assetsResponse?.assets"
                 v-else
                 :key="asset.id"
-                class="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors group cursor-pointer"
+                class="group cursor-pointer transition-colors hover:bg-attic-50/55 dark:hover:bg-attic-500/5"
                 @click="$router.push(`/assets/${asset.id}`)"
               >
-                <td
-                  class="p-4"
-                  @click.stop
-                >
-                  <div class="flex items-center justify-center">
-                    <input
-                      type="checkbox"
-                      :checked="selectedAssets.includes(asset.id)"
-                      class="rounded border-gray-300 dark:border-gray-600 text-attic-500 focus:ring-attic-500 h-4 w-4"
-                      @change="toggleAssetSelection(asset.id)"
-                    >
-                  </div>
-                </td>
-                <td class="p-4">
-                  <div class="size-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-100 dark:border-gray-600 flex items-center justify-center">
+                <td class="p-3">
+                  <div class="flex size-11 items-center justify-center overflow-hidden rounded-xl border border-mist-100 bg-gradient-to-br from-attic-50 to-mist-100 dark:border-mist-700 dark:from-mist-700 dark:to-mist-800">
                     <img
                       v-if="asset.main_attachment_url"
                       :src="asset.main_attachment_url"
@@ -344,15 +311,28 @@ function toggleAssetSelection(assetId: string) {
                     />
                   </div>
                 </td>
-                <td class="p-4">
+                <td class="max-w-[360px] p-3">
                   <p class="text-sm font-bold text-mist-950 dark:text-white group-hover:text-attic-500 transition-colors">
                     {{ asset.name }}
                   </p>
+                  <p class="mt-0.5 truncate text-xs text-mist-500">
+                    {{ asset.description || `${asset.quantity} ${asset.quantity === 1 ? 'item' : 'items'} in inventory` }}
+                  </p>
+                  <div class="mt-1.5 flex items-center gap-1.5 md:hidden">
+                    <span
+                      v-if="asset.category?.name"
+                      class="text-[10px] font-bold text-attic-500"
+                    >{{ asset.category.name }}</span>
+                    <span
+                      v-if="asset.location?.name"
+                      class="text-[10px] text-mist-400"
+                    >· {{ asset.location.name }}</span>
+                  </div>
                 </td>
-                <td class="p-4">
+                <td class="hidden p-3 md:table-cell">
                   <span
                     v-if="asset.category?.name"
-                    class="inline-flex px-2 py-0.5 rounded text-[10px] font-bold text-attic-500 bg-attic-500/10 uppercase tracking-wider"
+                    class="inline-flex rounded-full bg-attic-50 px-2.5 py-1 text-[10px] font-extrabold text-attic-600 ring-1 ring-attic-100 dark:bg-attic-500/10 dark:text-attic-300 dark:ring-attic-500/20"
                   >
                     {{ asset.category.name }}
                   </span>
@@ -361,11 +341,15 @@ function toggleAssetSelection(assetId: string) {
                     class="text-xs text-gray-400"
                   >—</span>
                 </td>
-                <td class="p-4">
+                <td class="hidden p-3 lg:table-cell">
                   <div
                     v-if="asset.location?.name"
-                    class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400"
+                    class="flex items-center gap-1.5 text-mist-500"
                   >
+                    <UIcon
+                      name="i-lucide-map-pin"
+                      class="size-3.5"
+                    />
                     <span class="text-xs font-medium">{{ asset.location.name }}</span>
                   </div>
                   <span
@@ -373,20 +357,20 @@ function toggleAssetSelection(assetId: string) {
                     class="text-xs text-gray-400"
                   >—</span>
                 </td>
-                <td class="p-4">
+                <td class="hidden p-3 xl:table-cell">
                   <span class="text-xs font-mono font-semibold text-gray-400">
                     {{ getShortId(asset) }}
                   </span>
                 </td>
                 <td
-                  class="p-4 text-right"
+                  class="p-3 text-right"
                   @click.stop
                 >
                   <UDropdownMenu
                     :items="[
                       [
-                        { label: 'View', icon: 'i-lucide-eye', click: () => $router.push(`/assets/${asset.id}`) },
-                        { label: 'Edit', icon: 'i-lucide-pencil', click: () => $router.push(`/assets/${asset.id}/edit`) }
+                        { label: 'View', icon: 'i-lucide-eye', onSelect: () => $router.push(`/assets/${asset.id}`) },
+                        { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => $router.push(`/assets/${asset.id}/edit`) }
                       ]
                     ]"
                   >
@@ -406,10 +390,15 @@ function toggleAssetSelection(assetId: string) {
     </div>
 
     <!-- Footer / Pagination -->
-    <footer class="py-6 border-t border-gray-100 dark:border-gray-800 bg-white/30 dark:bg-mist-900/30">
+    <footer class="pt-1">
       <div class="flex items-center justify-between">
         <p class="text-sm font-medium text-gray-500 dark:text-gray-400">
-          Showing {{ ((page - 1) * (filters.limit ?? 24)) + 1 }} to {{ Math.min(page * (filters.limit ?? 24), assetsResponse?.total || 0) }} of {{ assetsResponse?.total || 0 }} assets
+          <template v-if="assetsResponse?.total">
+            Showing {{ ((page - 1) * (filters.limit ?? 24)) + 1 }}–{{ Math.min(page * (filters.limit ?? 24), assetsResponse.total) }} of {{ assetsResponse.total }}
+          </template>
+          <template v-else>
+            No assets to show
+          </template>
         </p>
         <div
           v-if="totalPages > 1"

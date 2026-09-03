@@ -78,7 +78,7 @@ function cancel() {
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="mx-auto max-w-[900px] space-y-5 pb-6">
     <!-- Loading State -->
     <div
       v-if="status === 'pending'"
@@ -116,9 +116,9 @@ function cancel() {
     <!-- Form Content -->
     <template v-else>
       <!-- Breadcrumbs & Header -->
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div class="flex flex-col gap-2">
-          <nav class="flex items-center text-sm font-medium text-mist-500">
+      <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div class="space-y-3">
+          <nav class="flex items-center text-xs font-semibold text-mist-500">
             <NuxtLink
               to="/"
               class="hover:text-attic-500 transition-colors"
@@ -133,21 +133,25 @@ function cancel() {
               Conditions
             </NuxtLink>
             <span class="mx-2 text-mist-300 dark:text-mist-600">/</span>
-            <span class="text-mist-950 dark:text-white">Edit</span>
+            <span class="font-bold text-attic-500">Edit</span>
           </nav>
           <div>
-            <h1 class="text-3xl font-extrabold tracking-tight text-mist-950 dark:text-white">
-              Edit Condition
+            <p class="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
+              Condition editor
+            </p>
+            <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
+              Edit {{ condition?.label }}
             </h1>
-            <p class="text-mist-500 mt-1">
-              Update the details of "{{ condition?.label }}".
+            <p class="mt-1 text-sm text-mist-500">
+              Update how this quality level appears throughout the collection.
             </p>
           </div>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="hidden items-center gap-2 sm:flex">
           <UButton
             variant="ghost"
             color="neutral"
+            class="rounded-xl font-semibold"
             @click="cancel"
           >
             Cancel
@@ -155,6 +159,7 @@ function cancel() {
           <UButton
             icon="i-lucide-save"
             :loading="saving"
+            class="rounded-xl font-bold shadow-primary"
             @click="saveCondition"
           >
             Save Changes
@@ -163,9 +168,23 @@ function cancel() {
       </div>
 
       <!-- Form Card -->
-      <div class="max-w-2xl">
-        <div class="bg-white dark:bg-mist-800 rounded-xl shadow-soft border border-mist-100 dark:border-mist-700 p-6">
-          <div class="space-y-6">
+      <div class="space-y-5">
+        <section class="attic-panel rounded-[20px] p-5 sm:p-6">
+          <div class="mb-5 flex items-start gap-3">
+            <div class="flex size-9 items-center justify-center rounded-xl bg-attic-50 text-attic-500 dark:bg-attic-500/10">
+              <UIcon
+                name="i-lucide-sliders-horizontal"
+                class="size-4.5"
+              />
+            </div><div>
+              <h2 class="font-extrabold text-mist-950 dark:text-white">
+                Condition details
+              </h2><p class="text-xs text-mist-500">
+                The code stays fixed so existing integrations remain stable.
+              </p>
+            </div>
+          </div>
+          <div class="max-w-3xl space-y-5">
             <!-- Label Field -->
             <div>
               <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
@@ -232,10 +251,10 @@ function cancel() {
               </p>
             </div>
           </div>
-        </div>
+        </section>
 
         <!-- Info Box -->
-        <div class="mt-6 p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50">
+        <div class="rounded-[18px] border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/50 dark:bg-amber-900/20">
           <div class="flex gap-3">
             <UIcon
               name="i-lucide-info"
@@ -250,6 +269,23 @@ function cancel() {
               </p>
             </div>
           </div>
+        </div>
+        <div class="attic-panel flex items-center justify-end gap-2 rounded-[18px] px-4 py-3">
+          <UButton
+            variant="ghost"
+            color="neutral"
+            @click="cancel"
+          >
+            Cancel
+          </UButton>
+          <UButton
+            icon="i-lucide-save"
+            :loading="saving"
+            class="rounded-xl shadow-primary"
+            @click="saveCondition"
+          >
+            Save changes
+          </UButton>
         </div>
       </div>
     </template>

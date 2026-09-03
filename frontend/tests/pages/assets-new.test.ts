@@ -32,33 +32,21 @@ describe('New Asset Page', () => {
     })
   })
 
-  describe('form progress', () => {
-    it('calculates progress based on filled fields', () => {
-      const calculateProgress = (form: {
-        name: string
-        category_id?: string
-        location_id?: string
-        condition_id?: string
-      }) => {
-        let filled = 0
-        const total = 4
-        if (form.name) filled++
-        if (form.category_id) filled++
-        if (form.location_id) filled++
-        if (form.condition_id) filled++
-        return (filled / total) * 100
+  describe('location deep link', () => {
+    it('preselects the location without overwriting a user selection', () => {
+      const applyLocationQuery = (form: { location_id?: string }, locationId: unknown) => {
+        if (typeof locationId === 'string' && !form.location_id) {
+          form.location_id = locationId
+        }
       }
 
-      expect(calculateProgress({ name: '' })).toBe(0)
-      expect(calculateProgress({ name: 'Test' })).toBe(25)
-      expect(calculateProgress({ name: 'Test', category_id: 'cat-1' })).toBe(50)
-      expect(calculateProgress({ name: 'Test', category_id: 'cat-1', location_id: 'loc-1' })).toBe(75)
-      expect(calculateProgress({
-        name: 'Test',
-        category_id: 'cat-1',
-        location_id: 'loc-1',
-        condition_id: 'cond-1'
-      })).toBe(100)
+      const emptyForm: { location_id?: string } = {}
+      applyLocationQuery(emptyForm, 'location-from-query')
+      expect(emptyForm.location_id).toBe('location-from-query')
+
+      const editedForm = { location_id: 'user-selected-location' }
+      applyLocationQuery(editedForm, 'location-from-query')
+      expect(editedForm.location_id).toBe('user-selected-location')
     })
   })
 

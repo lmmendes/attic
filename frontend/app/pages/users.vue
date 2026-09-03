@@ -13,7 +13,7 @@ interface User {
   created_at: string
 }
 
-const { isAdmin } = useAuth()
+const { isAdmin, fetchSession } = useAuth()
 const apiFetch = useApiFetch()
 const toast = useToast()
 
@@ -28,6 +28,7 @@ const { data: users, refresh, status } = useApi<User[]>('/api/users')
 
 // Search
 const searchQuery = ref('')
+const selectedRole = ref<'all' | 'user' | 'admin'>('all')
 
 // Pagination
 const currentPage = ref(1)
@@ -36,13 +37,14 @@ const itemsPerPage = ref(10)
 // Filtered users
 const filteredUsers = computed(() => {
   if (!users.value) return []
-  if (!searchQuery.value.trim()) return users.value
-  const query = searchQuery.value.toLowerCase()
-  return users.value.filter(
-    u => u.email.toLowerCase().includes(query)
-      || (u.name && u.name.toLowerCase().includes(query))
-      || u.role.toLowerCase().includes(query)
-  )
+  const query = searchQuery.value.trim().toLowerCase()
+  return users.value.filter((user) => {
+    const matchesSearch = !query
+      || user.email.toLowerCase().includes(query)
+      || user.name?.toLowerCase().includes(query)
+    const matchesRole = selectedRole.value === 'all' || user.role === selectedRole.value
+    return matchesSearch && matchesRole
+  })
 })
 
 // Paginated users
@@ -56,8 +58,12 @@ const paginatedUsers = computed(() => {
 const totalPages = computed(() => Math.ceil(filteredUsers.value.length / itemsPerPage.value))
 
 // Reset to page 1 when search changes
-watch(searchQuery, () => {
+watch([searchQuery, selectedRole], () => {
   currentPage.value = 1
+})
+
+watch(totalPages, (pages) => {
+  if (currentPage.value > Math.max(1, pages)) currentPage.value = Math.max(1, pages)
 })
 
 // Pagination helpers
@@ -75,9 +81,9 @@ function prevPage() {
 
 // Stats
 const stats = computed(() => {
-  if (!users.value) return { total: 0, admins: 0 }
+  if (!users.value) return { total: 0, admins: 0, members: 0 }
   const admins = users.value.filter(u => u.role === 'admin').length
-  return { total: users.value.length, admins }
+  return { total: users.value.length, admins, members: users.value.length - admins }
 })
 
 // Modals
@@ -87,6 +93,7 @@ const isResetPasswordModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
 const selectedUser = ref<User | null>(null)
 const isLoading = ref(false)
+const showCreatePassword = ref(false)
 
 // Create user form
 const createForm = ref({
@@ -111,10 +118,11 @@ const resetPasswordForm = ref({
 const roleOptions = [
   { label: 'User', value: 'user' },
   { label: 'Admin', value: 'admin' }
-]
+] as const
 
 const openCreateModal = () => {
   createForm.value = { email: '', name: '', password: '', role: 'user' }
+  showCreatePassword.value = false
   isCreateModalOpen.value = true
 }
 
@@ -140,6 +148,15 @@ const openDeleteModal = (user: User) => {
 }
 
 const createUser = async () => {
+  if (!createForm.value.email.trim()) {
+    toast.add({ title: 'Please enter an email address', color: 'error' })
+    return
+  }
+  if (createForm.value.password.length < 8) {
+    toast.add({ title: 'Password must be at least 8 characters', color: 'error' })
+    return
+  }
+
   isLoading.value = true
   try {
     await apiFetch('/api/users', {
@@ -159,6 +176,11 @@ const createUser = async () => {
 
 const updateUser = async () => {
   if (!selectedUser.value) return
+  if (!editForm.value.email.trim()) {
+    toast.add({ title: 'Please enter an email address', color: 'error' })
+    return
+  }
+
   isLoading.value = true
   try {
     await apiFetch(`/api/users/${selectedUser.value.id}`, {
@@ -167,7 +189,7 @@ const updateUser = async () => {
     })
     toast.add({ title: 'User updated successfully', color: 'success' })
     isEditModalOpen.value = false
-    refresh()
+    await Promise.all([refresh(), fetchSession()])
   } catch (error: unknown) {
     const err = error as { data?: { error?: string } }
     toast.add({ title: err?.data?.error || 'Failed to update user', color: 'error' })
@@ -178,6 +200,11 @@ const updateUser = async () => {
 
 const resetPassword = async () => {
   if (!selectedUser.value) return
+  if (resetPasswordForm.value.password.length < 8) {
+    toast.add({ title: 'Password must be at least 8 characters', color: 'error' })
+    return
+  }
+
   isLoading.value = true
   try {
     await apiFetch(`/api/users/${selectedUser.value.id}/reset-password`, {
@@ -275,28 +302,25 @@ function formatRelativeDate(dateString: string): string {
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-5 pb-6">
     <!-- Page Header -->
-    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <header class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight text-mist-950 dark:text-white mb-1">
-          User Management
+        <p class="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
+          Organization access
+        </p>
+        <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
+          People
         </h1>
-        <p class="text-mist-500">
-          Oversee user access, manage roles, and maintain security protocols for your organization.
+        <p class="mt-1 max-w-2xl text-sm text-mist-500">
+          Invite members, assign administrator access, and manage sign-in methods.
         </p>
       </div>
       <!-- Quick Stats -->
-      <div class="flex gap-4">
-        <div class="bg-white dark:bg-mist-800 px-4 py-2 rounded-lg shadow-sm border border-mist-100 dark:border-mist-700 flex items-center gap-3">
-          <div class="bg-attic-50 dark:bg-attic-900/20 p-1.5 rounded text-attic-500">
-            <UIcon
-              name="i-lucide-users"
-              class="w-5 h-5"
-            />
-          </div>
+      <div class="attic-panel flex divide-x divide-mist-100 rounded-xl px-2 py-2 dark:divide-mist-700">
+        <div class="px-3">
           <div>
-            <p class="text-xs text-mist-500 font-medium uppercase tracking-wider">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-mist-400">
               Total
             </p>
             <p class="text-lg font-bold text-mist-950 dark:text-white leading-none">
@@ -304,15 +328,9 @@ function formatRelativeDate(dateString: string): string {
             </p>
           </div>
         </div>
-        <div class="bg-white dark:bg-mist-800 px-4 py-2 rounded-lg shadow-sm border border-mist-100 dark:border-mist-700 flex items-center gap-3">
-          <div class="bg-purple-100 dark:bg-purple-900/30 p-1.5 rounded text-purple-600 dark:text-purple-300">
-            <UIcon
-              name="i-lucide-shield"
-              class="w-5 h-5"
-            />
-          </div>
+        <div class="px-3">
           <div>
-            <p class="text-xs text-mist-500 font-medium uppercase tracking-wider">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-mist-400">
               Admins
             </p>
             <p class="text-lg font-bold text-mist-950 dark:text-white leading-none">
@@ -320,36 +338,55 @@ function formatRelativeDate(dateString: string): string {
             </p>
           </div>
         </div>
+        <div class="px-3">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-wider text-mist-400">
+              Members
+            </p>
+            <p class="text-lg font-bold leading-none text-mist-950 dark:text-white">
+              {{ stats.members }}
+            </p>
+          </div>
+        </div>
       </div>
-    </div>
+    </header>
 
     <!-- Toolbar -->
-    <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+    <div class="attic-panel flex flex-col gap-3 rounded-[18px] p-3 md:flex-row md:items-center md:justify-between md:p-4">
       <!-- Search -->
-      <div class="relative w-full md:max-w-md">
-        <UIcon
-          name="i-lucide-search"
-          class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mist-400"
-        />
-        <input
+      <div class="flex w-full flex-col gap-3 sm:flex-row">
+        <UInput
           v-model="searchQuery"
-          type="text"
-          placeholder="Search users by name, email or role..."
-          class="w-full pl-10 pr-4 py-2.5 bg-mist-50 dark:bg-mist-800 border border-mist-200 dark:border-mist-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-attic-500/20 focus:border-attic-500 text-mist-950 dark:text-white placeholder-mist-400"
-        >
+          icon="i-lucide-search"
+          placeholder="Search name or email"
+          class="w-full md:max-w-sm"
+          size="lg"
+        />
+        <div class="flex gap-1 rounded-xl bg-mist-50 p-1 dark:bg-mist-700/60">
+          <button
+            v-for="role in ['all', 'user', 'admin'] as const"
+            :key="role"
+            type="button"
+            class="rounded-lg px-3 py-1.5 text-xs font-bold capitalize transition-colors"
+            :class="selectedRole === role ? 'bg-white text-attic-600 shadow-sm dark:bg-mist-800 dark:text-attic-300' : 'text-mist-400 hover:text-mist-600'"
+            @click="selectedRole = role"
+          >
+            {{ role === 'user' ? 'Members' : role }}
+          </button>
+        </div>
       </div>
       <!-- Actions -->
       <UButton
         icon="i-lucide-plus"
-        class="h-11 px-6 font-bold shadow-lg shadow-attic-500/20"
+        class="w-full shrink-0 whitespace-nowrap rounded-xl font-bold shadow-primary md:w-auto"
         @click="openCreateModal"
       >
-        Add User
+        Add person
       </UButton>
     </div>
 
     <!-- Data Table -->
-    <div class="overflow-hidden rounded-xl border border-mist-100 dark:border-mist-700 bg-white dark:bg-mist-800 shadow-sm">
+    <div class="attic-panel overflow-hidden rounded-[20px]">
       <!-- Loading State -->
       <div
         v-if="status === 'pending'"
@@ -363,7 +400,7 @@ function formatRelativeDate(dateString: string): string {
 
       <!-- Empty State -->
       <div
-        v-else-if="!filteredUsers.length && !searchQuery"
+        v-else-if="!users?.length"
         class="flex flex-col items-center justify-center py-20 px-4 text-center"
       >
         <div class="size-16 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-4">
@@ -385,7 +422,7 @@ function formatRelativeDate(dateString: string): string {
 
       <!-- No Results -->
       <div
-        v-else-if="!filteredUsers.length && searchQuery"
+        v-else-if="!filteredUsers.length"
         class="flex flex-col items-center justify-center py-20 px-4 text-center"
       >
         <UIcon
@@ -396,8 +433,15 @@ function formatRelativeDate(dateString: string): string {
           No results found
         </h3>
         <p class="text-sm text-mist-500">
-          No users match "{{ searchQuery }}"
+          No people match these filters.
         </p>
+        <button
+          type="button"
+          class="mt-2 text-sm font-semibold text-attic-500"
+          @click="searchQuery = ''; selectedRole = 'all'"
+        >
+          Clear filters
+        </button>
       </div>
 
       <!-- Table -->
@@ -495,7 +539,7 @@ function formatRelativeDate(dateString: string): string {
 
                 <!-- Actions -->
                 <td class="px-6 py-4 text-right">
-                  <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div class="flex items-center justify-end gap-1">
                     <button
                       class="size-8 rounded flex items-center justify-center text-mist-400 hover:text-attic-500 hover:bg-attic-500/10 transition-colors"
                       title="Reset Password"
@@ -570,83 +614,142 @@ function formatRelativeDate(dateString: string): string {
     <!-- Create User Modal -->
     <UModal v-model:open="isCreateModalOpen">
       <template #content>
-        <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl p-6 max-w-md">
-          <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-4">
-            Create User
-          </h3>
+        <div class="w-full max-w-lg overflow-hidden rounded-[22px] bg-white shadow-xl dark:bg-mist-800">
+          <div class="flex items-center gap-4 border-b border-mist-100 bg-mist-50/70 px-6 py-5 dark:border-mist-700 dark:bg-mist-900/30">
+            <div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-attic-500 text-white shadow-primary">
+              <UIcon
+                name="i-lucide-user-plus"
+                class="size-5"
+              />
+            </div>
+            <div>
+              <p class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-attic-500">
+                New account
+              </p>
+              <h3 class="text-lg font-extrabold text-mist-950 dark:text-white">
+                Add a person
+              </h3>
+              <p class="text-xs text-mist-500">
+                Create their sign-in and choose organization access.
+              </p>
+            </div>
+          </div>
+
           <form
-            class="space-y-4"
+            id="create-person-form"
+            class="space-y-5 p-6"
             @submit.prevent="createUser"
           >
-            <div>
-              <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
-                Email
+            <div class="space-y-2">
+              <label class="block text-xs font-bold uppercase tracking-wider text-mist-500">
+                Email address <span class="text-terracotta-500">*</span>
               </label>
               <input
                 v-model="createForm.email"
                 type="email"
                 placeholder="user@example.com"
                 required
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 text-sm text-mist-950 dark:text-white"
+                autocomplete="email"
+                class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               >
             </div>
 
-            <div>
-              <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
-                Name
+            <div class="space-y-2">
+              <label class="block text-xs font-bold uppercase tracking-wider text-mist-500">
+                Display name
               </label>
               <input
                 v-model="createForm.name"
                 type="text"
-                placeholder="John Doe"
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 text-sm text-mist-950 dark:text-white"
+                placeholder="e.g. John Doe"
+                autocomplete="name"
+                class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               >
             </div>
 
-            <div>
-              <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
-                Password
+            <div class="space-y-2">
+              <label class="block text-xs font-bold uppercase tracking-wider text-mist-500">
+                Temporary password <span class="text-terracotta-500">*</span>
               </label>
-              <input
-                v-model="createForm.password"
-                type="password"
-                placeholder="Minimum 8 characters"
-                required
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 text-sm text-mist-950 dark:text-white"
-              >
+              <div class="relative">
+                <input
+                  v-model="createForm.password"
+                  :type="showCreatePassword ? 'text' : 'password'"
+                  placeholder="At least 8 characters"
+                  minlength="8"
+                  required
+                  autocomplete="new-password"
+                  class="w-full rounded-xl border border-mist-200 bg-white py-3 pl-4 pr-11 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                >
+                <button
+                  type="button"
+                  class="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-mist-400 hover:text-mist-600"
+                  :aria-label="showCreatePassword ? 'Hide password' : 'Show password'"
+                  @click="showCreatePassword = !showCreatePassword"
+                >
+                  <UIcon
+                    :name="showCreatePassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                    class="size-4"
+                  />
+                </button>
+              </div>
+              <p class="text-xs text-mist-400">
+                Share it securely—the person can change it after signing in.
+              </p>
             </div>
 
-            <div>
-              <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
-                Role
-              </label>
-              <select
-                v-model="createForm.role"
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all text-sm text-mist-950 dark:text-white"
-              >
-                <option
+            <fieldset class="space-y-2">
+              <legend class="text-xs font-bold uppercase tracking-wider text-mist-500">
+                Organization role
+              </legend>
+              <div class="grid grid-cols-2 gap-3">
+                <button
                   v-for="option in roleOptions"
                   :key="option.value"
-                  :value="option.value"
+                  type="button"
+                  class="flex items-start gap-3 rounded-xl border p-3 text-left transition-all"
+                  :class="createForm.role === option.value ? 'border-attic-500 bg-attic-50 ring-2 ring-attic-500/10 dark:bg-attic-500/10' : 'border-mist-200 hover:border-attic-300 dark:border-mist-600'"
+                  :aria-pressed="createForm.role === option.value"
+                  @click="createForm.role = option.value"
                 >
-                  {{ option.label }}
-                </option>
-              </select>
-            </div>
+                  <div
+                    class="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg"
+                    :class="createForm.role === option.value ? 'bg-attic-500 text-white' : 'bg-mist-100 text-mist-400 dark:bg-mist-700'"
+                  >
+                    <UIcon
+                      :name="option.value === 'admin' ? 'i-lucide-shield' : 'i-lucide-user'"
+                      class="size-3.5"
+                    />
+                  </div>
+                  <div>
+                    <p class="text-sm font-extrabold text-mist-900 dark:text-white">
+                      {{ option.value === 'admin' ? 'Administrator' : 'Member' }}
+                    </p><p class="mt-0.5 text-[11px] leading-4 text-mist-500">
+                      {{ option.value === 'admin' ? 'Full organization access' : 'Standard inventory access' }}
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </fieldset>
           </form>
-          <div class="flex justify-end gap-3 mt-6">
+
+          <div class="flex justify-end gap-2 border-t border-mist-100 bg-mist-50/60 px-6 py-4 dark:border-mist-700 dark:bg-mist-900/30">
             <UButton
               variant="ghost"
               color="neutral"
+              class="rounded-xl"
               @click="isCreateModalOpen = false"
             >
               Cancel
             </UButton>
             <UButton
+              type="submit"
+              form="create-person-form"
+              icon="i-lucide-user-plus"
               :loading="isLoading"
-              @click="createUser"
+              class="rounded-xl font-bold shadow-primary"
             >
-              Create User
+              Add person
             </UButton>
           </div>
         </div>
@@ -656,69 +759,121 @@ function formatRelativeDate(dateString: string): string {
     <!-- Edit User Modal -->
     <UModal v-model:open="isEditModalOpen">
       <template #content>
-        <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl p-6 max-w-md">
-          <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-4">
-            Edit User
-          </h3>
+        <div class="w-full max-w-lg overflow-hidden rounded-[22px] bg-white shadow-xl dark:bg-mist-800">
+          <div class="flex items-center gap-4 border-b border-mist-100 bg-mist-50/70 px-6 py-5 dark:border-mist-700 dark:bg-mist-900/30">
+            <div
+              v-if="selectedUser"
+              class="flex size-11 shrink-0 items-center justify-center rounded-2xl text-sm font-black"
+              :class="[getAvatarColor(selectedUser).bg, getAvatarColor(selectedUser).text]"
+            >
+              {{ getInitials(selectedUser) }}
+            </div>
+            <div class="min-w-0">
+              <p class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-attic-500">
+                Account settings
+              </p>
+              <h3 class="truncate text-lg font-extrabold text-mist-950 dark:text-white">
+                Edit {{ selectedUser?.name || selectedUser?.email.split('@')[0] }}
+              </h3>
+              <p class="truncate text-xs text-mist-500">
+                {{ selectedUser?.email }}
+              </p>
+            </div>
+          </div>
+
           <form
-            class="space-y-4"
+            id="edit-person-form"
+            class="space-y-5 p-6"
             @submit.prevent="updateUser"
           >
-            <div>
-              <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
-                Email
+            <div class="space-y-2">
+              <label class="block text-xs font-bold uppercase tracking-wider text-mist-500">
+                Email address
               </label>
               <input
                 v-model="editForm.email"
                 type="email"
                 placeholder="user@example.com"
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 text-sm text-mist-950 dark:text-white"
+                required
+                class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               >
             </div>
 
-            <div>
-              <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
-                Name
+            <div class="space-y-2">
+              <label class="block text-xs font-bold uppercase tracking-wider text-mist-500">
+                Display name
               </label>
               <input
                 v-model="editForm.name"
                 type="text"
-                placeholder="John Doe"
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 text-sm text-mist-950 dark:text-white"
+                placeholder="e.g. John Doe"
+                class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               >
             </div>
 
-            <div>
-              <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
-                Role
-              </label>
-              <select
-                v-model="editForm.role"
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all text-sm text-mist-950 dark:text-white"
-              >
-                <option
+            <fieldset class="space-y-2">
+              <legend class="text-xs font-bold uppercase tracking-wider text-mist-500">
+                Organization role
+              </legend>
+              <div class="grid grid-cols-2 gap-3">
+                <button
                   v-for="option in roleOptions"
                   :key="option.value"
-                  :value="option.value"
+                  type="button"
+                  class="flex items-start gap-3 rounded-xl border p-3 text-left transition-all"
+                  :class="editForm.role === option.value
+                    ? 'border-attic-500 bg-attic-50 ring-2 ring-attic-500/10 dark:bg-attic-500/10'
+                    : 'border-mist-200 hover:border-attic-300 dark:border-mist-600'"
+                  :aria-pressed="editForm.role === option.value"
+                  @click="editForm.role = option.value"
                 >
-                  {{ option.label }}
-                </option>
-              </select>
+                  <div
+                    class="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg"
+                    :class="editForm.role === option.value ? 'bg-attic-500 text-white' : 'bg-mist-100 text-mist-400 dark:bg-mist-700'"
+                  >
+                    <UIcon
+                      :name="option.value === 'admin' ? 'i-lucide-shield' : 'i-lucide-user'"
+                      class="size-3.5"
+                    />
+                  </div>
+                  <div>
+                    <p class="text-sm font-extrabold text-mist-900 dark:text-white">
+                      {{ option.value === 'admin' ? 'Administrator' : 'Member' }}
+                    </p>
+                    <p class="mt-0.5 text-[11px] leading-4 text-mist-500">
+                      {{ option.value === 'admin' ? 'Full organization access' : 'Standard inventory access' }}
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </fieldset>
+
+            <div class="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+              <UIcon
+                name="i-lucide-info"
+                class="mt-0.5 size-3.5 shrink-0"
+              />
+              Role changes take effect the next time this person accesses the application.
             </div>
           </form>
-          <div class="flex justify-end gap-3 mt-6">
+
+          <div class="flex justify-end gap-2 border-t border-mist-100 bg-mist-50/60 px-6 py-4 dark:border-mist-700 dark:bg-mist-900/30">
             <UButton
               variant="ghost"
               color="neutral"
+              class="rounded-xl"
               @click="isEditModalOpen = false"
             >
               Cancel
             </UButton>
             <UButton
+              type="submit"
+              form="edit-person-form"
+              icon="i-lucide-save"
               :loading="isLoading"
-              @click="updateUser"
+              class="rounded-xl font-bold shadow-primary"
             >
-              Save Changes
+              Save changes
             </UButton>
           </div>
         </div>
@@ -728,7 +883,7 @@ function formatRelativeDate(dateString: string): string {
     <!-- Reset Password Modal -->
     <UModal v-model:open="isResetPasswordModalOpen">
       <template #content>
-        <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl p-6 max-w-md">
+        <div class="w-full max-w-md rounded-[20px] bg-white p-6 shadow-xl dark:bg-mist-800">
           <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
             Reset Password
           </h3>
@@ -774,7 +929,7 @@ function formatRelativeDate(dateString: string): string {
     <!-- Delete User Modal -->
     <UModal v-model:open="isDeleteModalOpen">
       <template #content>
-        <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl p-6 max-w-md">
+        <div class="w-full max-w-md rounded-[20px] bg-white p-6 shadow-xl dark:bg-mist-800">
           <div class="flex items-start gap-4">
             <div class="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
               <UIcon

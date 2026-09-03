@@ -73,6 +73,10 @@ function openWarrantyModal() {
   warrantyModalOpen.value = true
 }
 
+watch(() => route.query.warranty, (action) => {
+  if (action === 'edit') openWarrantyModal()
+}, { immediate: true })
+
 async function saveWarranty() {
   try {
     const method = warranty.value ? 'PUT' : 'POST'
@@ -294,9 +298,9 @@ function getShortId(): string {
 </script>
 
 <template>
-  <div class="max-w-[1200px] mx-auto">
+  <div class="mx-auto max-w-[1320px] pb-8">
     <!-- Breadcrumbs -->
-    <nav class="flex items-center gap-2 mb-8 text-gray-500 dark:text-gray-400 text-sm font-medium">
+    <nav class="mb-5 flex items-center gap-1.5 text-xs font-semibold text-mist-500">
       <NuxtLink
         to="/"
         class="hover:text-attic-500 transition-colors"
@@ -322,13 +326,13 @@ function getShortId(): string {
 
     <div
       v-if="asset"
-      class="grid grid-cols-1 lg:grid-cols-12 gap-10"
+      class="grid grid-cols-1 gap-6 lg:grid-cols-12"
     >
       <!-- Left Column: Visual Anchor -->
-      <div class="lg:col-span-4 flex flex-col gap-6">
+      <div class="flex flex-col gap-4 lg:col-span-5 xl:col-span-4">
         <!-- Main Image / Placeholder -->
         <div class="relative group">
-          <div class="aspect-[3/4] rounded-xl overflow-hidden shadow-2xl bg-white dark:bg-gray-800 ring-1 ring-black/5 flex items-center justify-center">
+          <div class="attic-panel flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[24px] bg-gradient-to-br from-attic-50 to-mist-100 dark:from-mist-700 dark:to-mist-800 lg:aspect-square xl:aspect-[4/3]">
             <img
               v-if="asset.main_attachment_url"
               :src="asset.main_attachment_url"
@@ -341,7 +345,7 @@ function getShortId(): string {
             >
               <UIcon
                 name="i-lucide-package"
-                class="w-24 h-24 text-gray-200 dark:text-gray-600 mx-auto mb-4"
+                class="mx-auto mb-3 size-16 text-attic-200 dark:text-mist-600"
               />
               <p class="text-sm text-gray-400">
                 No image available
@@ -351,7 +355,7 @@ function getShortId(): string {
           <!-- Clear main image button (shown on hover when image exists) -->
           <button
             v-if="asset.main_attachment_url"
-            class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-black/70 text-white rounded-full p-2"
+            class="absolute right-3 top-3 rounded-xl bg-black/50 p-2 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover:opacity-100"
             title="Remove main image"
             @click="clearMainImage"
           >
@@ -363,24 +367,31 @@ function getShortId(): string {
         </div>
 
         <!-- Asset Intelligence Card -->
-        <div class="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700">
-          <div class="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 mb-2">
+        <div class="attic-panel rounded-[20px] p-4">
+          <div class="mb-3 flex items-center gap-2 text-sm font-bold text-mist-950 dark:text-white">
             <UIcon
               name="i-lucide-info"
               class="w-5 h-5 text-attic-500"
             />
-            <span>Asset Information</span>
+            <span>At a glance</span>
           </div>
-          <p class="text-xs leading-relaxed text-gray-600 dark:text-gray-300">
-            Asset ID: <span class="font-bold text-attic-500 font-mono">{{ getShortId() }}</span>
-          </p>
-          <div class="mt-4 pt-4 border-t border-dashed border-gray-200 dark:border-gray-700">
-            <p class="text-[11px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
-              Last Updated
-            </p>
-            <p class="text-sm font-medium text-mist-950 dark:text-white">
-              {{ formatDateTime(asset.updated_at) }}
-            </p>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="rounded-xl bg-mist-50 p-3 dark:bg-mist-700/50">
+              <p class="text-[10px] font-extrabold uppercase tracking-wider text-mist-400">
+                Asset ID
+              </p>
+              <p class="mt-1 font-mono text-xs font-bold text-attic-500">
+                {{ getShortId() }}
+              </p>
+            </div>
+            <div class="rounded-xl bg-mist-50 p-3 dark:bg-mist-700/50">
+              <p class="text-[10px] font-extrabold uppercase tracking-wider text-mist-400">
+                Updated
+              </p>
+              <p class="mt-1 truncate text-xs font-bold text-mist-700 dark:text-mist-200">
+                {{ formatDate(asset.updated_at) }}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -404,29 +415,42 @@ function getShortId(): string {
       </div>
 
       <!-- Right Column: Content & Metadata -->
-      <div class="lg:col-span-8 space-y-8">
+      <div class="space-y-5 lg:col-span-7 xl:col-span-8">
         <!-- Header & Title -->
-        <div class="flex flex-col md:flex-row justify-between items-start gap-4">
+        <div class="flex flex-col items-start justify-between gap-4 md:flex-row">
           <div class="space-y-1">
-            <h1 class="text-4xl font-extrabold tracking-tight text-mist-950 dark:text-white">
+            <div class="mb-2 flex items-center gap-2">
+              <span class="rounded-full bg-attic-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-attic-600 ring-1 ring-attic-100 dark:bg-attic-500/10 dark:text-attic-300 dark:ring-attic-500/20">
+                {{ asset.category?.name || 'Uncategorized' }}
+              </span>
+              <span
+                v-if="asset.condition?.label"
+                class="text-xs font-semibold text-mist-400"
+              >{{ asset.condition.label }}</span>
+            </div>
+            <h1 class="text-3xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-4xl">
               {{ asset.name }}
             </h1>
-            <p class="text-xl text-attic-500 font-medium">
-              {{ asset.category?.name || 'Uncategorized' }}
+            <p class="mt-2 flex items-center gap-1.5 text-sm font-medium text-mist-500">
+              <UIcon
+                name="i-lucide-map-pin"
+                class="size-4"
+              />
+              {{ asset.location?.name || 'No location assigned' }}
             </p>
           </div>
           <div class="hidden lg:flex gap-3 shrink-0">
             <UButton
               :to="`/assets/${route.params.id}/edit`"
               variant="outline"
-              class="font-bold"
+              class="rounded-xl font-bold"
               icon="i-lucide-pencil"
             >
               Edit Asset
             </UButton>
             <UButton
               color="error"
-              variant="soft"
+              variant="ghost"
               icon="i-lucide-trash-2"
               @click="deleteModalOpen = true"
             >
@@ -438,15 +462,15 @@ function getShortId(): string {
         <!-- Description (if present) -->
         <section
           v-if="asset.description"
-          class="space-y-4"
+          class="space-y-2"
         >
           <div class="flex items-center justify-between px-2">
-            <h3 class="text-xl font-bold tracking-tight text-mist-950 dark:text-white">
+            <h3 class="text-sm font-extrabold text-mist-950 dark:text-white">
               Description
             </h3>
           </div>
-          <div class="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-            <p class="text-mist-950 dark:text-gray-300 leading-relaxed">
+          <div class="attic-panel rounded-[18px] p-4">
+            <p class="text-sm leading-relaxed text-mist-700 dark:text-mist-300">
               {{ asset.description }}
             </p>
           </div>
@@ -455,10 +479,10 @@ function getShortId(): string {
         <!-- Personal Notes (if present) -->
         <section
           v-if="asset.notes"
-          class="space-y-4"
+          class="space-y-2"
         >
           <div class="flex items-center justify-between px-2">
-            <h3 class="text-xl font-bold tracking-tight text-mist-950 dark:text-white">
+            <h3 class="text-sm font-extrabold text-mist-950 dark:text-white">
               Personal Notes
             </h3>
             <NuxtLink
@@ -472,16 +496,16 @@ function getShortId(): string {
               Edit Notes
             </NuxtLink>
           </div>
-          <div class="bg-amber-50/50 dark:bg-gray-800 p-6 rounded-xl border-l-4 border-attic-500 shadow-sm min-h-[120px]">
-            <p class="text-mist-950 dark:text-gray-300 leading-relaxed italic">
-              "{{ asset.notes }}"
+          <div class="rounded-[18px] border border-terracotta-100 bg-terracotta-50 p-4 dark:border-terracotta-900/40 dark:bg-terracotta-950/10">
+            <p class="text-sm leading-relaxed text-mist-700 dark:text-mist-300">
+              {{ asset.notes }}
             </p>
           </div>
         </section>
 
         <!-- Structured Attributes List -->
-        <section class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
+        <section class="attic-panel overflow-hidden rounded-[20px]">
+          <div class="flex items-center justify-between border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
             <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
               <UIcon
                 name="i-lucide-clipboard-list"
@@ -492,29 +516,29 @@ function getShortId(): string {
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 divide-y divide-x-0 md:divide-x md:divide-y-0 divide-gray-100 dark:divide-gray-700">
             <div class="divide-y divide-gray-100 dark:divide-gray-700">
-              <div class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Location</span>
                 <span class="text-sm font-bold text-mist-950 dark:text-white">{{ asset.location?.name || '-' }}</span>
               </div>
-              <div class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Condition</span>
                 <span class="text-sm font-bold text-mist-950 dark:text-white">{{ asset.condition?.label || '-' }}</span>
               </div>
-              <div class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Quantity</span>
                 <span class="text-sm font-bold text-mist-950 dark:text-white">{{ asset.quantity }}</span>
               </div>
             </div>
             <div class="divide-y divide-gray-100 dark:divide-gray-700">
-              <div class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Purchase Date</span>
                 <span class="text-sm font-bold text-mist-950 dark:text-white">{{ formatDate(asset.purchase_at) }}</span>
               </div>
-              <div class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Purchase Price</span>
                 <span class="text-sm font-bold text-mist-950 dark:text-white">{{ formatCurrency(asset.purchase_price) }}</span>
               </div>
-              <div class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Created</span>
                 <span class="text-sm font-bold text-mist-950 dark:text-white">{{ formatDate(asset.created_at) }}</span>
               </div>
@@ -525,9 +549,9 @@ function getShortId(): string {
         <!-- Category Attributes -->
         <section
           v-if="categoryWithAttrs?.attributes?.length"
-          class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm"
+          class="attic-panel overflow-hidden rounded-[20px]"
         >
-          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
+          <div class="flex items-center justify-between border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
             <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
               <UIcon
                 name="i-lucide-sliders-horizontal"
@@ -544,7 +568,7 @@ function getShortId(): string {
               <div
                 v-for="ca in categoryWithAttrs.attributes.filter((_, i) => i % 2 === 0)"
                 :key="ca.attribute_id"
-                class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50"
               >
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ ca.attribute?.name }}</span>
                 <span class="text-sm font-bold text-mist-950 dark:text-white">{{ getAttributeValue(ca.attribute?.key || '') }}</span>
@@ -554,7 +578,7 @@ function getShortId(): string {
               <div
                 v-for="ca in categoryWithAttrs.attributes.filter((_, i) => i % 2 === 1)"
                 :key="ca.attribute_id"
-                class="p-5 flex justify-between items-center group hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50"
               >
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ ca.attribute?.name }}</span>
                 <span class="text-sm font-bold text-mist-950 dark:text-white">{{ getAttributeValue(ca.attribute?.key || '') }}</span>
@@ -564,8 +588,8 @@ function getShortId(): string {
         </section>
 
         <!-- Warranty Section -->
-        <section class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
+        <section class="attic-panel overflow-hidden rounded-[20px]">
+          <div class="flex items-center justify-between border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
             <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
               <UIcon
                 name="i-lucide-shield-check"
@@ -648,8 +672,8 @@ function getShortId(): string {
         </section>
 
         <!-- Attachments Section -->
-        <section class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
+        <section class="attic-panel overflow-hidden rounded-[20px]">
+          <div class="flex items-center justify-between border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
             <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
               <UIcon
                 name="i-lucide-paperclip"
@@ -767,11 +791,11 @@ function getShortId(): string {
         </section>
 
         <!-- Asset History -->
-        <section class="space-y-4 pb-12">
-          <h3 class="text-xl font-bold tracking-tight px-2 text-mist-950 dark:text-white">
+        <section class="space-y-3 pb-6">
+          <h3 class="px-1 text-base font-extrabold text-mist-950 dark:text-white">
             Asset History
           </h3>
-          <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div class="attic-panel overflow-hidden rounded-[20px]">
             <ul class="relative border-l-2 border-gray-200 dark:border-gray-700 ml-8 my-6 space-y-8">
               <!-- History Item: Updated -->
               <li class="relative pl-8">
@@ -869,15 +893,26 @@ function getShortId(): string {
     <!-- Warranty Modal -->
     <UModal v-model:open="warrantyModalOpen">
       <template #content>
-        <div class="bg-white dark:bg-gray-800 rounded-xl overflow-hidden">
-          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-            <h3 class="font-bold text-lg text-mist-950 dark:text-white">
-              {{ warranty ? 'Edit Warranty' : 'Add Warranty' }}
-            </h3>
+        <div class="w-full max-w-lg overflow-hidden rounded-[20px] bg-white shadow-xl dark:bg-mist-800">
+          <div class="flex items-start gap-3 border-b border-mist-100 px-6 py-5 dark:border-mist-700">
+            <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-attic-50 text-attic-500 dark:bg-attic-500/10">
+              <UIcon
+                name="i-lucide-shield-check"
+                class="size-4.5"
+              />
+            </div>
+            <div>
+              <h3 class="font-extrabold text-mist-950 dark:text-white">
+                {{ warranty ? 'Edit warranty' : 'Add warranty' }}
+              </h3>
+              <p class="text-xs text-mist-500">
+                Keep provider, policy, and coverage dates together.
+              </p>
+            </div>
           </div>
 
           <form
-            class="p-6 space-y-4"
+            class="space-y-4 p-6"
             @submit.prevent="saveWarranty"
           >
             <div class="space-y-2">
@@ -888,7 +923,7 @@ function getShortId(): string {
                 v-model="warrantyForm.provider"
                 type="text"
                 placeholder="Warranty provider"
-                class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm"
+                class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               >
             </div>
 
@@ -900,11 +935,11 @@ function getShortId(): string {
                 v-model="warrantyForm.policy_number"
                 type="text"
                 placeholder="Policy number"
-                class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm"
+                class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               >
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div class="space-y-2">
                 <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Start Date
@@ -912,7 +947,7 @@ function getShortId(): string {
                 <input
                   v-model="warrantyForm.start_date"
                   type="date"
-                  class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm"
+                  class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                 >
               </div>
 
@@ -923,7 +958,7 @@ function getShortId(): string {
                 <input
                   v-model="warrantyForm.end_date"
                   type="date"
-                  class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm"
+                  class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                 >
               </div>
             </div>
@@ -936,12 +971,12 @@ function getShortId(): string {
                 v-model="warrantyForm.notes"
                 rows="3"
                 placeholder="Additional notes"
-                class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm resize-none"
+                class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               />
             </div>
           </form>
 
-          <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between">
+          <div class="flex justify-between border-t border-mist-100 bg-mist-50/60 px-6 py-4 dark:border-mist-700 dark:bg-mist-900/30">
             <UButton
               v-if="warranty"
               variant="ghost"

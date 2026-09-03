@@ -9,6 +9,15 @@ const { data: warranties, status } = useApi<WarrantyWithAsset[]>('/api/warrantie
 
 // Search
 const searchQuery = ref('')
+const selectedStatus = ref('all')
+
+const statusFilters = [
+  { value: 'all', label: 'All', icon: 'i-lucide-shield' },
+  { value: 'active', label: 'Active', icon: 'i-lucide-shield-check' },
+  { value: 'expiring', label: 'Expiring', icon: 'i-lucide-clock' },
+  { value: 'expired', label: 'Expired', icon: 'i-lucide-shield-off' },
+  { value: 'no_date', label: 'No end date', icon: 'i-lucide-calendar-x' }
+]
 
 // Pagination
 const currentPage = ref(1)
@@ -38,14 +47,20 @@ function getDaysUntilExpiry(warranty: WarrantyWithAsset): number | null {
 // Filtered warranties
 const filteredWarranties = computed(() => {
   if (!warranties.value) return []
-  if (!searchQuery.value.trim()) return warranties.value
-
-  const query = searchQuery.value.toLowerCase()
-  return warranties.value.filter(
-    w => w.asset_name.toLowerCase().includes(query)
-      || (w.provider && w.provider.toLowerCase().includes(query))
-  )
+  const query = searchQuery.value.trim().toLowerCase()
+  return warranties.value.filter((warranty) => {
+    const matchesSearch = !query
+      || warranty.asset_name.toLowerCase().includes(query)
+      || warranty.provider?.toLowerCase().includes(query)
+    const matchesStatus = selectedStatus.value === 'all' || getWarrantyStatus(warranty) === selectedStatus.value
+    return matchesSearch && matchesStatus
+  })
 })
+
+function getStatusCount(filter: string): number {
+  if (filter === 'all') return warranties.value?.length || 0
+  return warranties.value?.filter(warranty => getWarrantyStatus(warranty) === filter).length || 0
+}
 
 // Paginated warranties
 const paginatedWarranties = computed(() => {
@@ -58,8 +73,12 @@ const paginatedWarranties = computed(() => {
 const totalPages = computed(() => Math.ceil(filteredWarranties.value.length / itemsPerPage.value))
 
 // Reset to page 1 when search changes
-watch(searchQuery, () => {
+watch([searchQuery, selectedStatus], () => {
   currentPage.value = 1
+})
+
+watch(totalPages, (pages) => {
+  if (currentPage.value > Math.max(1, pages)) currentPage.value = Math.max(1, pages)
 })
 
 // Pagination helpers
@@ -132,37 +151,56 @@ function formatDate(dateStr?: string): string {
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-5 pb-6">
     <!-- Page Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <header>
       <div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight text-mist-950 dark:text-white mb-1">
+        <p class="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
+          Coverage center
+        </p>
+        <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
           Warranties
         </h1>
-        <p class="text-mist-500">
-          Track and monitor warranty coverage across all your assets.
+        <p class="mt-1 text-sm text-mist-500">
+          See what is protected, what needs attention, and what has expired.
         </p>
       </div>
-    </div>
+    </header>
 
     <!-- Toolbar -->
-    <div class="flex items-center gap-4">
-      <div class="relative flex-1 max-w-sm">
-        <UIcon
-          name="i-lucide-search"
-          class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mist-400"
-        />
-        <input
+    <section class="attic-panel rounded-[18px] p-3 sm:p-4">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex gap-2 overflow-x-auto pb-1 lg:pb-0">
+          <button
+            v-for="filter in statusFilters"
+            :key="filter.value"
+            type="button"
+            class="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-colors"
+            :class="selectedStatus === filter.value ? 'bg-attic-500 text-white' : 'bg-mist-50 text-mist-500 hover:bg-attic-50 hover:text-attic-600 dark:bg-mist-700/60 dark:text-mist-300'"
+            @click="selectedStatus = filter.value"
+          >
+            <UIcon
+              :name="filter.icon"
+              class="size-3.5"
+            />{{ filter.label }}
+            <span
+              class="rounded-md px-1.5 py-0.5 text-[10px]"
+              :class="selectedStatus === filter.value ? 'bg-white/15' : 'bg-white text-mist-400 dark:bg-mist-800'"
+            >{{ getStatusCount(filter.value) }}</span>
+          </button>
+        </div>
+        <UInput
           v-model="searchQuery"
-          type="text"
-          placeholder="Search warranties..."
-          class="w-full pl-10 pr-4 py-2.5 bg-mist-50 dark:bg-mist-800 border border-mist-200 dark:border-mist-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-attic-500/20 focus:border-attic-500 text-mist-950 dark:text-white placeholder-mist-400"
-        >
+          icon="i-lucide-search"
+          placeholder="Search asset or provider"
+          class="w-full lg:w-64"
+          size="lg"
+        />
       </div>
-    </div>
+    </section>
 
     <!-- Data Table -->
-    <div class="overflow-hidden rounded-xl border border-mist-100 dark:border-mist-700 bg-white dark:bg-mist-800 shadow-sm">
+    <section class="attic-panel overflow-hidden rounded-[20px]">
       <!-- Loading State -->
       <div
         v-if="status === 'pending'"
@@ -176,7 +214,7 @@ function formatDate(dateStr?: string): string {
 
       <!-- Empty State -->
       <div
-        v-else-if="!filteredWarranties.length && !searchQuery"
+        v-else-if="!warranties?.length"
         class="flex flex-col items-center justify-center py-20 px-4 text-center"
       >
         <div class="size-16 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-4">
@@ -198,7 +236,7 @@ function formatDate(dateStr?: string): string {
 
       <!-- No Results -->
       <div
-        v-else-if="!filteredWarranties.length && searchQuery"
+        v-else-if="!filteredWarranties.length"
         class="flex flex-col items-center justify-center py-20 px-4 text-center"
       >
         <UIcon
@@ -209,8 +247,15 @@ function formatDate(dateStr?: string): string {
           No results found
         </h3>
         <p class="text-sm text-mist-500">
-          No warranties match "{{ searchQuery }}"
+          No warranties match these filters.
         </p>
+        <button
+          type="button"
+          class="mt-2 text-sm font-semibold text-attic-500"
+          @click="searchQuery = ''; selectedStatus = 'all'"
+        >
+          Clear filters
+        </button>
       </div>
 
       <!-- Table -->
@@ -318,16 +363,17 @@ function formatDate(dateStr?: string): string {
 
                 <!-- Actions -->
                 <td class="px-6 py-4 text-right">
-                  <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div class="flex items-center justify-end gap-1">
                     <NuxtLink
-                      :to="`/assets/${warranty.asset_id}`"
-                      class="size-8 rounded flex items-center justify-center text-mist-400 hover:text-attic-500 hover:bg-attic-500/10 transition-colors"
-                      title="View Asset"
+                      :to="`/assets/${warranty.asset_id}?warranty=edit`"
+                      class="inline-flex items-center gap-1.5 rounded-lg bg-attic-50 px-2.5 py-1.5 text-xs font-bold text-attic-600 transition-colors hover:bg-attic-100 dark:bg-attic-500/10 dark:text-attic-300"
+                      title="Edit warranty"
                     >
                       <UIcon
-                        name="i-lucide-external-link"
+                        name="i-lucide-pencil"
                         class="w-4 h-4"
                       />
+                      Edit
                     </NuxtLink>
                   </div>
                 </td>
@@ -368,6 +414,6 @@ function formatDate(dateStr?: string): string {
           </div>
         </div>
       </template>
-    </div>
+    </section>
   </div>
 </template>

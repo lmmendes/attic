@@ -253,7 +253,7 @@ function cancel() {
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="mx-auto max-w-[1040px] space-y-5 pb-6">
     <!-- Loading State -->
     <div
       v-if="categoryStatus === 'pending'"
@@ -267,9 +267,9 @@ function cancel() {
 
     <template v-else-if="category">
       <!-- Breadcrumbs & Header -->
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div class="flex flex-col gap-2">
-          <nav class="flex items-center text-sm font-medium text-mist-500">
+      <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div class="space-y-3">
+          <nav class="flex items-center text-xs font-semibold text-mist-500">
             <NuxtLink
               to="/"
               class="hover:text-attic-500 transition-colors"
@@ -284,21 +284,25 @@ function cancel() {
               Categories
             </NuxtLink>
             <span class="mx-2 text-mist-300 dark:text-mist-600">/</span>
-            <span class="text-mist-950 dark:text-white">Edit</span>
+            <span class="font-bold text-attic-500">Edit</span>
           </nav>
           <div>
-            <h1 class="text-3xl font-extrabold tracking-tight text-mist-950 dark:text-white">
-              Edit Category
+            <p class="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
+              Category editor
+            </p>
+            <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
+              Edit {{ category.name }}
             </h1>
-            <p class="text-mist-500 mt-1">
-              Modify the structure of "{{ category.name }}".
+            <p class="mt-1 text-sm text-mist-500">
+              Set its identity and choose which details assets in this category should record.
             </p>
           </div>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="hidden items-center gap-2 sm:flex">
           <UButton
             variant="ghost"
             color="neutral"
+            class="rounded-xl font-semibold"
             @click="cancel"
           >
             Cancel
@@ -306,6 +310,7 @@ function cancel() {
           <UButton
             icon="i-lucide-save"
             :loading="saving"
+            class="rounded-xl font-bold shadow-primary"
             @click="saveCategory"
           >
             Save Changes
@@ -313,35 +318,41 @@ function cancel() {
         </div>
       </div>
 
-      <!-- Two Column Layout -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div class="space-y-5">
         <!-- LEFT COLUMN: Identity -->
-        <div class="lg:col-span-4 space-y-6">
+        <div class="space-y-5">
           <!-- Basic Info Card -->
-          <div class="bg-white dark:bg-mist-800 rounded-xl shadow-soft border border-mist-100 dark:border-mist-700 p-6">
-            <div class="flex items-center gap-2 mb-6">
-              <UIcon
-                name="i-lucide-badge"
-                class="w-5 h-5 text-attic-500"
-              />
-              <h3 class="text-lg font-bold text-mist-950 dark:text-white">
-                Identity
-              </h3>
-            </div>
-            <div class="space-y-5">
+          <section class="attic-panel rounded-[20px] p-5 sm:p-6">
+            <div class="mb-5 flex items-start gap-3">
+              <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-attic-50 text-attic-500 dark:bg-attic-500/10">
+                <UIcon
+                  name="i-lucide-badge"
+                  class="size-4.5"
+                />
+              </div>
               <div>
-                <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
+                <h2 class="font-extrabold text-mist-950 dark:text-white">
+                  Identity
+                </h2>
+                <p class="text-xs text-mist-500">
+                  Give the category a clear, recognizable name.
+                </p>
+              </div>
+            </div>
+            <div class="max-w-3xl space-y-5">
+              <div>
+                <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-mist-500">
                   Category Name
                 </label>
                 <input
                   v-model="form.name"
                   type="text"
                   placeholder="e.g. Rare Books"
-                  class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 font-medium text-mist-950 dark:text-white"
+                  class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 font-medium text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                 >
               </div>
               <div>
-                <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
+                <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-mist-500">
                   Description
                 </label>
                 <textarea
@@ -349,33 +360,40 @@ function cancel() {
                   rows="4"
                   maxlength="140"
                   placeholder="What kind of assets belong here?"
-                  class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 text-sm resize-none text-mist-950 dark:text-white"
+                  class="w-full resize-none rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                 />
                 <div class="flex justify-end mt-1">
                   <span class="text-xs text-mist-400">{{ descriptionCount }}/140</span>
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
           <!-- Icon Selection Card -->
-          <div class="bg-white dark:bg-mist-800 rounded-xl shadow-soft border border-mist-100 dark:border-mist-700 p-6">
-            <div class="flex items-center gap-2 mb-4">
-              <UIcon
-                name="i-lucide-sparkles"
-                class="w-5 h-5 text-attic-500"
-              />
-              <h3 class="text-lg font-bold text-mist-950 dark:text-white">
-                Icon
-              </h3>
+          <section class="attic-panel rounded-[20px] p-5 sm:p-6">
+            <div class="mb-4 flex items-start gap-3">
+              <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-terracotta-50 text-terracotta-500 dark:bg-terracotta-500/10">
+                <UIcon
+                  name="i-lucide-sparkles"
+                  class="size-4.5"
+                />
+              </div>
+              <div>
+                <h2 class="font-extrabold text-mist-950 dark:text-white">
+                  Icon
+                </h2>
+                <p class="text-xs text-mist-500">
+                  Make the category easy to spot across your collection.
+                </p>
+              </div>
             </div>
-            <div class="max-h-[280px] overflow-y-auto custom-scrollbar pr-1">
-              <div class="grid grid-cols-5 gap-3">
+            <div class="max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+              <div class="grid grid-cols-7 gap-2 sm:grid-cols-10 md:grid-cols-12">
                 <button
                   v-for="icon in icons"
                   :key="icon"
                   type="button"
-                  class="aspect-square rounded-xl flex items-center justify-center transition-all"
+                  class="flex aspect-square items-center justify-center rounded-xl transition-all"
                   :class="form.icon === icon
                     ? 'bg-attic-500 text-white ring-2 ring-offset-2 ring-attic-500 dark:ring-offset-mist-800'
                     : 'bg-mist-50 dark:bg-mist-900 text-mist-500 hover:text-attic-500 hover:bg-mist-100 dark:hover:bg-mist-700 border border-transparent hover:border-mist-200 dark:hover:border-mist-600'"
@@ -383,53 +401,54 @@ function cancel() {
                 >
                   <UIcon
                     :name="icon"
-                    class="w-6 h-6"
+                    class="size-5"
                   />
                 </button>
               </div>
             </div>
-          </div>
+          </section>
         </div>
 
-        <!-- RIGHT COLUMN: Attribute Schema -->
-        <div class="lg:col-span-8">
-          <div class="bg-white dark:bg-mist-800 rounded-xl shadow-soft border border-mist-100 dark:border-mist-700 flex flex-col min-h-[500px]">
+        <!-- Attribute Schema -->
+        <div>
+          <section class="attic-panel flex min-h-[500px] flex-col overflow-hidden rounded-[20px]">
             <!-- Composer Header -->
-            <div class="px-6 py-5 border-b border-mist-100 dark:border-mist-700 flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-sliders-horizontal"
-                  class="w-5 h-5 text-attic-500"
-                />
+            <div class="flex flex-col gap-3 border-b border-mist-100 px-5 py-5 dark:border-mist-700 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div class="flex items-start gap-3">
+                <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                  <UIcon
+                    name="i-lucide-sliders-horizontal"
+                    class="size-4.5"
+                  />
+                </div>
                 <div>
-                  <h3 class="text-lg font-bold text-mist-950 dark:text-white">
-                    Attribute Schema
-                  </h3>
+                  <h2 class="font-extrabold text-mist-950 dark:text-white">
+                    Asset fields
+                  </h2>
                   <p class="text-xs text-mist-500">
-                    Construct the data model for your items.
+                    Choose the information shown when adding or editing an asset.
                   </p>
                 </div>
               </div>
               <NuxtLink
                 to="/attributes"
-                class="text-sm font-semibold text-attic-500 hover:text-attic-600 flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-attic-500/5 transition-colors"
+                class="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-semibold text-attic-500 transition-colors hover:bg-attic-500/5 hover:text-attic-600"
               >
                 <UIcon
                   name="i-lucide-plus-circle"
                   class="w-4 h-4"
                 />
-                New Attribute
+                Create field
               </NuxtLink>
             </div>
 
-            <!-- Composer Body: Split View -->
-            <div class="flex flex-col lg:flex-row flex-grow min-h-0">
+            <div class="flex min-h-0 flex-grow flex-col">
               <!-- Zone 1: Active Attributes -->
-              <div class="flex-grow p-6 bg-mist-50 dark:bg-mist-900/50 relative overflow-y-auto custom-scrollbar">
+              <div class="relative flex-grow bg-mist-50/70 p-5 dark:bg-mist-900/40 sm:p-6">
                 <div class="relative z-10 space-y-3">
                   <div class="flex items-center justify-between mb-4">
                     <h4 class="text-xs font-bold uppercase tracking-wider text-mist-400">
-                      Active Attributes
+                      Selected fields
                     </h4>
                     <span
                       v-if="selectedAttributes.length > 0"
@@ -443,7 +462,7 @@ function cancel() {
                   <div
                     v-for="(attr, index) in selectedAttributes"
                     :key="attr.attribute_id"
-                    class="group bg-white dark:bg-mist-800 p-3 rounded-lg border border-mist-100 dark:border-mist-700 shadow-sm flex items-center gap-4 hover:border-attic-500/50 transition-colors"
+                    class="group flex items-center gap-3 rounded-xl border border-mist-100 bg-white p-3 shadow-sm transition-colors hover:border-attic-500/50 dark:border-mist-700 dark:bg-mist-800 sm:gap-4"
                     @dragover.prevent
                     @drop.prevent="handleAttributeDrop(index)"
                   >
@@ -476,7 +495,7 @@ function cancel() {
                         {{ getAttribute(attr.attribute_id)?.key || 'unknown_key' }} · {{ getAttribute(attr.attribute_id)?.data_type || 'string' }}
                       </p>
                     </div>
-                    <div class="flex items-center gap-4 border-l border-mist-100 dark:border-mist-700 pl-4">
+                    <div class="flex items-center gap-3 border-l border-mist-100 pl-3 dark:border-mist-700 sm:gap-4 sm:pl-4">
                       <div class="flex flex-col items-end">
                         <span class="text-[10px] font-semibold uppercase tracking-wider text-mist-400 mb-1">
                           Required
@@ -506,43 +525,45 @@ function cancel() {
                   <!-- Empty State / Drop Placeholder -->
                   <div
                     v-if="selectedAttributes.length === 0"
-                    class="h-32 border-2 border-dashed border-mist-300 dark:border-mist-600 rounded-lg flex flex-col items-center justify-center text-mist-400 bg-white/50 dark:bg-mist-800/50"
+                    class="flex h-32 flex-col items-center justify-center rounded-xl border-2 border-dashed border-mist-300 bg-white/50 text-mist-400 dark:border-mist-600 dark:bg-mist-800/50"
                   >
                     <UIcon
                       name="i-lucide-list-plus"
                       class="w-8 h-8 mb-2 opacity-50"
                     />
-                    <span class="text-sm font-medium">Select attributes from the library</span>
+                    <span class="text-sm font-medium">Add fields from the library below</span>
                   </div>
 
                   <!-- Add more placeholder when has items -->
                   <div
                     v-else
-                    class="h-16 border-2 border-dashed border-mist-200 dark:border-mist-700 rounded-lg flex items-center justify-center text-mist-400 bg-white/30 dark:bg-mist-800/30"
+                    class="flex h-12 items-center justify-center rounded-xl border border-dashed border-mist-200 bg-white/30 text-mist-400 dark:border-mist-700 dark:bg-mist-800/30"
                   >
-                    <span class="text-xs">Select more from the library</span>
+                    <span class="text-xs">Drag to reorder · toggle required fields on the right</span>
                   </div>
                 </div>
               </div>
 
-              <!-- Zone 2: Attribute Library -->
-              <div class="w-full lg:w-72 border-t lg:border-t-0 lg:border-l border-mist-100 dark:border-mist-700 bg-white dark:bg-mist-800 flex flex-col">
-                <div class="p-4 border-b border-mist-100 dark:border-mist-700">
-                  <div class="relative">
-                    <UIcon
-                      name="i-lucide-search"
-                      class="absolute left-3 top-2.5 w-4 h-4 text-mist-400"
-                    />
-                    <input
-                      v-model="attributeSearch"
-                      type="text"
-                      placeholder="Search attributes..."
-                      class="w-full pl-9 pr-4 py-2 rounded-lg bg-mist-50 dark:bg-mist-900 border-none text-sm focus:ring-1 focus:ring-attic-500 text-mist-950 dark:text-white placeholder-mist-400"
-                    >
+              <!-- Attribute Library -->
+              <div class="border-t border-mist-100 bg-white dark:border-mist-700 dark:bg-mist-800">
+                <div class="flex flex-col gap-3 border-b border-mist-100 p-4 dark:border-mist-700 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                  <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-mist-500">
+                      Field library
+                    </h4>
+                    <p class="text-xs text-mist-400">
+                      Select a field to add it to this category.
+                    </p>
                   </div>
+                  <UInput
+                    v-model="attributeSearch"
+                    icon="i-lucide-search"
+                    placeholder="Search fields"
+                    class="w-full sm:w-64"
+                  />
                 </div>
-                <div class="p-4 overflow-y-auto max-h-[400px] custom-scrollbar space-y-2">
-                  <h5 class="text-xs font-bold text-mist-400 uppercase mb-3">
+                <div class="max-h-[360px] overflow-y-auto p-4 custom-scrollbar sm:p-6">
+                  <h5 class="mb-3 text-xs font-bold uppercase text-mist-400">
                     Available ({{ filteredAttributes.length }})
                   </h5>
 
@@ -576,40 +597,64 @@ function cancel() {
                     </p>
                   </div>
 
-                  <!-- Attribute list -->
-                  <button
-                    v-for="attr in filteredAttributes"
-                    :key="attr.id"
-                    type="button"
-                    class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-mist-50 dark:hover:bg-mist-700 cursor-pointer group border border-transparent hover:border-mist-200 dark:hover:border-mist-600 transition-all text-left"
-                    @click="addAttribute(attr)"
-                  >
-                    <div
-                      class="size-8 rounded flex items-center justify-center"
-                      :class="[getAttributeStyle(attr.data_type).bgColor, getAttributeStyle(attr.data_type).textColor]"
+                  <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    <button
+                      v-for="attr in filteredAttributes"
+                      :key="attr.id"
+                      type="button"
+                      class="group flex w-full items-center gap-3 rounded-xl border border-mist-100 p-3 text-left transition-all hover:border-attic-200 hover:bg-attic-50/50 dark:border-mist-700 dark:hover:border-attic-500/30 dark:hover:bg-attic-500/5"
+                      @click="addAttribute(attr)"
                     >
+                      <div
+                        class="flex size-8 shrink-0 items-center justify-center rounded-lg"
+                        :class="[getAttributeStyle(attr.data_type).bgColor, getAttributeStyle(attr.data_type).textColor]"
+                      >
+                        <UIcon
+                          :name="getAttributeStyle(attr.data_type).icon"
+                          class="size-4"
+                        />
+                      </div>
+                      <div class="min-w-0 flex-grow">
+                        <p class="truncate text-sm font-bold text-mist-700 dark:text-mist-200">
+                          {{ attr.name }}
+                        </p>
+                        <p class="truncate text-xs text-mist-400">
+                          {{ attr.key }} · {{ attr.data_type }}
+                        </p>
+                      </div>
                       <UIcon
-                        :name="getAttributeStyle(attr.data_type).icon"
-                        class="w-4 h-4"
+                        name="i-lucide-plus"
+                        class="size-4 shrink-0 text-attic-500"
                       />
-                    </div>
-                    <div class="flex-grow">
-                      <p class="text-sm font-medium text-mist-700 dark:text-mist-200">
-                        {{ attr.name }}
-                      </p>
-                      <p class="text-xs text-mist-400">
-                        {{ attr.key }} · {{ attr.data_type }}
-                      </p>
-                    </div>
-                    <UIcon
-                      name="i-lucide-plus"
-                      class="w-4 h-4 text-mist-300 opacity-0 group-hover:opacity-100"
-                    />
-                  </button>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="attic-panel flex flex-col items-center justify-between gap-3 rounded-[18px] px-4 py-3 sm:flex-row">
+        <p class="text-xs text-mist-400">
+          Changes apply to future asset edits immediately.
+        </p>
+        <div class="flex items-center gap-2">
+          <UButton
+            variant="ghost"
+            color="neutral"
+            @click="cancel"
+          >
+            Cancel
+          </UButton>
+          <UButton
+            icon="i-lucide-save"
+            :loading="saving"
+            class="rounded-xl shadow-primary"
+            @click="saveCategory"
+          >
+            Save changes
+          </UButton>
         </div>
       </div>
     </template>

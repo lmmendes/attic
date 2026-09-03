@@ -319,6 +319,23 @@ describe('Assets Index Page', () => {
     })
   })
 
+  describe('row actions', () => {
+    it('navigates when dropdown actions are selected', () => {
+      const routerPush = vi.fn()
+      const asset = { id: 'asset-123' }
+      const items = [[
+        { label: 'View', onSelect: () => routerPush(`/assets/${asset.id}`) },
+        { label: 'Edit', onSelect: () => routerPush(`/assets/${asset.id}/edit`) }
+      ]]
+
+      items[0]![0]!.onSelect()
+      items[0]![1]!.onSelect()
+
+      expect(routerPush).toHaveBeenNthCalledWith(1, '/assets/asset-123')
+      expect(routerPush).toHaveBeenNthCalledWith(2, '/assets/asset-123/edit')
+    })
+  })
+
   describe('loading and empty states', () => {
     it('shows loading state when status is pending', () => {
       const status = 'pending'

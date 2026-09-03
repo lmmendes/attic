@@ -42,6 +42,10 @@ watch(searchQuery, () => {
   currentPage.value = 1
 })
 
+watch(totalPages, (pages) => {
+  if (currentPage.value > Math.max(1, pages)) currentPage.value = Math.max(1, pages)
+})
+
 // Pagination helpers
 function nextPage() {
   if (currentPage.value < totalPages.value) {
@@ -143,44 +147,50 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-5 pb-6">
     <!-- Page Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <header class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight text-mist-950 dark:text-white mb-1">
+        <p class="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
+          Asset vocabulary
+        </p>
+        <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
           Conditions
         </h1>
-        <p class="text-mist-500">
-          Define the physical state or quality levels for your assets.
+        <p class="mt-1 text-sm text-mist-500">
+          Keep a consistent quality scale across the entire collection.
         </p>
       </div>
       <UButton
         to="/conditions/new"
         icon="i-lucide-plus"
-        class="h-11 px-6 font-bold shadow-lg shadow-attic-500/20"
+        class="rounded-xl font-bold shadow-primary"
       >
-        Add Condition
+        New condition
       </UButton>
-    </div>
+    </header>
 
     <!-- Toolbar -->
-    <div class="flex items-center gap-4">
-      <div class="relative flex-1 max-w-sm">
-        <UIcon
-          name="i-lucide-search"
-          class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mist-400"
-        />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search conditions..."
-          class="w-full pl-10 pr-4 py-2.5 bg-mist-50 dark:bg-mist-800 border border-mist-200 dark:border-mist-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-attic-500/20 focus:border-attic-500 text-mist-950 dark:text-white placeholder-mist-400"
-        >
+    <div class="attic-panel flex flex-col gap-3 rounded-[18px] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+      <div>
+        <p class="font-extrabold text-mist-950 dark:text-white">
+          Condition scale
+        </p>
+        <p class="text-xs text-mist-500">
+          {{ conditions?.length || 0 }} quality levels, displayed in sort order.
+        </p>
       </div>
+      <UInput
+        v-model="searchQuery"
+        icon="i-lucide-search"
+        placeholder="Search label or code"
+        class="w-full sm:w-64"
+        size="lg"
+      />
     </div>
 
     <!-- Data Table -->
-    <div class="overflow-hidden rounded-xl border border-mist-100 dark:border-mist-700 bg-white dark:bg-mist-800 shadow-sm">
+    <div class="attic-panel overflow-hidden rounded-[20px]">
       <!-- Loading State -->
       <div
         v-if="status === 'pending'"
@@ -313,10 +323,10 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
 
                 <!-- Actions -->
                 <td class="px-6 py-4 text-right">
-                  <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div class="flex items-center justify-end gap-1">
                     <NuxtLink
                       :to="`/conditions/${condition.id}/edit`"
-                      class="size-8 rounded flex items-center justify-center text-mist-400 hover:text-attic-500 hover:bg-attic-500/10 transition-colors"
+                      class="flex size-8 items-center justify-center rounded-lg text-mist-400 transition-colors hover:bg-attic-500/10 hover:text-attic-500"
                       title="Edit"
                     >
                       <UIcon
@@ -325,7 +335,7 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
                       />
                     </NuxtLink>
                     <button
-                      class="size-8 rounded flex items-center justify-center text-mist-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      class="flex size-8 items-center justify-center rounded-lg text-mist-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
                       title="Delete"
                       @click="confirmDelete(condition)"
                     >
@@ -378,7 +388,7 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
     <!-- Delete Confirmation Modal -->
     <UModal v-model:open="deleteModalOpen">
       <template #content>
-        <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl p-6 max-w-md">
+        <div class="max-w-md rounded-[20px] bg-white p-6 shadow-xl dark:bg-mist-800">
           <div class="flex items-start gap-4">
             <div class="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
               <UIcon

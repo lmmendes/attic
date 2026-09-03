@@ -36,10 +36,10 @@ const hasChildrenComputed = computed(() => props.node.children.length > 0)
 
     <!-- Node row -->
     <div
-      class="flex items-center gap-2 p-2 rounded-lg cursor-pointer group transition-all"
+      class="group flex cursor-pointer items-center gap-2 rounded-xl border border-transparent px-2.5 py-2 transition-all"
       :class="[
         isSelected
-          ? 'bg-attic-500/10 border border-attic-500/20'
+          ? 'bg-attic-50 border-attic-100 shadow-sm dark:bg-attic-500/15 dark:border-attic-500/20'
           : 'hover:bg-mist-50 dark:hover:bg-mist-700/50'
       ]"
       @click="emit('select', node.location)"
@@ -47,6 +47,7 @@ const hasChildrenComputed = computed(() => props.node.children.length > 0)
       <!-- Expand/collapse toggle -->
       <button
         v-if="hasChildrenComputed"
+        :aria-label="`${isExpanded ? 'Collapse' : 'Expand'} ${node.location.name}`"
         class="p-0.5 -ml-0.5 rounded hover:bg-mist-200 dark:hover:bg-mist-600 transition-colors"
         @click.stop="emit('toggle', node.location.id)"
       >
@@ -84,7 +85,7 @@ const hasChildrenComputed = computed(() => props.node.children.length > 0)
 
       <!-- Add child button (shown on hover) -->
       <button
-        class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-mist-200 dark:hover:bg-mist-600 transition-all"
+        class="rounded-lg p-1 opacity-0 transition-all hover:bg-mist-200 focus:opacity-100 group-hover:opacity-100 dark:hover:bg-mist-600"
         title="Add sub-location"
         @click.stop="emit('addChild', node.location.id)"
       >

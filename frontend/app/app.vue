@@ -157,41 +157,44 @@ const sidebarOpen = ref(false)
 
     <!-- Main app layout with sidebar -->
     <template v-else>
-      <div class="h-screen flex overflow-hidden">
+      <div class="h-screen flex overflow-hidden app-canvas">
         <!-- Sidebar -->
-        <aside class="hidden lg:flex w-64 bg-white dark:bg-mist-900 border-r border-gray-200 dark:border-gray-800 flex-col flex-shrink-0">
+        <aside class="hidden lg:flex w-68 bg-white/92 dark:bg-mist-900/92 backdrop-blur-xl border-r border-mist-200/80 dark:border-mist-800 flex-col flex-shrink-0">
           <!-- Logo -->
-          <div class="p-6">
+          <div class="p-5">
             <NuxtLink
               to="/"
-              class="flex items-center gap-3 mb-8"
+              class="flex items-center gap-3 px-2 mb-9"
             >
-              <div class="bg-attic-500 rounded-xl size-10 flex items-center justify-center text-white">
+              <div class="bg-gradient-to-br from-attic-500 to-attic-700 rounded-[14px] size-11 flex items-center justify-center text-white shadow-primary ring-1 ring-white/20">
                 <UIcon
                   name="i-lucide-archive"
-                  class="w-5 h-5"
+                  class="w-5.5 h-5.5"
                 />
               </div>
               <div>
                 <h1 class="text-mist-950 dark:text-white text-lg font-extrabold leading-none">
                   Attic
                 </h1>
-                <p class="text-mist-500 dark:text-gray-400 text-xs font-medium">
-                  Home Management
+                <p class="text-mist-500 dark:text-mist-400 text-[11px] font-semibold tracking-wide uppercase mt-1">
+                  Asset manager
                 </p>
               </div>
             </NuxtLink>
 
             <!-- Navigation -->
             <nav class="space-y-1">
+              <p class="px-3 pb-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-mist-400">
+                Workspace
+              </p>
               <NuxtLink
                 v-for="item in navigation"
                 :key="item.to"
                 :to="item.to"
-                class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors"
+                class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
                 :class="isActive(item.to)
-                  ? 'bg-attic-500/10 text-attic-500'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'"
+                  ? 'bg-attic-50 text-attic-600 shadow-sm ring-1 ring-attic-100 dark:bg-attic-500/15 dark:text-attic-300 dark:ring-attic-500/20'
+                  : 'text-mist-600 dark:text-mist-300 hover:bg-mist-50 dark:hover:bg-mist-800'"
               >
                 <UIcon
                   :name="item.icon"
@@ -206,15 +209,18 @@ const sidebarOpen = ref(false)
               </NuxtLink>
 
               <!-- Divider -->
-              <div class="pt-4 mt-4 border-t border-gray-100 dark:border-gray-800">
+              <div class="pt-5 mt-5 border-t border-mist-100 dark:border-mist-800">
+                <p class="px-3 pb-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-mist-400">
+                  Manage
+                </p>
                 <NuxtLink
                   v-for="item in secondaryNav"
                   :key="item.to"
                   :to="item.to"
-                  class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors"
+                  class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
                   :class="isActive(item.to)
-                    ? 'bg-attic-500/10 text-attic-500'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'"
+                    ? 'bg-attic-50 text-attic-600 shadow-sm ring-1 ring-attic-100 dark:bg-attic-500/15 dark:text-attic-300 dark:ring-attic-500/20'
+                    : 'text-mist-600 dark:text-mist-300 hover:bg-mist-50 dark:hover:bg-mist-800'"
                 >
                   <UIcon
                     :name="item.icon"
@@ -232,9 +238,9 @@ const sidebarOpen = ref(false)
           </div>
 
           <!-- User section at bottom -->
-          <div class="mt-auto p-6">
-            <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-full bg-attic-500 flex items-center justify-center text-white">
+          <div class="mt-auto p-4 border-t border-mist-100 dark:border-mist-800">
+            <div class="flex items-center gap-3 p-2 rounded-2xl bg-mist-50/80 dark:bg-mist-800/70">
+              <div class="w-9 h-9 rounded-xl bg-attic-100 dark:bg-attic-500/20 flex items-center justify-center text-attic-600 dark:text-attic-300">
                 <UIcon
                   name="i-lucide-user"
                   class="w-4 h-4"
@@ -410,8 +416,8 @@ const sidebarOpen = ref(false)
           </header>
 
           <!-- Scrollable content -->
-          <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8">
-            <div class="max-w-7xl mx-auto">
+          <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 xl:p-7">
+            <div class="max-w-[1440px] mx-auto">
               <NuxtPage />
             </div>
           </div>
@@ -420,7 +426,7 @@ const sidebarOpen = ref(false)
         <!-- Mobile FAB -->
         <NuxtLink
           to="/assets/new"
-          class="lg:hidden fixed bottom-6 right-6 size-14 rounded-full bg-attic-500 text-white shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50"
+          class="lg:hidden fixed bottom-6 right-6 size-14 rounded-2xl bg-attic-500 text-white shadow-primary flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-50"
         >
           <UIcon
             name="i-lucide-plus"
