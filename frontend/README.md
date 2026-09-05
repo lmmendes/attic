@@ -32,7 +32,7 @@ npm create nuxt@latest -- -t github:nuxt-ui-templates/starter
 Make sure to install the dependencies:
 
 ```bash
-pnpm install
+bun install --frozen-lockfile
 ```
 
 ## Development Server
@@ -40,7 +40,7 @@ pnpm install
 Start the development server on `http://localhost:3000`:
 
 ```bash
-pnpm dev
+bun run dev
 ```
 
 ## Production
@@ -48,13 +48,13 @@ pnpm dev
 Build the application for production:
 
 ```bash
-pnpm build
+bun run build
 ```
 
 Locally preview production build:
 
 ```bash
-pnpm preview
+bun run preview
 ```
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
