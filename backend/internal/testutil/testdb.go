@@ -76,6 +76,8 @@ func (t *TestDB) Close(ctx context.Context) {
 // TruncateAll truncates all tables to reset state between tests
 func (t *TestDB) TruncateAll(ctx context.Context) error {
 	tables := []string{
+		"asset_collections",
+		"collections",
 		"attachments",
 		"warranties",
 		"asset_tags",

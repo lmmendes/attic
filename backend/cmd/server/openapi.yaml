@@ -299,6 +299,110 @@ paths:
         '204':
           description: Condition deleted
 
+  /api/collections:
+    get:
+      tags: [Collections]
+      summary: List shared collections
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Collection'
+        '400':
+          description: Invalid request
+        '404':
+          description: Collection not found in this workspace
+    post:
+      tags: [Collections]
+      summary: Create collection
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionInput'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+        '400':
+          description: Invalid request
+        '404':
+          description: Collection not found in this workspace
+        '409':
+          description: A collection with this name already exists (case insensitive)
+
+  /api/collections/{id}:
+    get:
+      tags: [Collections]
+      summary: Get collection
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+        '400':
+          description: Invalid request
+        '404':
+          description: Collection not found in this workspace
+    put:
+      tags: [Collections]
+      summary: Update collection
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionInput'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+        '400':
+          description: Invalid request
+        '404':
+          description: Collection not found in this workspace
+        '409':
+          description: A collection with this name already exists (case insensitive)
+    delete:
+      tags: [Collections]
+      summary: Delete collection without deleting assets
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Success
+        '400':
+          description: Invalid request
+        '404':
+          description: Collection not found in this workspace
+
   /api/assets:
     get:
       tags: [Assets]
@@ -311,6 +415,12 @@ paths:
           description: Full-text search query
           schema:
             type: string
+        - name: collection_id
+          in: query
+          description: Filter by a shared collection, combined with other filters
+          schema:
+            type: string
+            format: uuid
         - name: category_id
           in: query
           schema:
@@ -736,9 +846,57 @@ components:
         color:
           type: string
 
+    CollectionInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+          maxLength: 2000
+        icon:
+          type: string
+          default: i-lucide-library
+          maxLength: 100
+          pattern: '^i-lucide-[a-z0-9]+(?:-[a-z0-9]+)*$'
+    Collection:
+      allOf:
+        - $ref: '#/components/schemas/CollectionInput'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            organization_id:
+              type: string
+              format: uuid
+            asset_count:
+              type: integer
+              description: Active assets (populated on collection endpoints)
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+
     Asset:
       type: object
       properties:
+        collection_ids:
+          type: array
+          description: Collection UUIDs. On update, omission preserves assignments and an empty array clears them. All IDs must belong to this workspace; invalid assignments reject the entire save.
+          items:
+            type: string
+            format: uuid
+        collections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Collection'
         id:
           type: string
           format: uuid
@@ -786,6 +944,12 @@ components:
       type: object
       required: [name, category_id]
       properties:
+        collection_ids:
+          type: array
+          description: Collection UUIDs. On update, omission preserves assignments and an empty array clears them. All IDs must belong to this workspace; invalid assignments reject the entire save.
+          items:
+            type: string
+            format: uuid
         name:
           type: string
         description:

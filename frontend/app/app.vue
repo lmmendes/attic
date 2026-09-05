@@ -80,6 +80,7 @@ const baseNavigation = [
   { label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' },
   { label: 'All Assets', to: '/assets', icon: 'i-lucide-package' },
   { label: 'Locations', to: '/locations', icon: 'i-lucide-map-pin' },
+  { label: 'Collections', to: '/collections', icon: 'i-lucide-library' },
   { label: 'Categories', to: '/categories', icon: 'i-lucide-tag' }
 ]
 

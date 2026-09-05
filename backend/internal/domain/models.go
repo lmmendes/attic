@@ -106,12 +106,12 @@ type Attribute struct {
 
 // CategoryAttribute represents the relationship between a category and an attribute
 type CategoryAttribute struct {
-	ID          uuid.UUID  `json:"id"`
-	CategoryID  uuid.UUID  `json:"category_id"`
-	AttributeID uuid.UUID  `json:"attribute_id"`
-	Required    bool       `json:"required"`
-	SortOrder   int        `json:"sort_order"`
-	CreatedAt   time.Time  `json:"created_at"`
+	ID          uuid.UUID `json:"id"`
+	CategoryID  uuid.UUID `json:"category_id"`
+	AttributeID uuid.UUID `json:"attribute_id"`
+	Required    bool      `json:"required"`
+	SortOrder   int       `json:"sort_order"`
+	CreatedAt   time.Time `json:"created_at"`
 
 	// Populated by queries
 	Attribute *Attribute `json:"attribute,omitempty"`
@@ -133,6 +133,18 @@ type Location struct {
 	Children []Location `json:"children,omitempty"`
 }
 
+// Collection groups assets independently of their category and storage location.
+type Collection struct {
+	ID             uuid.UUID `json:"id"`
+	OrganizationID uuid.UUID `json:"organization_id"`
+	Name           string    `json:"name"`
+	Description    *string   `json:"description,omitempty"`
+	Icon           string    `json:"icon"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	AssetCount     int       `json:"asset_count"`
+}
+
 // Asset represents a tracked item
 type Asset struct {
 	ID               uuid.UUID       `json:"id"`
@@ -140,7 +152,9 @@ type Asset struct {
 	CategoryID       uuid.UUID       `json:"category_id"`
 	LocationID       *uuid.UUID      `json:"location_id,omitempty"`
 	ConditionID      *uuid.UUID      `json:"condition_id,omitempty"`
-	CollectionID     *uuid.UUID      `json:"collection_id,omitempty"`
+	CollectionID     *uuid.UUID      `json:"-"` // Legacy storage field; new memberships use asset_collections.
+	CollectionIDs    []uuid.UUID     `json:"collection_ids"`
+	Collections      []Collection    `json:"collections"`
 	MainAttachmentID *uuid.UUID      `json:"main_attachment_id,omitempty"`
 	Name             string          `json:"name"`
 	Description      *string         `json:"description,omitempty"`
@@ -149,7 +163,7 @@ type Asset struct {
 	PurchaseAt       *time.Time      `json:"purchase_at,omitempty"`
 	PurchasePrice    *float64        `json:"purchase_price,omitempty"`
 	PurchaseNote     *string         `json:"purchase_note,omitempty"`
-	Notes            *string         `json:"notes,omitempty"` // User personal notes about the asset
+	Notes            *string         `json:"notes,omitempty"`              // User personal notes about the asset
 	ImportPluginID   *string         `json:"import_plugin_id,omitempty"`   // Plugin that imported this asset
 	ImportExternalID *string         `json:"import_external_id,omitempty"` // External ID for re-fetching
 	CreatedAt        time.Time       `json:"created_at"`

@@ -461,6 +461,23 @@ function getShortId(): string {
           </div>
         </div>
 
+        <div
+          v-if="asset.collections?.length"
+          class="flex flex-wrap gap-2"
+          aria-label="Collections"
+        >
+          <UButton
+            v-for="collection in asset.collections"
+            :key="collection.id"
+            :to="{ path: '/assets', query: { collection_id: collection.id } }"
+            :icon="collection.icon"
+            variant="soft"
+            size="sm"
+          >
+            {{ collection.name }}
+          </UButton>
+        </div>
+
         <!-- Description (if present) -->
         <section
           v-if="asset.description"

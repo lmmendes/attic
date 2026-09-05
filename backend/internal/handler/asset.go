@@ -2,21 +2,23 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/lmmendes/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/repository"
 )
 
 const maxAssetQuantity = 1000000
 
 type CreateAssetRequest struct {
+	CollectionIDs []string        `json:"collection_ids,omitempty"`
 	CategoryID    string          `json:"category_id"`
 	LocationID    *string         `json:"location_id,omitempty"`
 	ConditionID   *string         `json:"condition_id,omitempty"`
-	CollectionID  *string         `json:"collection_id,omitempty"`
 	Name          string          `json:"name"`
 	Description   *string         `json:"description,omitempty"`
 	Quantity      int             `json:"quantity"`
@@ -28,10 +30,10 @@ type CreateAssetRequest struct {
 }
 
 type UpdateAssetRequest struct {
+	CollectionIDs []string        `json:"collection_ids,omitempty"`
 	CategoryID    string          `json:"category_id"`
 	LocationID    *string         `json:"location_id,omitempty"`
 	ConditionID   *string         `json:"condition_id,omitempty"`
-	CollectionID  *string         `json:"collection_id,omitempty"`
 	Name          string          `json:"name"`
 	Description   *string         `json:"description,omitempty"`
 	Quantity      int             `json:"quantity"`
@@ -92,6 +94,14 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	page := domain.Pagination{Limit: limit, Offset: offset}
+	if value := q.Get("collection_id"); value != "" {
+		id, err := uuid.Parse(value)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid collection ID")
+			return
+		}
+		filter.CollectionID = &id
+	}
 	assets, total, err := h.repos.Assets.List(r.Context(), h.orgID, filter, page)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list assets")
@@ -134,7 +144,7 @@ func (h *Handler) GetAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to get asset")
 		return
 	}
-	if asset == nil {
+	if asset == nil || asset.OrganizationID != h.orgID {
 		writeError(w, http.StatusNotFound, "asset not found")
 		return
 	}
@@ -196,11 +206,6 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 			asset.ConditionID = &id
 		}
 	}
-	if req.CollectionID != nil {
-		if id, err := parseUUIDString(*req.CollectionID); err == nil {
-			asset.CollectionID = &id
-		}
-	}
 	if req.PurchaseAt != nil && *req.PurchaseAt != "" {
 		if t, err := time.Parse("2006-01-02", *req.PurchaseAt); err == nil {
 			asset.PurchaseAt = &t
@@ -210,7 +215,17 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	asset.PurchaseNote = req.PurchaseNote
 	asset.Notes = req.Notes
 
+	collectionIDs, err := parseCollectionIDs(req.CollectionIDs)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	asset.CollectionIDs = collectionIDs
 	if err := h.repos.Assets.Create(r.Context(), asset); err != nil {
+		if errors.Is(err, repository.ErrInvalidCollections) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "failed to create asset")
 		return
 	}
@@ -236,7 +251,7 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to get asset")
 		return
 	}
-	if asset == nil {
+	if asset == nil || asset.OrganizationID != h.orgID {
 		writeError(w, http.StatusNotFound, "asset not found")
 		return
 	}
@@ -274,13 +289,6 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	} else {
 		asset.ConditionID = nil
 	}
-	if req.CollectionID != nil {
-		if id, err := parseUUIDString(*req.CollectionID); err == nil {
-			asset.CollectionID = &id
-		}
-	} else {
-		asset.CollectionID = nil
-	}
 	if req.PurchaseAt != nil && *req.PurchaseAt != "" {
 		if t, err := time.Parse("2006-01-02", *req.PurchaseAt); err == nil {
 			asset.PurchaseAt = &t
@@ -291,8 +299,18 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	asset.PurchasePrice = req.PurchasePrice
 	asset.PurchaseNote = req.PurchaseNote
 	asset.Notes = req.Notes
+	collectionIDs, err := parseCollectionIDs(req.CollectionIDs)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	asset.CollectionIDs = collectionIDs
 
 	if err := h.repos.Assets.Update(r.Context(), asset); err != nil {
+		if errors.Is(err, repository.ErrInvalidCollections) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "failed to update asset")
 		return
 	}

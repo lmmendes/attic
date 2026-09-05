@@ -14,7 +14,7 @@ It mirrors the way your real-world spaces are organized with hierarchical locati
 - Condition tracking (new, used, damaged, or custom states)
 - Warranty expiration monitoring with alerts
 - File attachments for invoices, manuals, and photos
-- Collections for grouping related assets (e.g. board game + expansions)
+- Shared collections with names, descriptions, and icons (e.g. PS5 games, books, furniture). Assign assets to any number of collections from the asset form, and filter inventory by collection. Deleting a collection preserves its assets.
 
 **Search & Discovery**
 - Full-text search across names, descriptions, tags, and custom fields

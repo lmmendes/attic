@@ -40,6 +40,9 @@ func (r *AssetRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.As
 	if err != nil {
 		return nil, err
 	}
+	if err := r.loadAssetCollections(ctx, []*domain.Asset{&a}); err != nil {
+		return nil, err
+	}
 	return &a, nil
 }
 
@@ -156,6 +159,13 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 		args = append(args, filter.Query)
 		argNum++
 	}
+	if filter.CollectionID != nil {
+		conditions = append(conditions, fmt.Sprintf(`EXISTS (SELECT 1 FROM asset_collections ac
+            JOIN collections cl ON cl.id = ac.collection_id AND cl.organization_id = a.organization_id
+            WHERE ac.asset_id = a.id AND ac.collection_id = $%d)`, argNum))
+		args = append(args, *filter.CollectionID)
+		argNum++
+	}
 
 	whereClause := strings.Join(conditions, " AND ")
 
@@ -249,7 +259,18 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 		assets = append(assets, a)
 	}
 
-	return assets, total, rows.Err()
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	assetPointers := make([]*domain.Asset, len(assets))
+	for i := range assets {
+		assetPointers[i] = &assets[i]
+	}
+	if err := r.loadAssetCollections(ctx, assetPointers); err != nil {
+		return nil, 0, err
+	}
+	return assets, total, nil
 }
 
 func (r *AssetRepository) Search(ctx context.Context, orgID uuid.UUID, query string, page domain.Pagination) ([]domain.Asset, int, error) {
@@ -258,6 +279,11 @@ func (r *AssetRepository) Search(ctx context.Context, orgID uuid.UUID, query str
 }
 
 func (r *AssetRepository) Create(ctx context.Context, a *domain.Asset) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
 	query := `
 		INSERT INTO assets (id, organization_id, category_id, location_id, condition_id, collection_id,
 		                    name, description, quantity, attributes, purchase_at, purchase_price, purchase_note, notes,
@@ -271,14 +297,28 @@ func (r *AssetRepository) Create(ctx context.Context, a *domain.Asset) error {
 	if a.Attributes == nil {
 		a.Attributes = []byte("{}")
 	}
-	return r.pool.QueryRow(ctx, query,
+	if err := tx.QueryRow(ctx, query,
 		a.ID, a.OrganizationID, a.CategoryID, a.LocationID, a.ConditionID, a.CollectionID,
 		a.Name, a.Description, a.Quantity, a.Attributes, a.PurchaseAt, a.PurchasePrice, a.PurchaseNote, a.Notes,
 		a.ImportPluginID, a.ImportExternalID,
-	).Scan(&a.CreatedAt, &a.UpdatedAt)
+	).Scan(&a.CreatedAt, &a.UpdatedAt); err != nil {
+		return err
+	}
+	if a.CollectionIDs == nil {
+		a.CollectionIDs = []uuid.UUID{}
+	}
+	if err := replaceAssetCollections(ctx, tx, a); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *AssetRepository) Update(ctx context.Context, a *domain.Asset) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
 	query := `
 		UPDATE assets
 		SET category_id = $2, location_id = $3, condition_id = $4, collection_id = $5,
@@ -289,10 +329,19 @@ func (r *AssetRepository) Update(ctx context.Context, a *domain.Asset) error {
 	if a.Attributes == nil {
 		a.Attributes = []byte("{}")
 	}
-	return r.pool.QueryRow(ctx, query,
+	if err := tx.QueryRow(ctx, query,
 		a.ID, a.CategoryID, a.LocationID, a.ConditionID, a.CollectionID,
 		a.Name, a.Description, a.Quantity, a.Attributes, a.PurchaseAt, a.PurchasePrice, a.PurchaseNote, a.Notes,
-	).Scan(&a.UpdatedAt)
+	).Scan(&a.UpdatedAt); err != nil {
+		return err
+	}
+	if err := replaceAssetCollections(ctx, tx, a); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	return r.loadAssetCollections(ctx, []*domain.Asset{a})
 }
 
 func (r *AssetRepository) Delete(ctx context.Context, id uuid.UUID) error {

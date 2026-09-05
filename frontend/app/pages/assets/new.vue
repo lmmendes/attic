@@ -18,6 +18,7 @@ const { data: conditions } = useApi<Condition[]>('/api/conditions')
 const loading = ref(false)
 const selectedCategory = ref<Category | null>(null)
 const form = reactive({
+  collection_ids: [] as string[],
   name: '',
   description: '',
   category_id: undefined as string | undefined,
@@ -155,6 +156,7 @@ async function submitForm() {
       description: form.description || undefined,
       category_id: form.category_id,
       location_id: form.location_id || undefined,
+      collection_ids: form.collection_ids,
       condition_id: form.condition_id || undefined,
       quantity: form.quantity,
       attributes: Object.keys(form.attributes).length > 0 ? form.attributes : undefined,
@@ -371,6 +373,7 @@ async function submitForm() {
               >Create one first</NuxtLink>.
             </p>
           </div>
+          <AssetCollectionsField v-model="form.collection_ids" />
         </section>
 
         <hr class="hidden">

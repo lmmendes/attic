@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import type { Asset, AssetStats, Category, Location, Warranty } from '~/types/api'
+import type { Asset, AssetStats, Category, Collection, Location, Warranty } from '~/types/api'
 
 definePageMeta({ middleware: 'auth' })
 
 const { user } = useAuth()
 const { data: categories } = useApi<Category[]>('/api/categories')
 const { data: locations } = useApi<Location[]>('/api/locations')
+const { data: collections, error: collectionsError } = useApi<Collection[]>('/api/collections')
 const { data: expiringWarranties } = useApi<Warranty[]>('/api/warranties/expiring?days=30')
 
 const selectedLocationId = ref('all')
@@ -101,6 +102,11 @@ const overviewMetrics = computed(() => [
 ])
 
 const quickLinks = computed(() => [
+  {
+    label: 'Collections', description: collectionsError.value ? 'Manage your collections' : `${collections.value?.length || 0} shared collections`,
+    icon: 'i-lucide-library', to: '/collections',
+    iconClass: 'bg-attic-100 text-attic-600 dark:bg-attic-500/15 dark:text-attic-300'
+  },
   {
     label: 'Browse assets', description: `${assets.value?.total || 0} items catalogued`,
     icon: 'i-lucide-package-search', to: assetsPageUrl.value,
@@ -233,7 +239,7 @@ const quickLinks = computed(() => [
       <div class="mb-3 flex items-end justify-between gap-4">
         <div>
           <p class="text-xs font-extrabold uppercase tracking-[0.14em] text-muted">
-            Your collection
+            Your inventory
           </p>
           <h2 class="text-lg font-extrabold text-mist-950 dark:text-white md:text-xl">
             Recently added
@@ -317,7 +323,7 @@ const quickLinks = computed(() => [
           No assets in {{ selectedLocation.name }}
         </h3>
         <p class="mx-auto mt-1 max-w-sm text-sm text-muted">
-          Try another location or view the full collection.
+          Try another location or view the full inventory.
         </p>
         <UButton
           variant="outline"
@@ -341,7 +347,7 @@ const quickLinks = computed(() => [
           />
         </div>
         <h3 class="mt-4 font-extrabold text-mist-950 dark:text-white">
-          Your collection starts here
+          Your inventory starts here
         </h3>
         <p class="mx-auto mt-1 max-w-sm text-sm text-muted">
           Add your first asset and Attic will keep the details organized.
@@ -380,35 +386,30 @@ const quickLinks = computed(() => [
         />
       </span>
     </NuxtLink>
-    <div class="attic-panel xl:col-start-2 xl:row-start-2 rounded-[22px] p-4 sm:p-5">
-      <div class="mb-3 flex items-center justify-between">
-        <div>
-          <p class="text-xs font-extrabold uppercase tracking-[0.14em] text-muted">
-            Shortcuts
-          </p>
-          <h2 class="text-lg font-extrabold text-mist-950 dark:text-white">
-            Quick access
-          </h2>
-        </div>
+    <div class="attic-panel xl:col-start-2 xl:row-start-2 rounded-[22px] p-4">
+      <div class="mb-2 flex items-center justify-between">
+        <h2 class="text-lg font-extrabold text-mist-950 dark:text-white">
+          Quick access
+        </h2>
         <UIcon
           name="i-lucide-sparkles"
           class="size-5 text-terracotta-400"
         />
       </div>
-      <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+      <div class="grid gap-1 sm:grid-cols-2 xl:grid-cols-1">
         <NuxtLink
           v-for="link in quickLinks"
           :key="link.to"
           :to="link.to"
-          class="group flex items-center gap-3 rounded-xl p-2 transition hover:bg-mist-50 dark:hover:bg-mist-700/50"
+          class="group flex min-h-11 items-center gap-2.5 rounded-xl px-2 py-1 transition hover:bg-mist-50 dark:hover:bg-mist-700/50"
         >
           <div
-            class="flex size-9 shrink-0 items-center justify-center rounded-lg"
+            class="flex size-8 shrink-0 items-center justify-center rounded-lg"
             :class="link.iconClass"
           >
             <UIcon
               :name="link.icon"
-              class="size-4.5"
+              class="size-4"
             />
           </div>
           <div class="min-w-0 flex-1">

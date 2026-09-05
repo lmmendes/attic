@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Category, Location, Condition, AssetsResponse, AssetFilters, Asset } from '~/types/api'
+import type { Collection, Category, Location, Condition, AssetsResponse, AssetFilters, Asset } from '~/types/api'
 
 definePageMeta({
   middleware: 'auth'
@@ -23,6 +23,7 @@ function onImported(assetId: string) {
 }
 
 const filters = reactive<AssetFilters>({
+  collection_id: typeof route.query.collection_id === 'string' ? route.query.collection_id : undefined,
   q: '',
   category_id: undefined,
   location_id: typeof route.query.location_id === 'string' ? route.query.location_id : undefined,
@@ -33,6 +34,7 @@ const filters = reactive<AssetFilters>({
 
 const queryString = computed(() => {
   const params = new URLSearchParams()
+  if (filters.collection_id) params.set('collection_id', filters.collection_id)
   if (filters.q) params.set('q', filters.q)
   if (filters.category_id) params.set('category_id', filters.category_id)
   if (filters.location_id) params.set('location_id', filters.location_id)
@@ -45,6 +47,17 @@ const queryString = computed(() => {
 const { data: assetsResponse, status, error, refresh } = useApi<AssetsResponse>(
   () => `/api/assets?${queryString.value}`
 )
+
+const { data: collections } = useApi<Collection[]>('/api/collections')
+const collectionOptions = computed(() => collections.value?.map(c => ({ label: c.name, value: c.id, icon: c.icon })) || [])
+watch(() => route.query.collection_id, (id) => {
+  filters.collection_id = typeof id === 'string' ? id : undefined
+  filters.offset = 0
+})
+watch(() => filters.collection_id, (id) => {
+  filters.offset = 0
+  if (id !== route.query.collection_id) router.replace({ query: { ...route.query, collection_id: id } })
+})
 
 const { data: categories } = useApi<Category[]>('/api/categories')
 const { data: locations } = useApi<Location[]>('/api/locations')
@@ -101,10 +114,12 @@ const conditionOptions = computed(() =>
 )
 
 const hasActiveFilters = computed(() => Boolean(
-  filters.q || filters.category_id || filters.location_id || filters.condition_id
+  filters.collection_id || filters.q || filters.category_id || filters.location_id || filters.condition_id
 ))
 
 function clearFilters() {
+  searchQuery.value = ''
+  filters.collection_id = undefined
   filters.q = ''
   filters.category_id = undefined
   filters.location_id = undefined
@@ -198,6 +213,14 @@ watch(searchQuery, (val: string) => {
         </div>
         <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center 2xl:justify-end">
           <USelectMenu
+            v-model="filters.collection_id"
+            :items="collectionOptions"
+            value-key="value"
+            placeholder="Collection"
+            aria-label="Filter by collection"
+            class="min-w-0 sm:w-44"
+          />
+          <USelectMenu
             v-model="filters.category_id"
             :items="categoryOptions"
             placeholder="Category"
@@ -263,6 +286,9 @@ watch(searchQuery, (val: string) => {
                 <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted md:table-cell">
                   Category
                 </th>
+                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted md:table-cell">
+                  Collections
+                </th>
                 <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted lg:table-cell">
                   Location
                 </th>
@@ -278,7 +304,7 @@ watch(searchQuery, (val: string) => {
               <!-- Loading State -->
               <tr v-if="status === 'pending'">
                 <td
-                  colspan="6"
+                  colspan="7"
                   class="p-8 text-center"
                 >
                   <div class="flex items-center justify-center gap-2 text-gray-400">
@@ -294,7 +320,7 @@ watch(searchQuery, (val: string) => {
               <!-- Error State -->
               <tr v-else-if="error">
                 <td
-                  colspan="6"
+                  colspan="7"
                   class="p-10 text-center"
                 >
                   <div class="flex flex-col items-center">
@@ -323,7 +349,7 @@ watch(searchQuery, (val: string) => {
               <!-- Empty State -->
               <tr v-else-if="!assetsResponse?.assets?.length">
                 <td
-                  colspan="6"
+                  colspan="7"
                   class="p-12 text-center"
                 >
                   <UIcon
@@ -331,9 +357,17 @@ watch(searchQuery, (val: string) => {
                     class="w-12 h-12 mx-auto mb-4 text-gray-300"
                   />
                   <p class="text-gray-500 mb-4">
-                    No assets found
+                    {{ hasActiveFilters ? 'No assets match these filters' : 'No assets yet' }}
                   </p>
                   <UButton
+                    v-if="hasActiveFilters"
+                    variant="soft"
+                    @click="clearFilters"
+                  >
+                    Clear filters
+                  </UButton>
+                  <UButton
+                    v-else
                     to="/assets/new"
                     variant="soft"
                   >
@@ -384,6 +418,18 @@ watch(searchQuery, (val: string) => {
                       class="text-[10px] text-muted"
                     >· {{ asset.location.name }}</span>
                   </div>
+                  <div
+                    v-if="asset.collections?.length"
+                    class="mt-2 flex flex-wrap gap-1.5 md:hidden"
+                    aria-label="Collections"
+                  >
+                    <NuxtLink
+                      v-for="collection in asset.collections"
+                      :key="collection.id"
+                      :to="{ path: '/assets', query: { ...route.query, collection_id: collection.id } }"
+                      class="rounded-md bg-attic-50 px-2 py-1 text-xs font-semibold text-attic-600 hover:underline dark:bg-attic-500/10 dark:text-attic-300"
+                    >{{ collection.name }}</NuxtLink>
+                  </div>
                 </td>
                 <td class="hidden p-3 md:table-cell">
                   <span
@@ -395,6 +441,30 @@ watch(searchQuery, (val: string) => {
                   <span
                     v-else
                     class="text-xs text-gray-400"
+                  >—</span>
+                </td>
+                <td class="hidden max-w-64 p-3 md:table-cell">
+                  <div
+                    v-if="asset.collections?.length"
+                    class="flex flex-wrap gap-1.5"
+                  >
+                    <NuxtLink
+                      v-for="collection in asset.collections"
+                      :key="collection.id"
+                      :to="{ path: '/assets', query: { ...route.query, collection_id: collection.id } }"
+                      class="inline-flex max-w-full items-center gap-1.5 rounded-md bg-attic-50 px-2 py-1 text-xs font-semibold text-attic-600 hover:underline dark:bg-attic-500/10 dark:text-attic-300"
+                    >
+                      <UIcon
+                        :name="collection.icon"
+                        class="size-3.5 shrink-0"
+                      />
+                      <span class="break-words">{{ collection.name }}</span>
+                    </NuxtLink>
+                  </div>
+                  <span
+                    v-else
+                    class="text-xs text-muted"
+                    aria-label="No collections"
                   >—</span>
                 </td>
                 <td class="hidden p-3 lg:table-cell">
