@@ -146,6 +146,7 @@ const userMenuItems = computed(() => {
 
 // Mobile sidebar state
 const sidebarOpen = ref(false)
+const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(route.path))
 </script>
 
 <template>
@@ -157,7 +158,7 @@ const sidebarOpen = ref(false)
 
     <!-- Main app layout with sidebar -->
     <template v-else>
-      <div class="h-screen flex overflow-hidden app-canvas">
+      <div class="h-dvh flex overflow-hidden app-canvas">
         <!-- Sidebar -->
         <aside class="hidden lg:flex w-68 bg-white/92 dark:bg-mist-900/92 backdrop-blur-xl border-r border-mist-200/80 dark:border-mist-800 flex-col flex-shrink-0">
           <!-- Logo -->
@@ -176,7 +177,7 @@ const sidebarOpen = ref(false)
                 <h1 class="text-mist-950 dark:text-white text-lg font-extrabold leading-none">
                   Attic
                 </h1>
-                <p class="text-mist-500 dark:text-mist-400 text-[11px] font-semibold tracking-wide uppercase mt-1">
+                <p class="text-muted dark:text-mist-400 text-[11px] font-semibold tracking-wide uppercase mt-1">
                   Asset manager
                 </p>
               </div>
@@ -184,7 +185,7 @@ const sidebarOpen = ref(false)
 
             <!-- Navigation -->
             <nav class="space-y-1">
-              <p class="px-3 pb-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-mist-400">
+              <p class="px-3 pb-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted">
                 Workspace
               </p>
               <NuxtLink
@@ -210,7 +211,7 @@ const sidebarOpen = ref(false)
 
               <!-- Divider -->
               <div class="pt-5 mt-5 border-t border-mist-100 dark:border-mist-800">
-                <p class="px-3 pb-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-mist-400">
+                <p class="px-3 pb-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted">
                   Manage
                 </p>
                 <NuxtLink
@@ -250,7 +251,7 @@ const sidebarOpen = ref(false)
                 <span class="text-sm font-bold text-mist-950 dark:text-white truncate">
                   {{ user?.name || user?.email?.split('@')[0] || 'User' }}
                 </span>
-                <span class="text-xs text-mist-500 dark:text-gray-400 truncate">
+                <span class="text-xs text-muted dark:text-gray-400 truncate">
                   {{ user?.email }}
                 </span>
               </div>
@@ -268,7 +269,7 @@ const sidebarOpen = ref(false)
                     <p class="font-medium">
                       {{ user?.name || 'User' }}
                     </p>
-                    <p class="text-xs text-mist-500 truncate">
+                    <p class="text-xs text-muted truncate">
                       {{ user?.email }}
                     </p>
                   </div>
@@ -308,7 +309,7 @@ const sidebarOpen = ref(false)
                   <h1 class="text-mist-950 dark:text-white text-lg font-extrabold leading-none">
                     Attic
                   </h1>
-                  <p class="text-mist-500 dark:text-gray-400 text-xs font-medium">
+                  <p class="text-muted dark:text-gray-400 text-xs font-medium">
                     Home Management
                   </p>
                 </div>
@@ -384,7 +385,7 @@ const sidebarOpen = ref(false)
                 <span class="text-sm font-bold text-mist-950 dark:text-white truncate">
                   {{ user?.name || user?.email?.split('@')[0] || 'User' }}
                 </span>
-                <span class="text-xs text-mist-500 dark:text-gray-400 truncate">
+                <span class="text-xs text-muted dark:text-gray-400 truncate">
                   {{ user?.email }}
                 </span>
               </div>
@@ -431,6 +432,7 @@ const sidebarOpen = ref(false)
 
         <!-- Mobile FAB -->
         <NuxtLink
+          v-if="!isAssetForm"
           to="/assets/new"
           aria-label="Add asset"
           title="Add asset"
@@ -510,7 +512,7 @@ const sidebarOpen = ref(false)
               </UFormField>
 
               <div class="border-t border-mist-100 pt-4 dark:border-mist-700">
-                <p class="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-mist-400">
+                <p class="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-muted">
                   New password
                 </p>
                 <div class="space-y-4">

@@ -157,7 +157,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
         <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
           Categories
         </h1>
-        <p class="mt-1 max-w-2xl text-sm text-mist-500">
+        <p class="mt-1 max-w-2xl text-sm text-muted">
           Define how your collection is grouped and which details each asset records.
         </p>
       </div>
@@ -174,7 +174,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
     <div class="attic-panel grid grid-cols-3 divide-x divide-mist-100 rounded-[18px] px-2 py-3 dark:divide-mist-700 sm:px-4">
       <!-- Total Categories -->
       <div class="px-3 sm:px-5">
-        <p class="text-[10px] font-extrabold uppercase tracking-wider text-mist-400">
+        <p class="text-[10px] font-extrabold uppercase tracking-wider text-muted">
           Categories
         </p>
         <p class="mt-1 text-xl font-black text-mist-950 dark:text-white">
@@ -184,7 +184,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
 
       <!-- Total Items Tracked -->
       <div class="px-3 sm:px-5">
-        <p class="text-[10px] font-extrabold uppercase tracking-wider text-mist-400">
+        <p class="text-[10px] font-extrabold uppercase tracking-wider text-muted">
           Assets
         </p>
         <p class="mt-1 text-xl font-black text-mist-950 dark:text-white">
@@ -194,7 +194,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
 
       <!-- Unique Fields -->
       <div class="px-3 sm:px-5">
-        <p class="text-[10px] font-extrabold uppercase tracking-wider text-mist-400">
+        <p class="text-[10px] font-extrabold uppercase tracking-wider text-muted">
           Unique fields
         </p>
         <p class="mt-1 text-xl font-black text-mist-950 dark:text-white">
@@ -210,7 +210,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
           <h2 class="font-extrabold text-mist-950 dark:text-white">
             Category library
           </h2>
-          <p class="text-xs text-mist-500">
+          <p class="text-xs text-muted">
             Open a schema, browse its assets, or adjust its fields.
           </p>
         </div>
@@ -241,13 +241,13 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
         <div class="size-16 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-4">
           <UIcon
             name="i-lucide-tag"
-            class="w-8 h-8 text-mist-400"
+            class="w-8 h-8 text-muted"
           />
         </div>
         <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
           No categories yet
         </h3>
-        <p class="text-sm text-mist-500 mb-4 max-w-sm">
+        <p class="text-sm text-muted mb-4 max-w-sm">
           Create your first category to start organizing your assets.
         </p>
         <UButton to="/categories/new">
@@ -299,14 +299,14 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
                 <h3 class="truncate font-extrabold text-mist-950 dark:text-white">
                   {{ category.name }}
                 </h3>
-                <p class="text-xs text-mist-400">
+                <p class="text-xs text-muted">
                   {{ getAssetCount(category.id) }} {{ getAssetCount(category.id) === 1 ? 'asset' : 'assets' }}
                 </p>
               </div>
             </div>
             <button
               type="button"
-              class="rounded-lg p-2 text-mist-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+              class="rounded-lg p-2 text-muted transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
               :aria-label="`Delete ${category.name}`"
               @click="confirmDelete(category)"
             >
@@ -317,7 +317,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
             </button>
           </div>
 
-          <p class="mt-4 line-clamp-2 min-h-10 text-sm leading-5 text-mist-500">
+          <p class="mt-4 line-clamp-2 min-h-10 text-sm leading-5 text-muted">
             {{ category.description || 'No description yet.' }}
           </p>
 
@@ -376,7 +376,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
               <h3 class="text-lg font-bold text-mist-950 dark:text-white">
                 Delete Category
               </h3>
-              <p class="text-sm text-mist-500 mt-2">
+              <p class="text-sm text-muted mt-2">
                 Are you sure you want to delete <strong>{{ categoryToDelete?.name }}</strong>? This action cannot be undone.
               </p>
             </div>
@@ -424,7 +424,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
                 <h3 class="text-lg font-bold text-mist-950 dark:text-white">
                   {{ viewingCategory?.name }} Attributes
                 </h3>
-                <p class="text-sm text-mist-500">
+                <p class="text-sm text-muted">
                   {{ viewingCategory?.attributes?.length || 0 }} attributes defined
                 </p>
               </div>
@@ -440,7 +440,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
                 name="i-lucide-list"
                 class="w-10 h-10 text-mist-300 mx-auto mb-3"
               />
-              <p class="text-sm text-mist-500">
+              <p class="text-sm text-muted">
                 No attributes defined for this category.
               </p>
             </div>
@@ -469,7 +469,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
                   </span>
                 </div>
                 <div class="flex items-center gap-2">
-                  <span class="text-xs text-mist-500 bg-mist-200 dark:bg-mist-600 px-2 py-0.5 rounded">
+                  <span class="text-xs text-muted bg-mist-200 dark:bg-mist-600 px-2 py-0.5 rounded">
                     {{ attr.attribute?.data_type || 'string' }}
                   </span>
                   <span

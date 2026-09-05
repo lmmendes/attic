@@ -53,7 +53,7 @@ const hasChildrenComputed = computed(() => props.node.children.length > 0)
         <UIcon
           :name="isExpanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
           class="w-4 h-4 transition-transform"
-          :class="isSelected ? 'text-attic-500' : 'text-mist-400 group-hover:text-attic-500'"
+          :class="isSelected ? 'text-attic-500' : 'text-muted group-hover:text-attic-500'"
         />
       </button>
       <span
@@ -77,7 +77,7 @@ const hasChildrenComputed = computed(() => props.node.children.length > 0)
         <UIcon
           :name="getIcon(node.location)"
           class="w-5 h-5 transition-colors"
-          :class="isSelected ? 'text-attic-500' : 'text-mist-400'"
+          :class="isSelected ? 'text-attic-500' : 'text-muted'"
         />
 
         <span
@@ -100,7 +100,7 @@ const hasChildrenComputed = computed(() => props.node.children.length > 0)
       >
         <UIcon
           name="i-lucide-plus"
-          class="w-3.5 h-3.5 text-mist-400 hover:text-attic-500"
+          class="w-3.5 h-3.5 text-muted hover:text-attic-500"
         />
       </button>
     </div>

@@ -69,6 +69,16 @@
   --shadow-primary: 0 18px 35px -16px rgba(49, 92, 244, 0.48);
 }
 
+:root {
+  --ui-text-muted: var(--color-mist-500);
+  --ui-text-dimmed: var(--color-mist-500);
+}
+
+.dark {
+  --ui-text-muted: var(--color-mist-300);
+  --ui-text-dimmed: var(--color-mist-300);
+}
+
 html {
   background: var(--color-mist-50);
 }
@@ -120,7 +130,7 @@ a {
 }
 
 @utility text-muted {
-  color: var(--color-mist-500);
+  color: var(--ui-text-muted);
 }
 
 @utility bg-surface {

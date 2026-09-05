@@ -72,13 +72,13 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
         <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
           Import plugins
         </h1>
-        <p class="mt-1 max-w-2xl text-sm text-mist-500">
+        <p class="mt-1 max-w-2xl text-sm text-muted">
           Add assets faster using trusted metadata from external catalogs.
         </p>
       </div>
       <div class="attic-panel flex divide-x divide-mist-100 rounded-xl px-2 py-2 dark:divide-mist-700">
         <div class="px-3">
-          <p class="text-[10px] font-bold uppercase text-mist-400">
+          <p class="text-[10px] font-bold uppercase text-muted">
             Ready
           </p>
           <p class="font-black text-mist-950 dark:text-white">
@@ -86,7 +86,7 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
           </p>
         </div>
         <div class="px-3">
-          <p class="text-[10px] font-bold uppercase text-mist-400">
+          <p class="text-[10px] font-bold uppercase text-muted">
             In use
           </p>
           <p class="font-black text-mist-950 dark:text-white">
@@ -116,13 +116,13 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
         <div class="size-16 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-4">
           <UIcon
             name="i-lucide-puzzle"
-            class="w-8 h-8 text-mist-400"
+            class="w-8 h-8 text-muted"
           />
         </div>
         <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
           No Plugins Available
         </h3>
-        <p class="text-sm text-mist-500 max-w-sm">
+        <p class="text-sm text-muted max-w-sm">
           Import plugins will appear here when they are configured.
         </p>
       </div>
@@ -146,7 +146,7 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
           <div class="flex min-w-0 items-center gap-3">
             <div
               class="flex size-11 shrink-0 items-center justify-center rounded-2xl"
-              :class="plugin.enabled ? 'bg-attic-50 text-attic-500 dark:bg-attic-500/10' : 'bg-mist-100 text-mist-400 dark:bg-mist-700'"
+              :class="plugin.enabled ? 'bg-attic-50 text-attic-500 dark:bg-attic-500/10' : 'bg-mist-100 text-muted dark:bg-mist-700'"
             >
               <UIcon
                 :name="getPluginIcon(plugin)"
@@ -156,11 +156,11 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
             <div class="min-w-0">
               <h3
                 class="truncate text-lg font-extrabold"
-                :class="plugin.enabled ? 'text-mist-950 dark:text-white' : 'text-mist-500 dark:text-mist-400'"
+                :class="plugin.enabled ? 'text-mist-950 dark:text-white' : 'text-muted dark:text-mist-400'"
               >
                 {{ plugin.name }}
               </h3>
-              <p class="text-xs text-mist-400">
+              <p class="text-xs text-muted">
                 {{ plugin.category_name }} catalog
               </p>
             </div>
@@ -180,7 +180,7 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
         <!-- Card Content -->
         <div class="flex-grow space-y-4 px-5">
           <!-- Description -->
-          <p class="min-h-10 text-sm leading-5 text-mist-500">
+          <p class="min-h-10 text-sm leading-5 text-muted">
             {{ plugin.description }}
           </p>
 
@@ -189,7 +189,7 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
             <div class="flex min-w-0 flex-1 items-center gap-2">
               <UIcon
                 name="i-lucide-folder"
-                class="size-4 shrink-0 text-mist-400"
+                class="size-4 shrink-0 text-muted"
               />
               <span class="truncate text-xs font-bold text-mist-700 dark:text-mist-200">
                 {{ plugin.category_name }}
@@ -201,7 +201,7 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
                 Created
               </span>
             </div>
-            <span class="text-[11px] font-semibold text-mist-400">
+            <span class="text-[11px] font-semibold text-muted">
               {{ plugin.search_fields.length }} search · {{ plugin.attributes.length }} imported fields
             </span>
           </div>
@@ -211,19 +211,19 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
             class="space-y-4 rounded-xl border border-mist-100 p-3 dark:border-mist-700"
           >
             <div class="space-y-2">
-              <p class="text-[10px] font-bold uppercase tracking-wider text-mist-400">
+              <p class="text-[10px] font-bold uppercase tracking-wider text-muted">
                 Search by
               </p>
               <div class="flex flex-wrap gap-1.5">
                 <span
                   v-for="field in plugin.search_fields"
                   :key="field.key"
-                  class="rounded-lg bg-mist-100 px-2 py-1 text-[11px] font-semibold text-mist-500 dark:bg-mist-700"
+                  class="rounded-lg bg-mist-100 px-2 py-1 text-[11px] font-semibold text-muted dark:bg-mist-700"
                 >{{ field.label }}</span>
               </div>
             </div>
             <div class="space-y-2">
-              <p class="text-[10px] font-bold uppercase tracking-wider text-mist-400">
+              <p class="text-[10px] font-bold uppercase tracking-wider text-muted">
                 Imported fields
               </p>
               <div class="flex flex-wrap gap-1.5">
@@ -241,7 +241,7 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
 
           <button
             type="button"
-            class="inline-flex items-center gap-1 text-xs font-bold text-mist-500 transition-colors hover:text-attic-500"
+            class="inline-flex items-center gap-1 text-xs font-bold text-muted transition-colors hover:text-attic-500"
             :aria-expanded="isExpanded(plugin.id)"
             @click="toggleAttributes(plugin.id)"
           >
@@ -282,7 +282,7 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
           </UButton>
           <div
             v-else
-            class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-mist-200 dark:border-mist-600 text-mist-400 dark:text-mist-500 font-bold text-sm cursor-not-allowed"
+            class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-mist-200 dark:border-mist-600 text-muted dark:text-mist-500 font-bold text-sm cursor-not-allowed"
           >
             <UIcon
               name="i-lucide-download"
@@ -301,7 +301,7 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
           <h2 class="font-extrabold text-mist-950 dark:text-white">
             From catalog to collection
           </h2>
-          <p class="text-xs text-mist-500">
+          <p class="text-xs text-muted">
             Plugins fill the metadata; you keep control of the final record.
           </p>
         </div>
@@ -337,7 +337,7 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
           <h3 class="text-sm font-extrabold text-mist-950 dark:text-white">
             {{ step.title }}
           </h3>
-          <p class="mt-1 text-xs leading-5 text-mist-500">
+          <p class="mt-1 text-xs leading-5 text-muted">
             {{ step.copy }}
           </p>
         </div>

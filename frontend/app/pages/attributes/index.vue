@@ -202,7 +202,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
         <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
           Fields
         </h1>
-        <p class="mt-1 max-w-2xl text-sm text-mist-500">
+        <p class="mt-1 max-w-2xl text-sm text-muted">
           Reusable details that categories can add to their asset forms.
         </p>
       </div>
@@ -225,7 +225,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
             class="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-colors"
             :class="selectedType === type.value
               ? 'bg-attic-500 text-white shadow-sm'
-              : 'bg-mist-50 text-mist-500 hover:bg-attic-50 hover:text-attic-600 dark:bg-mist-700/60 dark:text-mist-300'"
+              : 'bg-mist-50 text-muted hover:bg-attic-50 hover:text-attic-600 dark:bg-mist-700/60 dark:text-mist-300'"
             @click="selectedType = type.value"
           >
             <UIcon
@@ -235,7 +235,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
             {{ type.label }}
             <span
               class="rounded-md px-1.5 py-0.5 text-[10px]"
-              :class="selectedType === type.value ? 'bg-white/15 text-white' : 'bg-white text-mist-400 dark:bg-mist-800'"
+              :class="selectedType === type.value ? 'bg-white/15 text-white' : 'bg-white text-muted dark:bg-mist-800'"
             >
               {{ getTypeCount(type.value) }}
             </span>
@@ -258,11 +258,11 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
           <h2 class="font-extrabold text-mist-950 dark:text-white">
             Field library
           </h2>
-          <p class="text-xs text-mist-500">
+          <p class="text-xs text-muted">
             Names are for people; keys are used to store the data.
           </p>
         </div>
-        <span class="rounded-lg bg-mist-50 px-2.5 py-1 text-xs font-bold text-mist-500 dark:bg-mist-700/60">
+        <span class="rounded-lg bg-mist-50 px-2.5 py-1 text-xs font-bold text-muted dark:bg-mist-700/60">
           {{ filteredAttributes.length }} shown
         </span>
       </div>
@@ -285,13 +285,13 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
         <div class="size-16 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-4">
           <UIcon
             name="i-lucide-list"
-            class="w-8 h-8 text-mist-400"
+            class="w-8 h-8 text-muted"
           />
         </div>
         <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
           No fields yet
         </h3>
-        <p class="text-sm text-mist-500 mb-4 max-w-sm">
+        <p class="text-sm text-muted mb-4 max-w-sm">
           Create your first reusable field, then add it to one or more categories.
         </p>
         <UButton to="/attributes/new">
@@ -311,7 +311,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
         <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
           No results found
         </h3>
-        <p class="text-sm text-mist-500">
+        <p class="text-sm text-muted">
           No fields match these filters.
         </p>
         <button
@@ -344,7 +344,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
                 <h3 class="truncate text-sm font-extrabold text-mist-950 dark:text-white">
                   {{ attr.name }}
                 </h3>
-                <code class="mt-0.5 block truncate font-mono text-xs text-mist-400">
+                <code class="mt-0.5 block truncate font-mono text-xs text-muted">
                   {{ attr.key }}
                 </code>
               </div>
@@ -374,7 +374,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
               </UButton>
               <button
                 type="button"
-                class="flex size-8 items-center justify-center rounded-lg text-mist-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                class="flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
                 :aria-label="`Delete ${attr.name}`"
                 @click="confirmDelete(attr)"
               >
@@ -389,7 +389,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
 
         <!-- Footer with Pagination -->
         <div class="flex flex-col gap-3 border-t border-mist-100 bg-mist-50/50 px-4 py-3 dark:border-mist-700 dark:bg-mist-700/20 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-          <p class="text-xs text-mist-500">
+          <p class="text-xs text-muted">
             Showing {{ (currentPage - 1) * itemsPerPage + 1 }}–{{ Math.min(currentPage * itemsPerPage, filteredAttributes.length) }} of {{ filteredAttributes.length }} fields
             <span v-if="searchQuery && attributes?.length !== filteredAttributes.length">
               (filtered from {{ attributes?.length || 0 }})
@@ -406,7 +406,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
             >
               Prev
             </button>
-            <span class="text-xs text-mist-500 px-2">
+            <span class="text-xs text-muted px-2">
               Page {{ currentPage }} of {{ totalPages }}
             </span>
             <button
@@ -440,7 +440,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
               <h3 class="text-lg font-bold text-mist-950 dark:text-white">
                 Delete field
               </h3>
-              <p class="text-sm text-mist-500 mt-2">
+              <p class="text-sm text-muted mt-2">
                 Are you sure you want to delete <strong>{{ attributeToDelete?.name }}</strong>? Categories using this field may be affected.
               </p>
             </div>

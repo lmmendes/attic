@@ -270,7 +270,7 @@ function cancel() {
       <!-- Breadcrumbs & Header -->
       <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div class="space-y-3">
-          <nav class="flex items-center text-xs font-semibold text-mist-500">
+          <nav class="flex items-center text-xs font-semibold text-muted">
             <NuxtLink
               to="/"
               class="hover:text-attic-500 transition-colors"
@@ -294,7 +294,7 @@ function cancel() {
             <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
               Edit {{ category.name }}
             </h1>
-            <p class="mt-1 text-sm text-mist-500">
+            <p class="mt-1 text-sm text-muted">
               Set its identity and choose which details assets in this category should record.
             </p>
           </div>
@@ -335,25 +335,25 @@ function cancel() {
                 <h2 class="font-extrabold text-mist-950 dark:text-white">
                   Identity
                 </h2>
-                <p class="text-xs text-mist-500">
+                <p class="text-xs text-muted">
                   Give the category a clear, recognizable name.
                 </p>
               </div>
             </div>
             <div class="max-w-3xl space-y-5">
               <div>
-                <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-mist-500">
+                <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-muted">
                   Category Name
                 </label>
                 <input
                   v-model="form.name"
                   type="text"
                   placeholder="e.g. Rare Books"
-                  class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 font-medium text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                  class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 font-medium text-mist-950 shadow-sm outline-none transition-all placeholder:text-dimmed focus:border-attic-500 focus:ring-1 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                 >
               </div>
               <div>
-                <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-mist-500">
+                <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-muted">
                   Description
                 </label>
                 <textarea
@@ -361,10 +361,10 @@ function cancel() {
                   rows="4"
                   maxlength="140"
                   placeholder="What kind of assets belong here?"
-                  class="w-full resize-none rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                  class="w-full resize-none rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-dimmed focus:border-attic-500 focus:ring-1 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                 />
                 <div class="flex justify-end mt-1">
-                  <span class="text-xs text-mist-400">{{ descriptionCount }}/140</span>
+                  <span class="text-xs text-muted">{{ descriptionCount }}/140</span>
                 </div>
               </div>
             </div>
@@ -383,7 +383,7 @@ function cancel() {
                 <h2 class="font-extrabold text-mist-950 dark:text-white">
                   Icon
                 </h2>
-                <p class="text-xs text-mist-500">
+                <p class="text-xs text-muted">
                   Make the category easy to spot across your collection.
                 </p>
               </div>
@@ -400,7 +400,7 @@ function cancel() {
                   class="flex aspect-square items-center justify-center rounded-xl transition-all"
                   :class="form.icon === icon
                     ? 'bg-attic-500 text-white ring-2 ring-offset-2 ring-attic-500 dark:ring-offset-mist-800'
-                    : 'bg-mist-50 dark:bg-mist-900 text-mist-500 hover:text-attic-500 hover:bg-mist-100 dark:hover:bg-mist-700 border border-transparent hover:border-mist-200 dark:hover:border-mist-600'"
+                    : 'bg-mist-50 dark:bg-mist-900 text-muted hover:text-attic-500 hover:bg-mist-100 dark:hover:bg-mist-700 border border-transparent hover:border-mist-200 dark:hover:border-mist-600'"
                   @click="form.icon = icon"
                 >
                   <UIcon
@@ -429,7 +429,7 @@ function cancel() {
                   <h2 class="font-extrabold text-mist-950 dark:text-white">
                     Asset fields
                   </h2>
-                  <p class="text-xs text-mist-500">
+                  <p class="text-xs text-muted">
                     Choose the information shown when adding or editing an asset.
                   </p>
                 </div>
@@ -451,12 +451,12 @@ function cancel() {
               <div class="relative flex-grow bg-mist-50/70 p-5 dark:bg-mist-900/40 sm:p-6">
                 <div class="relative z-10 space-y-3">
                   <div class="flex items-center justify-between mb-4">
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-mist-400">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-muted">
                       Selected fields
                     </h4>
                     <span
                       v-if="selectedAttributes.length > 0"
-                      class="text-xs text-mist-400"
+                      class="text-xs text-muted"
                     >
                       {{ selectedAttributes.length }} selected
                     </span>
@@ -495,13 +495,13 @@ function cancel() {
                       <p class="font-bold text-sm text-mist-950 dark:text-white">
                         {{ getAttribute(attr.attribute_id)?.name || 'Unknown' }}
                       </p>
-                      <p class="text-xs text-mist-500">
+                      <p class="text-xs text-muted">
                         {{ getAttribute(attr.attribute_id)?.key || 'unknown_key' }} · {{ getAttribute(attr.attribute_id)?.data_type || 'string' }}
                       </p>
                     </div>
                     <div class="flex items-center gap-3 border-l border-mist-100 pl-3 dark:border-mist-700 sm:gap-4 sm:pl-4">
                       <div class="flex flex-col items-end">
-                        <span class="text-[10px] font-semibold uppercase tracking-wider text-mist-400 mb-1">
+                        <span class="text-[10px] font-semibold uppercase tracking-wider text-muted mb-1">
                           Required
                         </span>
                         <label class="relative inline-flex items-center cursor-pointer">
@@ -515,7 +515,7 @@ function cancel() {
                       </div>
                       <button
                         type="button"
-                        class="text-mist-400 hover:text-red-500 transition-colors p-1"
+                        class="text-muted hover:text-red-500 transition-colors p-1"
                         @click="removeAttribute(index)"
                       >
                         <UIcon
@@ -529,7 +529,7 @@ function cancel() {
                   <!-- Empty State / Drop Placeholder -->
                   <div
                     v-if="selectedAttributes.length === 0"
-                    class="flex h-32 flex-col items-center justify-center rounded-xl border-2 border-dashed border-mist-300 bg-white/50 text-mist-400 dark:border-mist-600 dark:bg-mist-800/50"
+                    class="flex h-32 flex-col items-center justify-center rounded-xl border-2 border-dashed border-mist-300 bg-white/50 text-muted dark:border-mist-600 dark:bg-mist-800/50"
                   >
                     <UIcon
                       name="i-lucide-list-plus"
@@ -541,7 +541,7 @@ function cancel() {
                   <!-- Add more placeholder when has items -->
                   <div
                     v-else
-                    class="flex h-12 items-center justify-center rounded-xl border border-dashed border-mist-200 bg-white/30 text-mist-400 dark:border-mist-700 dark:bg-mist-800/30"
+                    class="flex h-12 items-center justify-center rounded-xl border border-dashed border-mist-200 bg-white/30 text-muted dark:border-mist-700 dark:bg-mist-800/30"
                   >
                     <span class="text-xs">Drag to reorder · toggle required fields on the right</span>
                   </div>
@@ -552,10 +552,10 @@ function cancel() {
               <div class="border-t border-mist-100 bg-white dark:border-mist-700 dark:bg-mist-800">
                 <div class="flex flex-col gap-3 border-b border-mist-100 p-4 dark:border-mist-700 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                   <div>
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-mist-500">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-muted">
                       Field library
                     </h4>
-                    <p class="text-xs text-mist-400">
+                    <p class="text-xs text-muted">
                       Select a field to add it to this category.
                     </p>
                   </div>
@@ -567,7 +567,7 @@ function cancel() {
                   />
                 </div>
                 <div class="max-h-[360px] overflow-y-auto p-4 custom-scrollbar sm:p-6">
-                  <h5 class="mb-3 text-xs font-bold uppercase text-mist-400">
+                  <h5 class="mb-3 text-xs font-bold uppercase text-muted">
                     Available ({{ filteredAttributes.length }})
                   </h5>
 
@@ -580,7 +580,7 @@ function cancel() {
                       name="i-lucide-list"
                       class="w-8 h-8 text-mist-300 mx-auto mb-2"
                     />
-                    <p class="text-sm text-mist-500 mb-2">
+                    <p class="text-sm text-muted mb-2">
                       No attributes created yet
                     </p>
                     <NuxtLink
@@ -596,7 +596,7 @@ function cancel() {
                     v-else-if="filteredAttributes.length === 0"
                     class="text-center py-6"
                   >
-                    <p class="text-sm text-mist-500">
+                    <p class="text-sm text-muted">
                       {{ attributeSearch ? 'No matching attributes' : 'All attributes selected' }}
                     </p>
                   </div>
@@ -622,7 +622,7 @@ function cancel() {
                         <p class="truncate text-sm font-bold text-mist-700 dark:text-mist-200">
                           {{ attr.name }}
                         </p>
-                        <p class="truncate text-xs text-mist-400">
+                        <p class="truncate text-xs text-muted">
                           {{ attr.key }} · {{ attr.data_type }}
                         </p>
                       </div>
@@ -640,7 +640,7 @@ function cancel() {
       </div>
 
       <div class="attic-panel flex flex-col items-center justify-between gap-3 rounded-[18px] px-4 py-3 sm:flex-row">
-        <p class="text-xs text-mist-400">
+        <p class="text-xs text-muted">
           Changes apply to future asset edits immediately.
         </p>
         <div class="flex items-center gap-2">
@@ -670,12 +670,12 @@ function cancel() {
     >
       <UIcon
         name="i-lucide-alert-circle"
-        class="w-12 h-12 text-mist-400 mb-4"
+        class="w-12 h-12 text-muted mb-4"
       />
       <h2 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
         Category not found
       </h2>
-      <p class="text-mist-500 mb-4">
+      <p class="text-muted mb-4">
         The category you're looking for doesn't exist.
       </p>
       <UButton

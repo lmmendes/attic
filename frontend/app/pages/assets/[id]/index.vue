@@ -300,7 +300,7 @@ function getShortId(): string {
 <template>
   <div class="mx-auto max-w-[1320px] pb-8">
     <!-- Breadcrumbs -->
-    <nav class="mb-5 flex items-center gap-1.5 text-xs font-semibold text-mist-500">
+    <nav class="mb-5 flex items-center gap-1.5 text-xs font-semibold text-muted">
       <NuxtLink
         to="/"
         class="hover:text-attic-500 transition-colors"
@@ -377,7 +377,7 @@ function getShortId(): string {
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div class="rounded-xl bg-mist-50 p-3 dark:bg-mist-700/50">
-              <p class="text-[10px] font-extrabold uppercase tracking-wider text-mist-400">
+              <p class="text-[10px] font-extrabold uppercase tracking-wider text-muted">
                 Asset ID
               </p>
               <p class="mt-1 font-mono text-xs font-bold text-attic-500">
@@ -385,7 +385,7 @@ function getShortId(): string {
               </p>
             </div>
             <div class="rounded-xl bg-mist-50 p-3 dark:bg-mist-700/50">
-              <p class="text-[10px] font-extrabold uppercase tracking-wider text-mist-400">
+              <p class="text-[10px] font-extrabold uppercase tracking-wider text-muted">
                 Updated
               </p>
               <p class="mt-1 truncate text-xs font-bold text-mist-700 dark:text-mist-200">
@@ -427,13 +427,13 @@ function getShortId(): string {
               </span>
               <span
                 v-if="asset.condition?.label"
-                class="text-xs font-semibold text-mist-400"
+                class="text-xs font-semibold text-muted"
               >{{ asset.condition.label }}</span>
             </div>
             <h1 class="text-3xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-4xl">
               {{ asset.name }}
             </h1>
-            <p class="mt-2 flex items-center gap-1.5 text-sm font-medium text-mist-500">
+            <p class="mt-2 flex items-center gap-1.5 text-sm font-medium text-muted">
               <UIcon
                 name="i-lucide-map-pin"
                 class="size-4"
@@ -915,7 +915,7 @@ function getShortId(): string {
               <h3 class="font-extrabold text-mist-950 dark:text-white">
                 {{ warranty ? 'Edit warranty' : 'Add warranty' }}
               </h3>
-              <p class="text-xs text-mist-500">
+              <p class="text-xs text-muted">
                 Keep provider, policy, and coverage dates together.
               </p>
             </div>

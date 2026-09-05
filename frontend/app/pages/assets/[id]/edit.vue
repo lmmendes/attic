@@ -259,7 +259,7 @@ async function submitForm() {
             <li>
               <NuxtLink
                 to="/"
-                class="font-semibold text-mist-500 transition-colors hover:text-attic-500"
+                class="font-semibold text-muted transition-colors hover:text-attic-500"
               >
                 Dashboard
               </NuxtLink>
@@ -270,7 +270,7 @@ async function submitForm() {
             <li>
               <NuxtLink
                 to="/assets"
-                class="font-semibold text-mist-500 transition-colors hover:text-attic-500"
+                class="font-semibold text-muted transition-colors hover:text-attic-500"
               >
                 Assets
               </NuxtLink>
@@ -281,7 +281,7 @@ async function submitForm() {
             <li>
               <NuxtLink
                 :to="`/assets/${route.params.id}`"
-                class="max-w-48 truncate font-semibold text-mist-500 transition-colors hover:text-attic-500"
+                class="max-w-48 truncate font-semibold text-muted transition-colors hover:text-attic-500"
               >
                 {{ asset?.name || 'Asset' }}
               </NuxtLink>
@@ -306,7 +306,7 @@ async function submitForm() {
             <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
               Edit {{ asset?.name }}
             </h1>
-            <p class="mt-1 text-sm text-mist-500">
+            <p class="mt-1 text-sm text-muted">
               Keep its identity, location, and purchase details up to date.
             </p>
           </div>
@@ -350,7 +350,7 @@ async function submitForm() {
                 <h2 class="font-extrabold text-mist-950 dark:text-white">
                   Basic information
                 </h2>
-                <p class="text-xs text-mist-500">
+                <p class="text-xs text-muted">
                   The essential details used to identify and organize this asset.
                 </p>
               </div>
@@ -370,7 +370,7 @@ async function submitForm() {
                     v-model="form.name"
                     type="text"
                     placeholder="e.g. Vintage Canon AE-1"
-                    class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-mist-950 shadow-sm transition-colors placeholder:text-mist-400 focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                    class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-mist-950 shadow-sm transition-colors placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                   >
                   <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity">
                     <UIcon
@@ -422,7 +422,7 @@ async function submitForm() {
                   <div class="flex h-11 items-center gap-2 rounded-xl border border-mist-200 bg-mist-50/50 px-3 pr-8 transition-all hover:border-attic-300 hover:bg-attic-50/50 peer-checked:border-attic-500 peer-checked:bg-attic-50 peer-checked:ring-2 peer-checked:ring-attic-500/10 dark:border-mist-700 dark:bg-mist-800 dark:peer-checked:bg-attic-500/10">
                     <UIcon
                       name="i-lucide-folder"
-                      class="size-4 shrink-0 text-mist-400 transition-colors group-hover:text-attic-500"
+                      class="size-4 shrink-0 text-muted transition-colors group-hover:text-attic-500"
                     />
                     <span class="truncate text-xs font-bold text-mist-600 dark:text-mist-300">{{ cat.name }}</span>
                   </div>
@@ -461,7 +461,7 @@ async function submitForm() {
                 <h2 class="font-extrabold text-mist-950 dark:text-white">
                   Details and notes
                 </h2>
-                <p class="text-xs text-mist-500">
+                <p class="text-xs text-muted">
                   Condition, quantity, descriptions, and private context.
                 </p>
               </div>
@@ -506,7 +506,7 @@ async function submitForm() {
                 v-model="form.description"
                 rows="4"
                 placeholder="Product description, features, specifications..."
-                class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-mist-400 focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               />
             </div>
 
@@ -519,7 +519,7 @@ async function submitForm() {
                 v-model="form.notes"
                 rows="3"
                 placeholder="Your personal notes: condition details, where you bought it, special memories..."
-                class="block w-full resize-none rounded-xl border-terracotta-100 bg-terracotta-50/40 px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-mist-400 focus:border-terracotta-300 focus:ring-terracotta-300 dark:border-terracotta-900/40 dark:bg-terracotta-950/10 dark:text-white"
+                class="block w-full resize-none rounded-xl border-terracotta-100 bg-terracotta-50/40 px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-terracotta-300 focus:ring-terracotta-300 dark:border-terracotta-900/40 dark:bg-terracotta-950/10 dark:text-white"
               />
             </div>
           </section>
@@ -540,7 +540,7 @@ async function submitForm() {
                   <h2 class="font-extrabold text-mist-950 dark:text-white">
                     {{ selectedCategory.name }} attributes
                   </h2>
-                  <p class="text-xs text-mist-500">
+                  <p class="text-xs text-muted">
                     Category-specific information for this asset.
                   </p>
                 </div>
@@ -586,7 +586,7 @@ async function submitForm() {
                       :value="String(form.attributes[ca.attribute.key] ?? '')"
                       :placeholder="`Enter ${ca.attribute.name.toLowerCase()}`"
                       rows="4"
-                      class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-mist-400 focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                      class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                       @input="form.attributes[ca.attribute.key] = ($event.target as HTMLTextAreaElement).value"
                     />
 
@@ -597,7 +597,7 @@ async function submitForm() {
                       :type="getInputType(ca.attribute.data_type)"
                       :step="ca.attribute.data_type === 'number' ? 'any' : undefined"
                       :placeholder="`Enter ${ca.attribute.name.toLowerCase()}`"
-                      class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-mist-400 focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                      class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                     >
                   </template>
                 </div>
@@ -607,7 +607,7 @@ async function submitForm() {
 
           <div
             v-else-if="form.category_id && !selectedCategory?.attributes?.length"
-            class="attic-panel rounded-[20px] py-5 text-center text-sm text-mist-400"
+            class="attic-panel rounded-[20px] py-5 text-center text-sm text-muted"
           >
             <p>This category has no custom attributes.</p>
           </div>
@@ -627,7 +627,7 @@ async function submitForm() {
                 <h2 class="font-extrabold text-mist-950 dark:text-white">
                   Purchase information
                 </h2>
-                <p class="text-xs text-mist-500">
+                <p class="text-xs text-muted">
                   Optional cost and purchase records.
                 </p>
               </div>
@@ -659,7 +659,7 @@ async function submitForm() {
                     step="0.01"
                     min="0"
                     placeholder="0.00"
-                    class="block w-full rounded-xl border-mist-200 bg-white py-3 pl-8 pr-4 text-sm text-mist-950 shadow-sm placeholder:text-mist-400 focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                    class="block w-full rounded-xl border-mist-200 bg-white py-3 pl-8 pr-4 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                   >
                 </div>
               </div>
@@ -674,7 +674,7 @@ async function submitForm() {
                 v-model="form.purchase_note"
                 rows="3"
                 placeholder="Store, receipt number, warranty info, etc."
-                class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-mist-400 focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               />
             </div>
           </section>
@@ -682,7 +682,7 @@ async function submitForm() {
 
         <!-- Footer Action Area -->
         <div class="attic-panel flex flex-col items-center justify-between gap-3 rounded-[18px] px-4 py-3 sm:flex-row">
-          <div class="text-xs text-mist-400">
+          <div class="text-xs text-muted">
             <span class="text-amber-500">*</span> Required fields
           </div>
           <div class="flex items-center gap-3">

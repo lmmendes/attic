@@ -132,8 +132,13 @@ function getInputType(dataType: string): string {
   }
 }
 
+function revealInvalidSection(event: Event) {
+  (event.currentTarget as HTMLDetailsElement).open = true
+}
+
 async function submitForm() {
-  if (!form.name || !form.category_id) {
+  if (loading.value) return
+  if (!form.name.trim() || !form.category_id) {
     toast.add({ title: 'Name and category are required', color: 'error' })
     return
   }
@@ -146,7 +151,7 @@ async function submitForm() {
   loading.value = true
   try {
     const payload = {
-      name: form.name,
+      name: form.name.trim(),
       description: form.description || undefined,
       category_id: form.category_id,
       location_id: form.location_id || undefined,
@@ -176,7 +181,7 @@ async function submitForm() {
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1040px] space-y-5 pb-6">
+  <div class="mx-auto max-w-[1040px] space-y-5 pb-24 sm:pb-6">
     <!-- Breadcrumbs & Heading -->
     <div class="space-y-3">
       <nav
@@ -187,7 +192,7 @@ async function submitForm() {
           <li>
             <NuxtLink
               to="/"
-              class="font-semibold text-mist-500 transition-colors hover:text-attic-500"
+              class="font-semibold text-muted transition-colors hover:text-attic-500"
             >
               Dashboard
             </NuxtLink>
@@ -198,7 +203,7 @@ async function submitForm() {
           <li>
             <NuxtLink
               to="/assets"
-              class="font-semibold text-mist-500 transition-colors hover:text-attic-500"
+              class="font-semibold text-muted transition-colors hover:text-attic-500"
             >
               Assets
             </NuxtLink>
@@ -223,8 +228,8 @@ async function submitForm() {
           <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
             Add an asset
           </h1>
-          <p class="mt-1 text-sm text-mist-500">
-            Capture the essentials now—you can always add more detail later.
+          <p class="mt-1 text-sm text-muted">
+            Give it a name and a home. Add more details whenever you like.
           </p>
         </div>
         <div class="hidden items-center gap-2 sm:flex">
@@ -240,7 +245,8 @@ async function submitForm() {
             :loading="loading"
             class="rounded-xl font-bold shadow-primary"
             icon="i-lucide-save"
-            @click="submitForm"
+            type="submit"
+            form="new-asset-form"
           >
             Save Asset
           </UButton>
@@ -250,6 +256,7 @@ async function submitForm() {
 
     <!-- Main Form Card -->
     <form
+      id="new-asset-form"
       class="space-y-5"
       @submit.prevent="submitForm"
     >
@@ -267,7 +274,7 @@ async function submitForm() {
               <h2 class="font-extrabold text-mist-950 dark:text-white">
                 Basic information
               </h2>
-              <p class="text-xs text-mist-500">
+              <p class="text-xs text-muted">
                 Name the asset and choose where it belongs.
               </p>
             </div>
@@ -285,10 +292,10 @@ async function submitForm() {
                 <input
                   id="asset-name"
                   v-model="form.name"
+                  required
                   type="text"
                   placeholder="e.g. Vintage Canon AE-1"
-                  class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-mist-950 shadow-sm transition-colors placeholder:text-mist-400 focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
-                  autofocus
+                  class="block w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-mist-950 shadow-sm transition-colors placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                 >
                 <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity">
                   <UIcon
@@ -305,13 +312,14 @@ async function submitForm() {
                 for="location"
                 class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
               >
-                Location
+                Stored in
               </label>
               <USelectMenu
                 id="location"
                 v-model="form.location_id"
+                aria-label="Stored in"
                 :items="locationOptions"
-                placeholder="Select a space..."
+                placeholder="Choose a room, shelf, or box"
                 value-key="value"
                 class="w-full"
                 size="lg"
@@ -334,13 +342,14 @@ async function submitForm() {
                   v-model="form.category_id"
                   type="radio"
                   name="category"
+                  required
                   :value="cat.id"
                   class="peer sr-only"
                 >
-                <div class="flex h-11 items-center gap-2 rounded-xl border border-mist-200 bg-mist-50/50 px-3 pr-8 transition-all hover:border-attic-300 hover:bg-attic-50/50 peer-checked:border-attic-500 peer-checked:bg-attic-50 peer-checked:ring-2 peer-checked:ring-attic-500/10 dark:border-mist-700 dark:bg-mist-800 dark:peer-checked:bg-attic-500/10">
+                <div class="flex h-11 items-center gap-2 rounded-xl border border-mist-200 bg-mist-50/50 px-3 pr-8 transition-all hover:border-attic-300 hover:bg-attic-50/50 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-attic-500 peer-checked:border-attic-500 peer-checked:bg-attic-50 peer-checked:ring-2 peer-checked:ring-attic-500/10 dark:border-mist-700 dark:bg-mist-800 dark:peer-checked:bg-attic-500/10">
                   <UIcon
                     name="i-lucide-folder"
-                    class="size-4 shrink-0 text-mist-400 transition-colors group-hover:text-attic-500"
+                    class="size-4 shrink-0 text-muted transition-colors group-hover:text-attic-500"
                   />
                   <span class="truncate text-xs font-bold text-mist-600 dark:text-mist-300">{{ cat.name }}</span>
                 </div>
@@ -367,8 +376,11 @@ async function submitForm() {
         <hr class="hidden">
 
         <!-- Section 2: Additional Details -->
-        <section class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6">
-          <div class="flex items-start gap-3">
+        <details
+          class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6"
+          @invalid.capture="revealInvalidSection"
+        >
+          <summary class="flex cursor-pointer list-none items-start gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-attic-500 [&::-webkit-details-marker]:hidden">
             <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
               <UIcon
                 name="i-lucide-clipboard-list"
@@ -379,20 +391,29 @@ async function submitForm() {
               <h2 class="font-extrabold text-mist-950 dark:text-white">
                 Details and notes
               </h2>
-              <p class="text-xs text-mist-500">
+              <p class="text-xs text-muted">
                 Optional context that makes the asset easier to identify later.
               </p>
             </div>
-          </div>
+            <UIcon
+              name="i-lucide-chevron-down"
+              class="ml-auto mt-2 size-4 shrink-0 text-muted transition-transform in-open:rotate-180"
+            />
+          </summary>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Condition -->
             <div class="space-y-2">
-              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <label
+                for="asset-condition"
+                class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              >
                 Condition
               </label>
               <USelectMenu
+                id="asset-condition"
                 v-model="form.condition_id"
+                aria-label="Condition"
                 :items="conditionOptions"
                 placeholder="Select condition..."
                 value-key="value"
@@ -403,44 +424,56 @@ async function submitForm() {
 
             <!-- Quantity -->
             <div class="space-y-2">
-              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <label
+                for="asset-quantity"
+                class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              >
                 Quantity
               </label>
               <input
+                id="asset-quantity"
                 v-model.number="form.quantity"
                 type="number"
                 min="1"
-                class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                class="block w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               >
             </div>
           </div>
 
           <!-- Description -->
           <div class="space-y-2">
-            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            <label
+              for="asset-description"
+              class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+            >
               Description
             </label>
             <textarea
+              id="asset-description"
               v-model="form.description"
               rows="4"
               placeholder="Product description, features, specifications..."
-              class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-mist-400 focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+              class="block w-full resize-none rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
             />
           </div>
 
           <!-- Personal Notes -->
           <div class="space-y-2">
-            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            <label
+              for="asset-notes"
+              class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+            >
               Personal Notes
             </label>
             <textarea
+              id="asset-notes"
               v-model="form.notes"
               rows="3"
               placeholder="Your personal notes: condition details, where you bought it, special memories..."
-              class="block w-full resize-none rounded-xl border-terracotta-100 bg-terracotta-50/40 px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-mist-400 focus:border-terracotta-300 focus:ring-terracotta-300 dark:border-terracotta-900/40 dark:bg-terracotta-950/10 dark:text-white"
+              class="block w-full resize-none rounded-xl border border-terracotta-100 bg-terracotta-50/40 px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-terracotta-300 focus:ring-terracotta-300 dark:border-terracotta-900/40 dark:bg-terracotta-950/10 dark:text-white"
             />
           </div>
-        </section>
+        </details>
 
         <!-- Category Attributes -->
         <template v-if="selectedCategory?.attributes?.length">
@@ -458,7 +491,7 @@ async function submitForm() {
                 <h2 class="font-extrabold text-mist-950 dark:text-white">
                   {{ selectedCategory.name }} attributes
                 </h2>
-                <p class="text-xs text-mist-500">
+                <p class="text-xs text-muted">
                   Category-specific information for this asset.
                 </p>
               </div>
@@ -504,7 +537,7 @@ async function submitForm() {
                     :value="String(form.attributes[ca.attribute.key] ?? '')"
                     :placeholder="`Enter ${ca.attribute.name.toLowerCase()}`"
                     rows="4"
-                    class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-mist-400 focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                    class="block w-full resize-none rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                     @input="form.attributes[ca.attribute.key] = ($event.target as HTMLTextAreaElement).value"
                   />
 
@@ -515,7 +548,7 @@ async function submitForm() {
                     :type="getInputType(ca.attribute.data_type)"
                     :step="ca.attribute.data_type === 'number' ? 'any' : undefined"
                     :placeholder="`Enter ${ca.attribute.name.toLowerCase()}`"
-                    class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-mist-400 focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                    class="block w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                   >
                 </template>
               </div>
@@ -523,18 +556,14 @@ async function submitForm() {
           </section>
         </template>
 
-        <div
-          v-else-if="form.category_id && !selectedCategory?.attributes?.length"
-          class="attic-panel rounded-[20px] py-5 text-center text-sm text-mist-400"
-        >
-          <p>This category has no custom attributes.</p>
-        </div>
-
         <hr class="hidden">
 
         <!-- Section 3: Purchase Information -->
-        <section class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6">
-          <div class="flex items-start gap-3">
+        <details
+          class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6"
+          @invalid.capture="revealInvalidSection"
+        >
+          <summary class="flex cursor-pointer list-none items-start gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-attic-500 [&::-webkit-details-marker]:hidden">
             <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
               <UIcon
                 name="i-lucide-receipt"
@@ -545,39 +574,51 @@ async function submitForm() {
               <h2 class="font-extrabold text-mist-950 dark:text-white">
                 Purchase information
               </h2>
-              <p class="text-xs text-mist-500">
+              <p class="text-xs text-muted">
                 Optional cost and purchase records.
               </p>
             </div>
-          </div>
+            <UIcon
+              name="i-lucide-chevron-down"
+              class="ml-auto mt-2 size-4 shrink-0 text-muted transition-transform in-open:rotate-180"
+            />
+          </summary>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Purchase Date -->
             <div class="space-y-2">
-              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <label
+                for="asset-purchase-at"
+                class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              >
                 Purchase Date
               </label>
               <input
+                id="asset-purchase-at"
                 v-model="form.purchase_at"
                 type="date"
-                class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                class="block w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               >
             </div>
 
             <!-- Purchase Price -->
             <div class="space-y-2">
-              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <label
+                for="asset-purchase-price"
+                class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+              >
                 Purchase Price
               </label>
               <div class="relative">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 pointer-events-none">$</span>
                 <input
+                  id="asset-purchase-price"
                   v-model.number="form.purchase_price"
                   type="number"
                   step="0.01"
                   min="0"
                   placeholder="0.00"
-                  class="block w-full rounded-xl border-mist-200 bg-white py-3 pl-8 pr-4 text-sm text-mist-950 shadow-sm placeholder:text-mist-400 focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                  class="block w-full rounded-xl border border-mist-200 bg-white py-3 pl-8 pr-4 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                 >
               </div>
             </div>
@@ -585,22 +626,26 @@ async function submitForm() {
 
           <!-- Purchase Notes -->
           <div class="space-y-2">
-            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            <label
+              for="asset-purchase-note"
+              class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+            >
               Purchase Notes
             </label>
             <textarea
+              id="asset-purchase-note"
               v-model="form.purchase_note"
               rows="3"
               placeholder="Store, receipt number, warranty info, etc."
-              class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-mist-400 focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+              class="block w-full resize-none rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
             />
           </div>
-        </section>
+        </details>
       </div>
 
       <!-- Footer Action Area -->
-      <div class="attic-panel flex flex-col items-center justify-between gap-3 rounded-[18px] px-4 py-3 sm:flex-row">
-        <div class="text-xs text-mist-400">
+      <div class="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-3 border-t border-subtle bg-surface px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:sticky sm:bottom-0 sm:rounded-[18px] sm:border sm:px-4 sm:py-3">
+        <div class="text-xs text-muted">
           <span class="text-amber-500">*</span> Required fields
         </div>
         <div class="flex items-center gap-3">
@@ -614,8 +659,8 @@ async function submitForm() {
           <UButton
             type="submit"
             :loading="loading"
-            class="rounded-xl shadow-primary"
-            icon="i-lucide-save"
+            class="min-h-11 rounded-xl shadow-primary"
+            icon="i-lucide-check"
           >
             Save Asset
           </UButton>

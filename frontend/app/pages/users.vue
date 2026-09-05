@@ -312,7 +312,7 @@ function formatRelativeDate(dateString: string): string {
         <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
           People
         </h1>
-        <p class="mt-1 max-w-2xl text-sm text-mist-500">
+        <p class="mt-1 max-w-2xl text-sm text-muted">
           Invite members, assign administrator access, and manage sign-in methods.
         </p>
       </div>
@@ -320,7 +320,7 @@ function formatRelativeDate(dateString: string): string {
       <div class="attic-panel flex divide-x divide-mist-100 rounded-xl px-2 py-2 dark:divide-mist-700">
         <div class="px-3">
           <div>
-            <p class="text-[10px] font-bold uppercase tracking-wider text-mist-400">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-muted">
               Total
             </p>
             <p class="text-lg font-bold text-mist-950 dark:text-white leading-none">
@@ -330,7 +330,7 @@ function formatRelativeDate(dateString: string): string {
         </div>
         <div class="px-3">
           <div>
-            <p class="text-[10px] font-bold uppercase tracking-wider text-mist-400">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-muted">
               Admins
             </p>
             <p class="text-lg font-bold text-mist-950 dark:text-white leading-none">
@@ -340,7 +340,7 @@ function formatRelativeDate(dateString: string): string {
         </div>
         <div class="px-3">
           <div>
-            <p class="text-[10px] font-bold uppercase tracking-wider text-mist-400">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-muted">
               Members
             </p>
             <p class="text-lg font-bold leading-none text-mist-950 dark:text-white">
@@ -368,7 +368,7 @@ function formatRelativeDate(dateString: string): string {
             :key="role"
             type="button"
             class="rounded-lg px-3 py-1.5 text-xs font-bold capitalize transition-colors"
-            :class="selectedRole === role ? 'bg-white text-attic-600 shadow-sm dark:bg-mist-800 dark:text-attic-300' : 'text-mist-400 hover:text-mist-600'"
+            :class="selectedRole === role ? 'bg-white text-attic-600 shadow-sm dark:bg-mist-800 dark:text-attic-300' : 'text-muted hover:text-mist-600'"
             @click="selectedRole = role"
           >
             {{ role === 'user' ? 'Members' : role }}
@@ -406,13 +406,13 @@ function formatRelativeDate(dateString: string): string {
         <div class="size-16 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-4">
           <UIcon
             name="i-lucide-users"
-            class="w-8 h-8 text-mist-400"
+            class="w-8 h-8 text-muted"
           />
         </div>
         <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
           No users yet
         </h3>
-        <p class="text-sm text-mist-500 mb-4 max-w-sm">
+        <p class="text-sm text-muted mb-4 max-w-sm">
           Create your first user to start managing access to your organization.
         </p>
         <UButton @click="openCreateModal">
@@ -432,7 +432,7 @@ function formatRelativeDate(dateString: string): string {
         <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
           No results found
         </h3>
-        <p class="text-sm text-mist-500">
+        <p class="text-sm text-muted">
           No people match these filters.
         </p>
         <button
@@ -450,19 +450,19 @@ function formatRelativeDate(dateString: string): string {
           <table class="w-full min-w-[800px] border-collapse">
             <thead class="bg-mist-50/50 dark:bg-mist-700/30 border-b border-mist-100 dark:border-mist-700">
               <tr>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted">
                   User Details
                 </th>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted">
                   Email Address
                 </th>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted">
                   Role
                 </th>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted">
                   Auth
                 </th>
-                <th class="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-muted">
                   Actions
                 </th>
               </tr>
@@ -486,7 +486,7 @@ function formatRelativeDate(dateString: string): string {
                       <p class="text-sm font-semibold text-mist-950 dark:text-white">
                         {{ user.name || user.email.split('@')[0] }}
                       </p>
-                      <p class="text-xs text-mist-500">
+                      <p class="text-xs text-muted">
                         {{ formatRelativeDate(user.created_at) }}
                       </p>
                     </div>
@@ -495,7 +495,7 @@ function formatRelativeDate(dateString: string): string {
 
                 <!-- Email Address -->
                 <td class="px-6 py-4">
-                  <div class="flex items-center gap-2 text-sm text-mist-500">
+                  <div class="flex items-center gap-2 text-sm text-muted">
                     <UIcon
                       name="i-lucide-mail"
                       class="w-4 h-4 opacity-70"
@@ -541,7 +541,7 @@ function formatRelativeDate(dateString: string): string {
                 <td class="px-6 py-4 text-right">
                   <div class="flex items-center justify-end gap-1">
                     <button
-                      class="size-8 rounded flex items-center justify-center text-mist-400 hover:text-attic-500 hover:bg-attic-500/10 transition-colors"
+                      class="size-8 rounded flex items-center justify-center text-muted hover:text-attic-500 hover:bg-attic-500/10 transition-colors"
                       title="Reset Password"
                       @click="openResetPasswordModal(user)"
                     >
@@ -551,7 +551,7 @@ function formatRelativeDate(dateString: string): string {
                       />
                     </button>
                     <button
-                      class="size-8 rounded flex items-center justify-center text-mist-400 hover:text-attic-500 hover:bg-attic-500/10 transition-colors"
+                      class="size-8 rounded flex items-center justify-center text-muted hover:text-attic-500 hover:bg-attic-500/10 transition-colors"
                       title="Edit User"
                       @click="openEditModal(user)"
                     >
@@ -561,7 +561,7 @@ function formatRelativeDate(dateString: string): string {
                       />
                     </button>
                     <button
-                      class="size-8 rounded flex items-center justify-center text-mist-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      class="size-8 rounded flex items-center justify-center text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                       title="Delete User"
                       @click="openDeleteModal(user)"
                     >
@@ -579,7 +579,7 @@ function formatRelativeDate(dateString: string): string {
 
         <!-- Footer with Pagination -->
         <div class="px-6 py-3 border-t border-mist-100 dark:border-mist-700 bg-mist-50/50 dark:bg-mist-700/20 flex items-center justify-between">
-          <p class="text-xs text-mist-500">
+          <p class="text-xs text-muted">
             Showing {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, filteredUsers.length) }} of {{ filteredUsers.length }} users
             <span v-if="searchQuery && users?.length !== filteredUsers.length">
               (filtered from {{ users?.length || 0 }})
@@ -596,7 +596,7 @@ function formatRelativeDate(dateString: string): string {
             >
               Prev
             </button>
-            <span class="text-xs text-mist-500 px-2">
+            <span class="text-xs text-muted px-2">
               Page {{ currentPage }} of {{ totalPages }}
             </span>
             <button
@@ -633,7 +633,7 @@ function formatRelativeDate(dateString: string): string {
               <h3 class="text-lg font-extrabold text-mist-950 dark:text-white">
                 Add a person
               </h3>
-              <p class="text-xs text-mist-500">
+              <p class="text-xs text-muted">
                 Create their sign-in and choose organization access.
               </p>
             </div>
@@ -645,7 +645,7 @@ function formatRelativeDate(dateString: string): string {
             @submit.prevent="createUser"
           >
             <div class="space-y-2">
-              <label class="block text-xs font-bold uppercase tracking-wider text-mist-500">
+              <label class="block text-xs font-bold uppercase tracking-wider text-muted">
                 Email address <span class="text-terracotta-500">*</span>
               </label>
               <input
@@ -654,12 +654,12 @@ function formatRelativeDate(dateString: string): string {
                 placeholder="user@example.com"
                 required
                 autocomplete="email"
-                class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-dimmed focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               >
             </div>
 
             <div class="space-y-2">
-              <label class="block text-xs font-bold uppercase tracking-wider text-mist-500">
+              <label class="block text-xs font-bold uppercase tracking-wider text-muted">
                 Display name
               </label>
               <input
@@ -667,12 +667,12 @@ function formatRelativeDate(dateString: string): string {
                 type="text"
                 placeholder="e.g. John Doe"
                 autocomplete="name"
-                class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-dimmed focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               >
             </div>
 
             <div class="space-y-2">
-              <label class="block text-xs font-bold uppercase tracking-wider text-mist-500">
+              <label class="block text-xs font-bold uppercase tracking-wider text-muted">
                 Temporary password <span class="text-terracotta-500">*</span>
               </label>
               <div class="relative">
@@ -683,11 +683,11 @@ function formatRelativeDate(dateString: string): string {
                   minlength="8"
                   required
                   autocomplete="new-password"
-                  class="w-full rounded-xl border border-mist-200 bg-white py-3 pl-4 pr-11 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                  class="w-full rounded-xl border border-mist-200 bg-white py-3 pl-4 pr-11 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-dimmed focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                 >
                 <button
                   type="button"
-                  class="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-mist-400 hover:text-mist-600"
+                  class="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted hover:text-mist-600"
                   :aria-label="showCreatePassword ? 'Hide password' : 'Show password'"
                   @click="showCreatePassword = !showCreatePassword"
                 >
@@ -697,13 +697,13 @@ function formatRelativeDate(dateString: string): string {
                   />
                 </button>
               </div>
-              <p class="text-xs text-mist-400">
+              <p class="text-xs text-muted">
                 Share it securely—the person can change it after signing in.
               </p>
             </div>
 
             <fieldset class="space-y-2">
-              <legend class="text-xs font-bold uppercase tracking-wider text-mist-500">
+              <legend class="text-xs font-bold uppercase tracking-wider text-muted">
                 Organization role
               </legend>
               <div class="grid grid-cols-2 gap-3">
@@ -718,7 +718,7 @@ function formatRelativeDate(dateString: string): string {
                 >
                   <div
                     class="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg"
-                    :class="createForm.role === option.value ? 'bg-attic-500 text-white' : 'bg-mist-100 text-mist-400 dark:bg-mist-700'"
+                    :class="createForm.role === option.value ? 'bg-attic-500 text-white' : 'bg-mist-100 text-muted dark:bg-mist-700'"
                   >
                     <UIcon
                       :name="option.value === 'admin' ? 'i-lucide-shield' : 'i-lucide-user'"
@@ -728,7 +728,7 @@ function formatRelativeDate(dateString: string): string {
                   <div>
                     <p class="text-sm font-extrabold text-mist-900 dark:text-white">
                       {{ option.value === 'admin' ? 'Administrator' : 'Member' }}
-                    </p><p class="mt-0.5 text-[11px] leading-4 text-mist-500">
+                    </p><p class="mt-0.5 text-[11px] leading-4 text-muted">
                       {{ option.value === 'admin' ? 'Full organization access' : 'Standard inventory access' }}
                     </p>
                   </div>
@@ -783,7 +783,7 @@ function formatRelativeDate(dateString: string): string {
               <h3 class="truncate text-lg font-extrabold text-mist-950 dark:text-white">
                 Edit {{ selectedUser?.name || selectedUser?.email.split('@')[0] }}
               </h3>
-              <p class="truncate text-xs text-mist-500">
+              <p class="truncate text-xs text-muted">
                 {{ selectedUser?.email }}
               </p>
             </div>
@@ -795,7 +795,7 @@ function formatRelativeDate(dateString: string): string {
             @submit.prevent="updateUser"
           >
             <div class="space-y-2">
-              <label class="block text-xs font-bold uppercase tracking-wider text-mist-500">
+              <label class="block text-xs font-bold uppercase tracking-wider text-muted">
                 Email address
               </label>
               <input
@@ -803,24 +803,24 @@ function formatRelativeDate(dateString: string): string {
                 type="email"
                 placeholder="user@example.com"
                 required
-                class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-dimmed focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               >
             </div>
 
             <div class="space-y-2">
-              <label class="block text-xs font-bold uppercase tracking-wider text-mist-500">
+              <label class="block text-xs font-bold uppercase tracking-wider text-muted">
                 Display name
               </label>
               <input
                 v-model="editForm.name"
                 type="text"
                 placeholder="e.g. John Doe"
-                class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-mist-400 focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm outline-none transition-all placeholder:text-dimmed focus:border-attic-500 focus:ring-2 focus:ring-attic-500/15 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               >
             </div>
 
             <fieldset class="space-y-2">
-              <legend class="text-xs font-bold uppercase tracking-wider text-mist-500">
+              <legend class="text-xs font-bold uppercase tracking-wider text-muted">
                 Organization role
               </legend>
               <div class="grid grid-cols-2 gap-3">
@@ -837,7 +837,7 @@ function formatRelativeDate(dateString: string): string {
                 >
                   <div
                     class="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg"
-                    :class="editForm.role === option.value ? 'bg-attic-500 text-white' : 'bg-mist-100 text-mist-400 dark:bg-mist-700'"
+                    :class="editForm.role === option.value ? 'bg-attic-500 text-white' : 'bg-mist-100 text-muted dark:bg-mist-700'"
                   >
                     <UIcon
                       :name="option.value === 'admin' ? 'i-lucide-shield' : 'i-lucide-user'"
@@ -848,7 +848,7 @@ function formatRelativeDate(dateString: string): string {
                     <p class="text-sm font-extrabold text-mist-900 dark:text-white">
                       {{ option.value === 'admin' ? 'Administrator' : 'Member' }}
                     </p>
-                    <p class="mt-0.5 text-[11px] leading-4 text-mist-500">
+                    <p class="mt-0.5 text-[11px] leading-4 text-muted">
                       {{ option.value === 'admin' ? 'Full organization access' : 'Standard inventory access' }}
                     </p>
                   </div>
@@ -1004,7 +1004,7 @@ function formatRelativeDate(dateString: string): string {
               <h3 class="text-lg font-bold text-mist-950 dark:text-white">
                 Delete User
               </h3>
-              <p class="text-sm text-mist-500 mt-2">
+              <p class="text-sm text-muted mt-2">
                 Are you sure you want to delete <strong class="text-mist-700 dark:text-mist-300">{{ selectedUser?.email }}</strong>? This action cannot be undone.
               </p>
             </div>

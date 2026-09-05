@@ -211,7 +211,7 @@ function close() {
     </template>
 
     <template #body>
-      <DialogDescription :class="step === 'select' ? 'mb-4 text-sm text-mist-500' : 'sr-only'">
+      <DialogDescription :class="step === 'select' ? 'mb-4 text-sm text-muted' : 'sr-only'">
         {{ modalDescription }}
       </DialogDescription>
 
@@ -231,7 +231,7 @@ function close() {
               <h4 class="font-extrabold text-mist-950 dark:text-white">
                 {{ plugin.name }}
               </h4>
-              <p class="mt-0.5 line-clamp-2 text-sm text-mist-500">
+              <p class="mt-0.5 line-clamp-2 text-sm text-muted">
                 {{ plugin.description }}
               </p>
             </div>
@@ -330,7 +330,7 @@ function close() {
 
         <div
           v-else-if="!searching && searchQuery"
-          class="rounded-xl bg-mist-50 py-8 text-center text-mist-500 dark:bg-mist-800"
+          class="rounded-xl bg-mist-50 py-8 text-center text-muted dark:bg-mist-800"
         >
           <UIcon
             name="i-lucide-search-x"
@@ -341,7 +341,7 @@ function close() {
 
         <div
           v-else-if="!searching"
-          class="rounded-xl bg-mist-50 py-8 text-center text-mist-500 dark:bg-mist-800"
+          class="rounded-xl bg-mist-50 py-8 text-center text-muted dark:bg-mist-800"
         >
           <UIcon
             name="i-lucide-search"
@@ -360,7 +360,7 @@ function close() {
           name="i-lucide-loader-2"
           class="mb-4 size-12 animate-spin text-attic-500"
         />
-        <p class="font-semibold text-mist-500">
+        <p class="font-semibold text-muted">
           Importing item…
         </p>
       </div>

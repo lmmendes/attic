@@ -157,7 +157,7 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
         <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
           Conditions
         </h1>
-        <p class="mt-1 text-sm text-mist-500">
+        <p class="mt-1 text-sm text-muted">
           Keep a consistent quality scale across the entire collection.
         </p>
       </div>
@@ -176,7 +176,7 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
         <p class="font-extrabold text-mist-950 dark:text-white">
           Condition scale
         </p>
-        <p class="text-xs text-mist-500">
+        <p class="text-xs text-muted">
           {{ conditions?.length || 0 }} quality levels, displayed in sort order.
         </p>
       </div>
@@ -210,13 +210,13 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
         <div class="size-16 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-4">
           <UIcon
             name="i-lucide-heart-pulse"
-            class="w-8 h-8 text-mist-400"
+            class="w-8 h-8 text-muted"
           />
         </div>
         <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
           No conditions yet
         </h3>
-        <p class="text-sm text-mist-500 mb-4 max-w-sm">
+        <p class="text-sm text-muted mb-4 max-w-sm">
           Create your first condition to start tracking the quality of your assets.
         </p>
         <UButton to="/conditions/new">
@@ -236,7 +236,7 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
         <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
           No results found
         </h3>
-        <p class="text-sm text-mist-500">
+        <p class="text-sm text-muted">
           No conditions match "{{ searchQuery }}"
         </p>
       </div>
@@ -247,19 +247,19 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
           <table class="w-full min-w-[600px] border-collapse">
             <thead class="bg-mist-50/50 dark:bg-mist-700/30 border-b border-mist-100 dark:border-mist-700">
               <tr>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted">
                   Condition
                 </th>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted">
                   Code
                 </th>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted">
                   Description
                 </th>
-                <th class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-muted">
                   Order
                 </th>
-                <th class="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-muted">
                   Actions
                 </th>
               </tr>
@@ -299,7 +299,7 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
                 <td class="px-6 py-4">
                   <span
                     v-if="condition.description"
-                    class="text-sm text-mist-500 line-clamp-1"
+                    class="text-sm text-muted line-clamp-1"
                   >
                     {{ condition.description }}
                   </span>
@@ -326,7 +326,7 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
                   <div class="flex items-center justify-end gap-1">
                     <NuxtLink
                       :to="`/conditions/${condition.id}/edit`"
-                      class="flex size-8 items-center justify-center rounded-lg text-mist-400 transition-colors hover:bg-attic-500/10 hover:text-attic-500"
+                      class="flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-attic-500/10 hover:text-attic-500"
                       title="Edit"
                     >
                       <UIcon
@@ -335,7 +335,7 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
                       />
                     </NuxtLink>
                     <button
-                      class="flex size-8 items-center justify-center rounded-lg text-mist-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                      class="flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
                       title="Delete"
                       @click="confirmDelete(condition)"
                     >
@@ -353,7 +353,7 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
 
         <!-- Footer with Pagination -->
         <div class="px-6 py-3 border-t border-mist-100 dark:border-mist-700 bg-mist-50/50 dark:bg-mist-700/20 flex items-center justify-between">
-          <p class="text-xs text-mist-500">
+          <p class="text-xs text-muted">
             Showing {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, filteredConditions.length) }} of {{ filteredConditions.length }} conditions
             <span v-if="searchQuery && conditions?.length !== filteredConditions.length">
               (filtered from {{ conditions?.length || 0 }})
@@ -370,7 +370,7 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
             >
               Prev
             </button>
-            <span class="text-xs text-mist-500 px-2">
+            <span class="text-xs text-muted px-2">
               Page {{ currentPage }} of {{ totalPages }}
             </span>
             <button
@@ -404,7 +404,7 @@ function getConditionStyle(condition: Condition): { icon: string, bgColor: strin
               <h3 class="text-lg font-bold text-mist-950 dark:text-white">
                 Delete Condition
               </h3>
-              <p class="text-sm text-mist-500 mt-2">
+              <p class="text-sm text-muted mt-2">
                 Are you sure you want to delete <strong>{{ conditionToDelete?.label }}</strong>? This may affect assets using this condition.
               </p>
             </div>

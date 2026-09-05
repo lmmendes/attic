@@ -157,7 +157,7 @@ watch(searchQuery, (val: string) => {
         <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
           All Assets
         </h1>
-        <p class="text-sm text-mist-500">
+        <p class="text-sm text-muted">
           Manage and track everything you keep and care for.
         </p>
       </div>
@@ -242,11 +242,11 @@ watch(searchQuery, (val: string) => {
             <h2 class="font-extrabold text-mist-950 dark:text-white">
               Asset inventory
             </h2>
-            <p class="text-xs text-mist-500">
+            <p class="text-xs text-muted">
               Browse, filter, and manage every item in your collection.
             </p>
           </div>
-          <span class="rounded-lg bg-mist-50 px-2.5 py-1 text-xs font-bold text-mist-500 dark:bg-mist-700/60">
+          <span class="rounded-lg bg-mist-50 px-2.5 py-1 text-xs font-bold text-muted dark:bg-mist-700/60">
             {{ assetsResponse?.total || 0 }} shown
           </span>
         </div>
@@ -254,22 +254,22 @@ watch(searchQuery, (val: string) => {
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="border-b border-mist-200/80 bg-mist-50/70 dark:border-mist-700 dark:bg-mist-800/80">
-                <th class="w-16 p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-mist-400">
+                <th class="w-16 p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
                   Item
                 </th>
-                <th class="p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-mist-400">
+                <th class="p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
                   Asset
                 </th>
-                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-mist-400 md:table-cell">
+                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted md:table-cell">
                   Category
                 </th>
-                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-mist-400 lg:table-cell">
+                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted lg:table-cell">
                   Location
                 </th>
-                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-mist-400 xl:table-cell">
+                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted xl:table-cell">
                   ID
                 </th>
-                <th class="w-16 p-3 text-right text-[10px] font-extrabold uppercase tracking-[0.14em] text-mist-400">
+                <th class="w-16 p-3 text-right text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
                   <span class="sr-only">Actions</span>
                 </th>
               </tr>
@@ -305,7 +305,7 @@ watch(searchQuery, (val: string) => {
                     <p class="font-bold text-mist-950 dark:text-white">
                       Could not load assets
                     </p>
-                    <p class="mt-1 text-sm text-mist-500">
+                    <p class="mt-1 text-sm text-muted">
                       Check your connection and try again.
                     </p>
                     <UButton
@@ -371,7 +371,7 @@ watch(searchQuery, (val: string) => {
                   >
                     {{ asset.name }}
                   </NuxtLink>
-                  <p class="mt-0.5 truncate text-xs text-mist-500">
+                  <p class="mt-0.5 truncate text-xs text-muted">
                     {{ asset.description || `${asset.quantity} ${asset.quantity === 1 ? 'item' : 'items'} in inventory` }}
                   </p>
                   <div class="mt-1.5 flex items-center gap-1.5 md:hidden">
@@ -381,7 +381,7 @@ watch(searchQuery, (val: string) => {
                     >{{ asset.category.name }}</span>
                     <span
                       v-if="asset.location?.name"
-                      class="text-[10px] text-mist-400"
+                      class="text-[10px] text-muted"
                     >· {{ asset.location.name }}</span>
                   </div>
                 </td>
@@ -400,7 +400,7 @@ watch(searchQuery, (val: string) => {
                 <td class="hidden p-3 lg:table-cell">
                   <div
                     v-if="asset.location?.name"
-                    class="flex items-center gap-1.5 text-mist-500"
+                    class="flex items-center gap-1.5 text-muted"
                   >
                     <UIcon
                       name="i-lucide-map-pin"
@@ -447,7 +447,7 @@ watch(searchQuery, (val: string) => {
 
         <!-- Footer / Pagination -->
         <footer class="flex flex-col gap-3 border-t border-mist-100 bg-mist-50/50 px-4 py-3 dark:border-mist-700 dark:bg-mist-700/20 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-          <p class="text-xs font-medium text-mist-500">
+          <p class="text-xs font-medium text-muted">
             <template v-if="assetsResponse?.total">
               Showing {{ ((page - 1) * (filters.limit ?? 24)) + 1 }}–{{ Math.min(page * (filters.limit ?? 24), assetsResponse.total) }} of {{ assetsResponse.total }} assets
             </template>
@@ -482,7 +482,7 @@ watch(searchQuery, (val: string) => {
               <span
                 v-else-if="p === 4 && totalPages > 5"
                 :key="`ellipsis-${p}`"
-                class="px-1 text-mist-400"
+                class="px-1 text-muted"
               >...</span>
             </template>
             <UButton

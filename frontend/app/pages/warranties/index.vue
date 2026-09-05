@@ -161,7 +161,7 @@ function formatDate(dateStr?: string): string {
         <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
           Warranties
         </h1>
-        <p class="mt-1 text-sm text-mist-500">
+        <p class="mt-1 text-sm text-muted">
           See what is protected, what needs attention, and what has expired.
         </p>
       </div>
@@ -176,7 +176,7 @@ function formatDate(dateStr?: string): string {
             :key="filter.value"
             type="button"
             class="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-colors"
-            :class="selectedStatus === filter.value ? 'bg-attic-500 text-white' : 'bg-mist-50 text-mist-500 hover:bg-attic-50 hover:text-attic-600 dark:bg-mist-700/60 dark:text-mist-300'"
+            :class="selectedStatus === filter.value ? 'bg-attic-500 text-white' : 'bg-mist-50 text-muted hover:bg-attic-50 hover:text-attic-600 dark:bg-mist-700/60 dark:text-mist-300'"
             @click="selectedStatus = filter.value"
           >
             <UIcon
@@ -185,7 +185,7 @@ function formatDate(dateStr?: string): string {
             />{{ filter.label }}
             <span
               class="rounded-md px-1.5 py-0.5 text-[10px]"
-              :class="selectedStatus === filter.value ? 'bg-white/15' : 'bg-white text-mist-400 dark:bg-mist-800'"
+              :class="selectedStatus === filter.value ? 'bg-white/15' : 'bg-white text-muted dark:bg-mist-800'"
             >{{ getStatusCount(filter.value) }}</span>
           </button>
         </div>
@@ -220,13 +220,13 @@ function formatDate(dateStr?: string): string {
         <div class="size-16 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-4">
           <UIcon
             name="i-lucide-shield"
-            class="w-8 h-8 text-mist-400"
+            class="w-8 h-8 text-muted"
           />
         </div>
         <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
           No warranties yet
         </h3>
-        <p class="text-sm text-mist-500 mb-4 max-w-sm">
+        <p class="text-sm text-muted mb-4 max-w-sm">
           Add warranty information to your assets to track coverage and expiration dates.
         </p>
         <UButton to="/assets">
@@ -246,7 +246,7 @@ function formatDate(dateStr?: string): string {
         <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
           No results found
         </h3>
-        <p class="text-sm text-mist-500">
+        <p class="text-sm text-muted">
           No warranties match these filters.
         </p>
         <button
@@ -264,19 +264,19 @@ function formatDate(dateStr?: string): string {
           <table class="w-full min-w-[700px] border-collapse">
             <thead class="bg-mist-50/50 dark:bg-mist-700/30 border-b border-mist-100 dark:border-mist-700">
               <tr>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted">
                   Asset
                 </th>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted">
                   Provider
                 </th>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted">
                   Status
                 </th>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted">
                   Expires
                 </th>
-                <th class="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-mist-500">
+                <th class="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-muted">
                   Actions
                 </th>
               </tr>
@@ -346,7 +346,7 @@ function formatDate(dateStr?: string): string {
                     </span>
                     <span
                       v-if="getDaysUntilExpiry(warranty) !== null"
-                      class="text-xs text-mist-400"
+                      class="text-xs text-muted"
                     >
                       <template v-if="getDaysUntilExpiry(warranty)! < 0">
                         {{ Math.abs(getDaysUntilExpiry(warranty)!) }} days ago
@@ -384,7 +384,7 @@ function formatDate(dateStr?: string): string {
 
         <!-- Footer with Pagination -->
         <div class="px-6 py-3 border-t border-mist-100 dark:border-mist-700 bg-mist-50/50 dark:bg-mist-700/20 flex items-center justify-between">
-          <p class="text-xs text-mist-500">
+          <p class="text-xs text-muted">
             Showing {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, filteredWarranties.length) }} of {{ filteredWarranties.length }} warranties
             <span v-if="searchQuery && warranties?.length !== filteredWarranties.length">
               (filtered from {{ warranties?.length || 0 }})
@@ -401,7 +401,7 @@ function formatDate(dateStr?: string): string {
             >
               Prev
             </button>
-            <span class="text-xs text-mist-500 px-2">
+            <span class="text-xs text-muted px-2">
               Page {{ currentPage }} of {{ totalPages }}
             </span>
             <button

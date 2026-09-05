@@ -357,7 +357,7 @@ function getLocationIcon(location: Location): string {
         <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
           Locations
         </h1>
-        <p class="mt-1 text-sm text-mist-500">
+        <p class="mt-1 text-sm text-muted">
           Browse {{ locations?.length || 0 }} spaces and see what is stored in each one.
         </p>
       </div>
@@ -380,7 +380,7 @@ function getLocationIcon(location: Location): string {
             <h2 class="text-sm font-extrabold text-mist-950 dark:text-white">
               Hierarchy
             </h2>
-            <p class="text-[11px] text-mist-400">
+            <p class="text-[11px] text-muted">
               Select a space to inspect it
             </p>
           </div>
@@ -417,7 +417,7 @@ function getLocationIcon(location: Location): string {
           <div class="relative">
             <UIcon
               name="i-lucide-search"
-              class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mist-400"
+              class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"
             />
             <input
               v-model="searchQuery"
@@ -449,10 +449,10 @@ function getLocationIcon(location: Location): string {
             <div class="size-12 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-3">
               <UIcon
                 name="i-lucide-map-pin"
-                class="w-6 h-6 text-mist-400"
+                class="w-6 h-6 text-muted"
               />
             </div>
-            <p class="text-sm text-mist-500 mb-3">
+            <p class="text-sm text-muted mb-3">
               {{ searchQuery ? 'No locations found' : 'No locations yet' }}
             </p>
             <UButton
@@ -498,7 +498,7 @@ function getLocationIcon(location: Location): string {
           <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
             Select a Location
           </h3>
-          <p class="text-sm text-mist-500 max-w-sm">
+          <p class="text-sm text-muted max-w-sm">
             Choose a location from the hierarchy to view its details and assets.
           </p>
         </div>
@@ -507,7 +507,7 @@ function getLocationIcon(location: Location): string {
         <template v-else>
           <!-- Breadcrumbs & Actions Header -->
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-mist-100 px-4 py-3 dark:border-mist-700 sm:px-5">
-            <div class="flex items-center gap-2 text-sm text-mist-500 overflow-hidden">
+            <div class="flex items-center gap-2 text-sm text-muted overflow-hidden">
               <template
                 v-for="(loc, index) in getLocationPath(selectedLocation)"
                 :key="loc.id"
@@ -603,7 +603,7 @@ function getLocationIcon(location: Location): string {
                   class="flex min-h-48 w-full flex-col rounded-[20px] border border-mist-200 bg-mist-50 p-4 dark:border-mist-700 dark:bg-mist-800"
                 >
                   <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-xs font-bold uppercase text-mist-500 tracking-wider">
+                    <h3 class="text-xs font-bold uppercase text-muted tracking-wider">
                       Sub-locations
                     </h3>
                     <button
@@ -626,7 +626,7 @@ function getLocationIcon(location: Location): string {
                     >
                       <UIcon
                         :name="getLocationIcon(child)"
-                        class="w-4.5 h-4.5 text-mist-400 group-hover:text-attic-500"
+                        class="w-4.5 h-4.5 text-muted group-hover:text-attic-500"
                       />
                       <span class="text-sm font-medium text-mist-950 dark:text-white flex-1 truncate">
                         {{ child.name }}
@@ -642,9 +642,9 @@ function getLocationIcon(location: Location): string {
                 >
                   <UIcon
                     name="i-lucide-folder-plus"
-                    class="w-6 h-6 text-mist-400 mb-2"
+                    class="w-6 h-6 text-muted mb-2"
                   />
-                  <p class="text-xs text-mist-500 mb-2">
+                  <p class="text-xs text-muted mb-2">
                     No sub-locations yet
                   </p>
                   <UButton
@@ -718,16 +718,16 @@ function getLocationIcon(location: Location): string {
                       </div>
                       <p
                         v-if="asset.description"
-                        class="text-xs text-mist-500 mb-3 line-clamp-2"
+                        class="text-xs text-muted mb-3 line-clamp-2"
                       >
                         {{ asset.description }}
                       </p>
                       <div class="mt-auto flex items-center gap-2 pt-2 border-t border-mist-50 dark:border-mist-600">
                         <UIcon
                           name="i-lucide-tag"
-                          class="w-4 h-4 text-mist-400"
+                          class="w-4 h-4 text-muted"
                         />
-                        <span class="text-[10px] uppercase font-bold text-mist-500">
+                        <span class="text-[10px] uppercase font-bold text-muted">
                           {{ asset.category?.name || 'Uncategorized' }}
                         </span>
                       </div>
@@ -748,7 +748,7 @@ function getLocationIcon(location: Location): string {
                     <h3 class="font-bold text-mist-950 dark:text-white text-sm">
                       Add Item Here
                     </h3>
-                    <p class="text-xs text-mist-500 mt-1">
+                    <p class="text-xs text-muted mt-1">
                       Place a new asset in {{ selectedLocation.name }}
                     </p>
                   </NuxtLink>
@@ -762,13 +762,13 @@ function getLocationIcon(location: Location): string {
                   <div class="size-12 rounded-full bg-white dark:bg-mist-700 shadow-sm flex items-center justify-center mx-auto mb-3">
                     <UIcon
                       name="i-lucide-package"
-                      class="w-6 h-6 text-mist-400"
+                      class="w-6 h-6 text-muted"
                     />
                   </div>
                   <h3 class="font-bold text-mist-950 dark:text-white text-sm mb-1">
                     No assets in this location
                   </h3>
-                  <p class="text-xs text-mist-500 mb-4">
+                  <p class="text-xs text-muted mb-4">
                     Start by adding your first asset to {{ selectedLocation.name }}
                   </p>
                   <UButton
@@ -886,7 +886,7 @@ function getLocationIcon(location: Location): string {
                   class="h-10 rounded-lg border transition-all flex items-center justify-center"
                   :class="form.icon === icon
                     ? 'bg-attic-500 text-white border-attic-500'
-                    : 'bg-mist-50 dark:bg-mist-700 text-mist-500 dark:text-mist-300 border-mist-200 dark:border-mist-600 hover:border-attic-400 hover:text-attic-500'"
+                    : 'bg-mist-50 dark:bg-mist-700 text-muted dark:text-mist-300 border-mist-200 dark:border-mist-600 hover:border-attic-400 hover:text-attic-500'"
                   @click="form.icon = icon"
                 >
                   <UIcon
@@ -952,7 +952,7 @@ function getLocationIcon(location: Location): string {
               <h3 class="text-lg font-bold text-mist-950 dark:text-white">
                 Delete Location
               </h3>
-              <p class="text-sm text-mist-500 mt-2">
+              <p class="text-sm text-muted mt-2">
                 Are you sure you want to delete <strong>{{ locationToDelete?.name }}</strong>? This action cannot be undone.
               </p>
             </div>

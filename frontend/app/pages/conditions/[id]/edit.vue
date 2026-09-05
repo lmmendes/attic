@@ -102,7 +102,7 @@ function cancel() {
       <h2 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
         Condition not found
       </h2>
-      <p class="text-mist-500 mb-4">
+      <p class="text-muted mb-4">
         The condition you're looking for doesn't exist or has been deleted.
       </p>
       <UButton
@@ -118,7 +118,7 @@ function cancel() {
       <!-- Breadcrumbs & Header -->
       <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div class="space-y-3">
-          <nav class="flex items-center text-xs font-semibold text-mist-500">
+          <nav class="flex items-center text-xs font-semibold text-muted">
             <NuxtLink
               to="/"
               class="hover:text-attic-500 transition-colors"
@@ -142,7 +142,7 @@ function cancel() {
             <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
               Edit {{ condition?.label }}
             </h1>
-            <p class="mt-1 text-sm text-mist-500">
+            <p class="mt-1 text-sm text-muted">
               Update how this quality level appears throughout the collection.
             </p>
           </div>
@@ -179,7 +179,7 @@ function cancel() {
             </div><div>
               <h2 class="font-extrabold text-mist-950 dark:text-white">
                 Condition details
-              </h2><p class="text-xs text-mist-500">
+              </h2><p class="text-xs text-muted">
                 The code stays fixed so existing integrations remain stable.
               </p>
             </div>
@@ -194,9 +194,9 @@ function cancel() {
                 v-model="form.label"
                 type="text"
                 placeholder="e.g. Like New"
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 font-medium text-mist-950 dark:text-white"
+                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-dimmed font-medium text-mist-950 dark:text-white"
               >
-              <p class="text-xs text-mist-400 mt-1">
+              <p class="text-xs text-muted mt-1">
                 The display name shown when selecting a condition.
               </p>
             </div>
@@ -210,9 +210,9 @@ function cancel() {
                 v-model="form.code"
                 type="text"
                 disabled
-                class="w-full px-4 py-3 rounded-lg bg-mist-100 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 outline-none font-mono text-sm text-mist-500 dark:text-mist-400 uppercase cursor-not-allowed"
+                class="w-full px-4 py-3 rounded-lg bg-mist-100 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 outline-none font-mono text-sm text-muted dark:text-mist-400 uppercase cursor-not-allowed"
               >
-              <p class="text-xs text-mist-400 mt-1">
+              <p class="text-xs text-muted mt-1">
                 The code cannot be changed after creation.
               </p>
             </div>
@@ -221,17 +221,17 @@ function cancel() {
             <div>
               <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
                 Description
-                <span class="font-normal text-mist-400">(optional)</span>
+                <span class="font-normal text-muted">(optional)</span>
               </label>
               <textarea
                 v-model="form.description"
                 rows="3"
                 maxlength="200"
                 placeholder="Describe what this condition means..."
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 text-sm resize-none text-mist-950 dark:text-white"
+                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-dimmed text-sm resize-none text-mist-950 dark:text-white"
               />
               <div class="flex justify-end mt-1">
-                <span class="text-xs text-mist-400">{{ descriptionCount }}/200</span>
+                <span class="text-xs text-muted">{{ descriptionCount }}/200</span>
               </div>
             </div>
 
@@ -246,7 +246,7 @@ function cancel() {
                 min="1"
                 class="w-32 px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all text-sm text-mist-950 dark:text-white"
               >
-              <p class="text-xs text-mist-400 mt-1">
+              <p class="text-xs text-muted mt-1">
                 Controls the display order. Lower numbers appear first.
               </p>
             </div>

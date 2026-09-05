@@ -147,7 +147,7 @@ function cancel() {
       <h2 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
         Attribute not found
       </h2>
-      <p class="text-mist-500 mb-4">
+      <p class="text-muted mb-4">
         The attribute you're looking for doesn't exist or has been deleted.
       </p>
       <UButton
@@ -163,7 +163,7 @@ function cancel() {
       <!-- Breadcrumbs & Header -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div class="flex flex-col gap-2">
-          <nav class="flex items-center text-sm font-medium text-mist-500">
+          <nav class="flex items-center text-sm font-medium text-muted">
             <NuxtLink
               to="/"
               class="hover:text-attic-500 transition-colors"
@@ -184,7 +184,7 @@ function cancel() {
             <h1 class="text-3xl font-extrabold tracking-tight text-mist-950 dark:text-white">
               Edit Attribute
             </h1>
-            <p class="text-mist-500 mt-1">
+            <p class="text-muted mt-1">
               Update the details of "{{ attribute?.name }}".
             </p>
           </div>
@@ -220,9 +220,9 @@ function cancel() {
                 v-model="form.name"
                 type="text"
                 placeholder="e.g. Purchase Date"
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 font-medium text-mist-950 dark:text-white"
+                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-dimmed font-medium text-mist-950 dark:text-white"
               >
-              <p class="text-xs text-mist-400 mt-1">
+              <p class="text-xs text-muted mt-1">
                 This is the display name shown in forms and lists.
               </p>
             </div>
@@ -236,9 +236,9 @@ function cancel() {
                 v-model="form.key"
                 type="text"
                 placeholder="e.g. purchase_date"
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 font-mono text-sm text-mist-950 dark:text-white"
+                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-dimmed font-mono text-sm text-mist-950 dark:text-white"
               >
-              <p class="text-xs text-mist-400 mt-1">
+              <p class="text-xs text-muted mt-1">
                 A unique identifier for this attribute.
               </p>
             </div>
@@ -270,7 +270,7 @@ function cancel() {
                     class="size-10 rounded-lg flex items-center justify-center shrink-0"
                     :class="form.data_type === type.value
                       ? [getTypeStyle(type.value).textColor]
-                      : 'bg-mist-100 dark:bg-mist-700 text-mist-500'"
+                      : 'bg-mist-100 dark:bg-mist-700 text-muted'"
                   >
                     <UIcon
                       :name="type.icon"
@@ -284,7 +284,7 @@ function cancel() {
                     >
                       {{ type.label }}
                     </p>
-                    <p class="text-xs text-mist-500 mt-0.5">
+                    <p class="text-xs text-muted mt-0.5">
                       {{ type.description }}
                     </p>
                   </div>
