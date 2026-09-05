@@ -2,10 +2,16 @@
 set -eu
 
 storage_path=${ATTIC_LOCAL_STORAGE_PATH:-/data/uploads}
-run_uid=$(id -u appuser)
-run_gid=$(id -g appuser)
 current_uid=$(id -u)
 current_gid=$(id -g)
+
+# Honor the runtime identity unless root needs to drop privileges.
+run_uid=$current_uid
+run_gid=$current_gid
+if [ "$current_uid" -eq 0 ]; then
+	run_uid=$(id -u appuser)
+	run_gid=$(id -g appuser)
+fi
 
 if [ -z "${ATTIC_S3_ACCESS_KEY:-}" ] || [ -z "${ATTIC_S3_SECRET_KEY:-}" ]; then
 	if [ -n "${ATTIC_PUID:-}" ] || [ -n "${ATTIC_PGID:-}" ]; then
