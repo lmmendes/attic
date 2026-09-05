@@ -43,14 +43,17 @@ RUN apk add --no-cache ca-certificates su-exec tzdata
 COPY --from=backend-builder /app/attic /app/attic
 COPY --chmod=755 backend/docker-entrypoint.sh /app/docker-entrypoint.sh
 
-RUN adduser -D -g '' appuser \
+RUN addgroup -g 1000 appgroup \
+    && adduser -D -u 1000 -G appgroup appuser \
     && mkdir -p /data/uploads \
-    && chown appuser:appuser /data/uploads
+    && chown appuser:appgroup /data/uploads
 
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+
+USER 1000:1000
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["/app/attic"]

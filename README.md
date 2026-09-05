@@ -9,16 +9,16 @@ It mirrors the way your real-world spaces are organized with hierarchical locati
 ## Key Features
 
 **Asset Management**
-- Full CRUD with custom attributes per category (strings, numbers, booleans, dates, dropdowns)
+- Full CRUD with custom attributes per category (strings, long text, numbers, booleans, and dates)
 - Hierarchical categories and locations that mirror real-world spaces
 - Condition tracking (new, used, damaged, or custom states)
-- Warranty expiration monitoring with alerts
+- Warranty expiration monitoring on the dashboard
 - File attachments for invoices, manuals, and photos
-- Collections for grouping related assets (e.g. board game + expansions)
+- Purchase dates, prices, and notes with dashboard value summaries
 
 **Search & Discovery**
-- Full-text search across names, descriptions, tags, and custom fields
-- Filter by category, location, condition, tags, and typed attribute values
+- Full-text search across asset names and descriptions
+- Filter by category, location, and condition
 
 **Smart Integrations**
 - Automated imports from Google Books, TMDB (movies), and BoardGameGeek
@@ -28,8 +28,9 @@ It mirrors the way your real-world spaces are organized with hierarchical locati
 **Self-Hosted & Secure**
 - Docker-based deployment with complete data ownership
 - OIDC/SSO authentication (Keycloak compatible)
+- Local user and role management
 - REST API with Swagger documentation
-- S3-compatible storage for attachments
+- Local or S3-compatible storage for attachments
 - Dark mode with mobile-responsive UI
 
 ## Quick Start
