@@ -53,12 +53,14 @@ func (r *AssetRepository) GetByIDFull(ctx context.Context, id uuid.UUID) (*domai
 	}
 
 	// Load category
-	catQuery := `SELECT id, organization_id, parent_id, name, description, created_at, updated_at FROM categories WHERE id = $1`
-	var cat domain.Category
-	if err := r.pool.QueryRow(ctx, catQuery, asset.CategoryID).Scan(
-		&cat.ID, &cat.OrganizationID, &cat.ParentID, &cat.Name, &cat.Description, &cat.CreatedAt, &cat.UpdatedAt,
-	); err == nil {
-		asset.Category = &cat
+	if asset.CategoryID != nil {
+		catQuery := `SELECT id, organization_id, parent_id, name, description, created_at, updated_at FROM categories WHERE id = $1`
+		var cat domain.Category
+		if err := r.pool.QueryRow(ctx, catQuery, *asset.CategoryID).Scan(
+			&cat.ID, &cat.OrganizationID, &cat.ParentID, &cat.Name, &cat.Description, &cat.CreatedAt, &cat.UpdatedAt,
+		); err == nil {
+			asset.Category = &cat
+		}
 	}
 
 	// Load location if set
@@ -139,7 +141,9 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 
 	conditions = append(conditions, "a.deleted_at IS NULL")
 
-	if filter.CategoryID != nil {
+	if filter.Uncategorized {
+		conditions = append(conditions, "a.category_id IS NULL")
+	} else if filter.CategoryID != nil {
 		conditions = append(conditions, fmt.Sprintf("a.category_id = $%d", argNum))
 		args = append(args, *filter.CategoryID)
 		argNum++

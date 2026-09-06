@@ -423,9 +423,13 @@ paths:
             format: uuid
         - name: category_id
           in: query
+          description: Filter by a category UUID or use `uncategorized` for assets without a category
           schema:
-            type: string
-            format: uuid
+            oneOf:
+              - type: string
+                format: uuid
+              - type: string
+                enum: [uncategorized]
         - name: location_id
           in: query
           schema:
@@ -906,6 +910,7 @@ components:
         category_id:
           type: string
           format: uuid
+          nullable: true
         location_id:
           type: string
           format: uuid
@@ -942,7 +947,7 @@ components:
 
     AssetInput:
       type: object
-      required: [name, category_id]
+      required: [name]
       properties:
         collection_ids:
           type: array
@@ -957,6 +962,7 @@ components:
         category_id:
           type: string
           format: uuid
+          nullable: true
         location_id:
           type: string
           format: uuid

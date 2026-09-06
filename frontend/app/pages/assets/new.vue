@@ -133,14 +133,10 @@ function getInputType(dataType: string): string {
   }
 }
 
-function revealInvalidSection(event: Event) {
-  (event.currentTarget as HTMLDetailsElement).open = true
-}
-
 async function submitForm() {
   if (loading.value) return
-  if (!form.name.trim() || !form.category_id) {
-    toast.add({ title: 'Name and category are required', color: 'error' })
+  if (!form.name.trim()) {
+    toast.add({ title: 'Name is required', color: 'error' })
     return
   }
 
@@ -332,9 +328,29 @@ async function submitForm() {
           <!-- Category Grid -->
           <div class="space-y-3">
             <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              Category <span class="text-amber-500">*</span>
+              Category <span class="normal-case font-medium text-muted">(optional)</span>
             </label>
             <div class="flex flex-wrap gap-2">
+              <label class="group relative min-w-36 cursor-pointer">
+                <input
+                  v-model="form.category_id"
+                  type="radio"
+                  name="category"
+                  :value="undefined"
+                  class="peer sr-only"
+                >
+                <div class="flex h-11 items-center gap-2 rounded-xl border border-mist-200 bg-mist-50/50 px-3 pr-8 transition-all hover:border-attic-300 hover:bg-attic-50/50 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-attic-500 peer-checked:border-attic-500 peer-checked:bg-attic-50 peer-checked:ring-2 peer-checked:ring-attic-500/10 dark:border-mist-700 dark:bg-mist-800 dark:peer-checked:bg-attic-500/10">
+                  <UIcon
+                    name="i-lucide-inbox"
+                    class="size-4 shrink-0 text-muted transition-colors group-hover:text-attic-500"
+                  />
+                  <span class="truncate text-xs font-bold text-mist-600 dark:text-mist-300">No category</span>
+                </div>
+                <UIcon
+                  name="i-lucide-check-circle"
+                  class="absolute right-2.5 top-3 size-4 text-attic-500 opacity-0 transition-opacity peer-checked:opacity-100"
+                />
+              </label>
               <label
                 v-for="cat in categories"
                 :key="cat.id"
@@ -344,7 +360,6 @@ async function submitForm() {
                   v-model="form.category_id"
                   type="radio"
                   name="category"
-                  required
                   :value="cat.id"
                   class="peer sr-only"
                 >
@@ -367,10 +382,10 @@ async function submitForm() {
               v-if="!categories?.length"
               class="text-sm text-gray-400"
             >
-              No categories available. <NuxtLink
+              No categories available. You can save this asset now or <NuxtLink
                 to="/categories"
                 class="text-attic-500 hover:underline"
-              >Create one first</NuxtLink>.
+              >create one</NuxtLink>.
             </p>
           </div>
           <AssetCollectionsField v-model="form.collection_ids" />
@@ -379,11 +394,10 @@ async function submitForm() {
         <hr class="hidden">
 
         <!-- Section 2: Additional Details -->
-        <details
+        <section
           class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6"
-          @invalid.capture="revealInvalidSection"
         >
-          <summary class="flex cursor-pointer list-none items-start gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-attic-500 [&::-webkit-details-marker]:hidden">
+          <div class="flex items-start gap-3">
             <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
               <UIcon
                 name="i-lucide-clipboard-list"
@@ -398,11 +412,7 @@ async function submitForm() {
                 Optional context that makes the asset easier to identify later.
               </p>
             </div>
-            <UIcon
-              name="i-lucide-chevron-down"
-              class="ml-auto mt-2 size-4 shrink-0 text-muted transition-transform in-open:rotate-180"
-            />
-          </summary>
+          </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Condition -->
@@ -476,7 +486,7 @@ async function submitForm() {
               class="block w-full resize-none rounded-xl border border-terracotta-100 bg-terracotta-50/40 px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-terracotta-300 focus:ring-terracotta-300 dark:border-terracotta-900/40 dark:bg-terracotta-950/10 dark:text-white"
             />
           </div>
-        </details>
+        </section>
 
         <!-- Category Attributes -->
         <template v-if="selectedCategory?.attributes?.length">
@@ -562,11 +572,10 @@ async function submitForm() {
         <hr class="hidden">
 
         <!-- Section 3: Purchase Information -->
-        <details
+        <section
           class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6"
-          @invalid.capture="revealInvalidSection"
         >
-          <summary class="flex cursor-pointer list-none items-start gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-attic-500 [&::-webkit-details-marker]:hidden">
+          <div class="flex items-start gap-3">
             <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
               <UIcon
                 name="i-lucide-receipt"
@@ -581,11 +590,7 @@ async function submitForm() {
                 Optional cost and purchase records.
               </p>
             </div>
-            <UIcon
-              name="i-lucide-chevron-down"
-              class="ml-auto mt-2 size-4 shrink-0 text-muted transition-transform in-open:rotate-180"
-            />
-          </summary>
+          </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Purchase Date -->
@@ -643,7 +648,7 @@ async function submitForm() {
               class="block w-full resize-none rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
             />
           </div>
-        </details>
+        </section>
       </div>
 
       <!-- Footer Action Area -->

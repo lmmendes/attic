@@ -18,6 +18,12 @@ const { data: categories } = useApi<Category[]>('/api/categories')
 const { data: locations } = useApi<Location[]>('/api/locations')
 const { data: conditions } = useApi<Condition[]>('/api/conditions')
 
+const detailsOpen = ref(false)
+const purchaseOpen = ref(false)
+function revealInvalidSection(event: Event) {
+  (event.currentTarget as HTMLDetailsElement).open = true
+}
+
 const loading = ref(false)
 const selectedCategory = ref<Category | null>(null)
 const form = reactive({
@@ -56,9 +62,15 @@ watch(
           )
         : {}
       form.purchase_at = newAsset.purchase_at?.split('T')[0] || ''
-      form.purchase_price = newAsset.purchase_price || undefined
+      form.purchase_price = newAsset.purchase_price ?? undefined
       form.purchase_note = newAsset.purchase_note || ''
       form.notes = newAsset.notes || ''
+      detailsOpen.value = Boolean(
+        form.condition_id || form.description.trim() || form.notes.trim() || form.quantity !== 1
+      )
+      purchaseOpen.value = Boolean(
+        form.purchase_at || form.purchase_price != null || form.purchase_note.trim()
+      )
 
       // Load category with attributes
       if (newAsset.category_id) {
@@ -186,8 +198,8 @@ const conditionOptions = computed(() => [
 ])
 
 async function submitForm() {
-  if (!form.name || !form.category_id) {
-    toast.add({ title: 'Name and category are required', color: 'error' })
+  if (!form.name) {
+    toast.add({ title: 'Name is required', color: 'error' })
     return
   }
 
@@ -209,7 +221,7 @@ async function submitForm() {
       attributes:
         Object.keys(form.attributes).length > 0 ? form.attributes : undefined,
       purchase_at: form.purchase_at || undefined,
-      purchase_price: form.purchase_price || undefined,
+      purchase_price: form.purchase_price ?? undefined,
       purchase_note: form.purchase_note || undefined,
       notes: form.notes || undefined
     }
@@ -407,9 +419,29 @@ async function submitForm() {
             <!-- Category Grid -->
             <div class="space-y-3">
               <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Category <span class="text-amber-500">*</span>
+                Category <span class="normal-case font-medium text-muted">(optional)</span>
               </label>
               <div class="flex flex-wrap gap-2">
+                <label class="group relative min-w-36 cursor-pointer">
+                  <input
+                    v-model="form.category_id"
+                    type="radio"
+                    name="category"
+                    :value="undefined"
+                    class="peer sr-only"
+                  >
+                  <div class="flex h-11 items-center gap-2 rounded-xl border border-mist-200 bg-mist-50/50 px-3 pr-8 transition-all hover:border-attic-300 hover:bg-attic-50/50 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-attic-500 peer-checked:border-attic-500 peer-checked:bg-attic-50 peer-checked:ring-2 peer-checked:ring-attic-500/10 dark:border-mist-700 dark:bg-mist-800 dark:peer-checked:bg-attic-500/10">
+                    <UIcon
+                      name="i-lucide-inbox"
+                      class="size-4 shrink-0 text-muted transition-colors group-hover:text-attic-500"
+                    />
+                    <span class="truncate text-xs font-bold text-mist-600 dark:text-mist-300">No category</span>
+                  </div>
+                  <UIcon
+                    name="i-lucide-check-circle"
+                    class="absolute right-2.5 top-3 size-4 text-attic-500 opacity-0 transition-opacity peer-checked:opacity-100"
+                  />
+                </label>
                 <label
                   v-for="cat in categories"
                   :key="cat.id"
@@ -441,10 +473,10 @@ async function submitForm() {
                 v-if="!categories?.length"
                 class="text-sm text-gray-400"
               >
-                No categories available. <NuxtLink
+                No categories available. You can keep this asset uncategorized or <NuxtLink
                   to="/categories"
                   class="text-attic-500 hover:underline"
-                >Create one first</NuxtLink>.
+                >create one</NuxtLink>.
               </p>
             </div>
             <AssetCollectionsField v-model="form.collection_ids" />
@@ -453,8 +485,12 @@ async function submitForm() {
           <hr class="hidden">
 
           <!-- Section 2: Additional Details -->
-          <section class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6">
-            <div class="flex items-start gap-3">
+          <details
+            :open="detailsOpen"
+            class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6"
+            @invalid.capture="revealInvalidSection"
+          >
+            <summary class="flex cursor-pointer list-none items-start gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-attic-500 [&::-webkit-details-marker]:hidden">
               <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
                 <UIcon
                   name="i-lucide-clipboard-list"
@@ -469,7 +505,11 @@ async function submitForm() {
                   Condition, quantity, descriptions, and private context.
                 </p>
               </div>
-            </div>
+              <UIcon
+                name="i-lucide-chevron-down"
+                class="ml-auto mt-2 size-4 shrink-0 text-muted transition-transform in-open:rotate-180"
+              />
+            </summary>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <!-- Condition -->
@@ -526,7 +566,7 @@ async function submitForm() {
                 class="block w-full resize-none rounded-xl border-terracotta-100 bg-terracotta-50/40 px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-terracotta-300 focus:ring-terracotta-300 dark:border-terracotta-900/40 dark:bg-terracotta-950/10 dark:text-white"
               />
             </div>
-          </section>
+          </details>
 
           <!-- Category Attributes -->
           <template v-if="selectedCategory?.attributes?.length">
@@ -619,8 +659,12 @@ async function submitForm() {
           <hr class="hidden">
 
           <!-- Section 3: Purchase Information -->
-          <section class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6">
-            <div class="flex items-start gap-3">
+          <details
+            :open="purchaseOpen"
+            class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6"
+            @invalid.capture="revealInvalidSection"
+          >
+            <summary class="flex cursor-pointer list-none items-start gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-attic-500 [&::-webkit-details-marker]:hidden">
               <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
                 <UIcon
                   name="i-lucide-receipt"
@@ -635,7 +679,11 @@ async function submitForm() {
                   Optional cost and purchase records.
                 </p>
               </div>
-            </div>
+              <UIcon
+                name="i-lucide-chevron-down"
+                class="ml-auto mt-2 size-4 shrink-0 text-muted transition-transform in-open:rotate-180"
+              />
+            </summary>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <!-- Purchase Date -->
@@ -681,7 +729,7 @@ async function submitForm() {
                 class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               />
             </div>
-          </section>
+          </details>
         </div>
 
         <!-- Footer Action Area -->

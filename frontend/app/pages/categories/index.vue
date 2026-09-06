@@ -147,7 +147,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
 </script>
 
 <template>
-  <div class="space-y-5 pb-6">
+  <div class="space-y-6 pb-6">
     <!-- Page Header -->
     <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
@@ -170,58 +170,15 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
       </UButton>
     </div>
 
-    <!-- Stats Overview -->
-    <div class="attic-panel grid grid-cols-3 divide-x divide-mist-100 rounded-[18px] px-2 py-3 dark:divide-mist-700 sm:px-4">
-      <!-- Total Categories -->
-      <div class="px-3 sm:px-5">
-        <p class="text-[10px] font-extrabold uppercase tracking-wider text-muted">
-          Categories
-        </p>
-        <p class="mt-1 text-xl font-black text-mist-950 dark:text-white">
-          {{ totalCategories }}
-        </p>
-      </div>
-
-      <!-- Total Items Tracked -->
-      <div class="px-3 sm:px-5">
-        <p class="text-[10px] font-extrabold uppercase tracking-wider text-muted">
-          Assets
-        </p>
-        <p class="mt-1 text-xl font-black text-mist-950 dark:text-white">
-          {{ totalItems }}
-        </p>
-      </div>
-
-      <!-- Unique Fields -->
-      <div class="px-3 sm:px-5">
-        <p class="text-[10px] font-extrabold uppercase tracking-wider text-muted">
-          Unique fields
-        </p>
-        <p class="mt-1 text-xl font-black text-mist-950 dark:text-white">
-          {{ uniqueFields }}
-        </p>
-      </div>
-    </div>
-
-    <!-- Main Category Table -->
-    <div class="attic-panel overflow-hidden rounded-[20px]">
-      <div class="flex flex-col gap-3 border-b border-mist-100 px-4 py-4 dark:border-mist-700 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-        <div>
-          <h2 class="font-extrabold text-mist-950 dark:text-white">
-            Category library
-          </h2>
-          <p class="text-xs text-muted">
-            Open a schema, browse its assets, or adjust its fields.
-          </p>
-        </div>
-        <UInput
-          v-model="search"
-          icon="i-lucide-search"
-          placeholder="Search categories"
-          class="w-full sm:w-64"
-          size="lg"
-        />
-      </div>
+    <LibrarySummary :items="[{ label: 'Categories', value: totalCategories }, { label: 'Assets', value: totalItems }, { label: 'Unique fields', value: uniqueFields }]" />
+    <section class="space-y-6">
+      <LibraryToolbar
+        v-model="search"
+        title="Category library"
+        placeholder="Search categories"
+        :count="filteredCategories.length"
+        :total="totalCategories"
+      />
       <!-- Loading State -->
       <div
         v-if="status === 'pending'"
@@ -277,85 +234,44 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
 
       <div
         v-else
-        class="grid gap-px bg-mist-100 dark:bg-mist-700 sm:grid-cols-2 xl:grid-cols-3"
+        class="attic-panel overflow-hidden rounded-[20px]"
       >
-        <article
-          v-for="category in filteredCategories"
-          :key="category.id"
-          class="group flex min-h-48 flex-col bg-white p-5 transition-colors hover:bg-mist-50/70 dark:bg-mist-800 dark:hover:bg-mist-800/70"
+        <div class="hidden grid-cols-[minmax(0,1.05fr)_minmax(0,1.35fr)_auto] gap-4 border-b border-mist-100 bg-mist-50/70 px-5 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted dark:border-mist-700 dark:bg-mist-800/70 sm:grid">
+          <span>Category</span>
+          <span>Details</span>
+          <span class="pr-2 text-right">Actions</span>
+        </div>
+        <div
+          role="list"
+          class="divide-y divide-mist-100 dark:divide-mist-700"
         >
-          <div class="flex items-start justify-between gap-3">
-            <div class="flex min-w-0 items-center gap-3">
-              <div
-                class="flex size-10 shrink-0 items-center justify-center rounded-xl"
-                :class="[getCategoryStyle(category).bgColor, getCategoryStyle(category).textColor]"
-              >
-                <UIcon
-                  :name="getCategoryStyle(category).icon"
-                  class="size-5"
-                />
-              </div>
-              <div class="min-w-0">
-                <h3 class="truncate font-extrabold text-mist-950 dark:text-white">
-                  {{ category.name }}
-                </h3>
-                <p class="text-xs text-muted">
-                  {{ getAssetCount(category.id) }} {{ getAssetCount(category.id) === 1 ? 'asset' : 'assets' }}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              class="rounded-lg p-2 text-muted transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
-              :aria-label="`Delete ${category.name}`"
-              @click="confirmDelete(category)"
-            >
-              <UIcon
-                name="i-lucide-trash-2"
-                class="size-4"
-              />
-            </button>
-          </div>
-
-          <p class="mt-4 line-clamp-2 min-h-10 text-sm leading-5 text-muted">
-            {{ category.description || 'No description yet.' }}
-          </p>
-
-          <div class="mt-auto flex items-center justify-between gap-3 pt-4">
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 rounded-lg bg-attic-50 px-2.5 py-1.5 text-xs font-bold text-attic-600 transition-colors hover:bg-attic-100 dark:bg-attic-500/10 dark:text-attic-300"
-              @click="viewAttributes(category)"
-            >
-              <UIcon
-                name="i-lucide-list-checks"
-                class="size-3.5"
-              />
-              {{ category.attributes?.length || 0 }} {{ (category.attributes?.length || 0) === 1 ? 'field' : 'fields' }}
-            </button>
-            <div class="flex items-center gap-1">
+          <LibraryCard
+            v-for="category in filteredCategories"
+            :key="category.id"
+            :name="category.name"
+            :description="category.description"
+            :icon="getCategoryStyle(category).icon"
+            :icon-class="getCategoryStyle(category).bgColor + ' ' + getCategoryStyle(category).textColor"
+            :asset-count="getAssetCount(category.id)"
+            :assets-to="'/assets?category_id=' + encodeURIComponent(category.id)"
+            :edit-to="'/categories/' + category.id + '/edit'"
+            @delete="confirmDelete(category)"
+          >
+            <template #metadata>
               <UButton
-                :to="`/assets?category_id=${category.id}`"
-                variant="ghost"
-                color="neutral"
-                size="sm"
-                icon="i-lucide-package-open"
-              >
-                Assets
-              </UButton>
-              <UButton
-                :to="`/categories/${category.id}/edit`"
+                icon="i-lucide-list-checks"
                 variant="soft"
-                size="sm"
-                icon="i-lucide-pencil"
+                size="xs"
+                :aria-label="'View fields for ' + category.name"
+                @click="viewAttributes(category)"
               >
-                Edit
+                {{ category.attributes?.length || 0 }} {{ category.attributes?.length === 1 ? 'field' : 'fields' }}
               </UButton>
-            </div>
-          </div>
-        </article>
+            </template>
+          </LibraryCard>
+        </div>
       </div>
-    </div>
+    </section>
 
     <!-- Delete Confirmation Modal -->
     <UModal

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Collection, Category, Location, Condition, AssetsResponse, AssetFilters, Asset } from '~/types/api'
 
+const uncategorizedCategoryFilter = 'uncategorized'
+
 definePageMeta({
   middleware: 'auth'
 })
@@ -25,7 +27,7 @@ function onImported(assetId: string) {
 const filters = reactive<AssetFilters>({
   collection_id: typeof route.query.collection_id === 'string' ? route.query.collection_id : undefined,
   q: '',
-  category_id: undefined,
+  category_id: typeof route.query.category_id === 'string' ? route.query.category_id : undefined,
   location_id: typeof route.query.location_id === 'string' ? route.query.location_id : undefined,
   condition_id: undefined,
   limit: 24,
@@ -37,6 +39,10 @@ watch(
   () => { filters.offset = 0 },
   { flush: 'sync' }
 )
+
+watch(() => route.query.category_id, (id) => {
+  filters.category_id = typeof id === 'string' ? id : undefined
+})
 
 const queryString = computed(() => {
   const params = new URLSearchParams()
@@ -70,7 +76,10 @@ const { data: locations } = useApi<Location[]>('/api/locations')
 const { data: conditions } = useApi<Condition[]>('/api/conditions')
 
 const categoryOptions = computed(() =>
-  categories.value?.map(c => ({ label: c.name, value: c.id })) || []
+  [
+    { label: 'Uncategorized', value: uncategorizedCategoryFilter },
+    ...(categories.value?.map(c => ({ label: c.name, value: c.id })) || [])
+  ]
 )
 
 interface LocationTreeNode {
@@ -422,10 +431,7 @@ watch(searchQuery, (val: string) => {
                     {{ asset.description || `${asset.quantity} ${asset.quantity === 1 ? 'item' : 'items'} in inventory` }}
                   </p>
                   <div class="mt-1.5 flex items-center gap-1.5 md:hidden">
-                    <span
-                      v-if="asset.category?.name"
-                      class="text-[10px] font-bold text-attic-500"
-                    >{{ asset.category.name }}</span>
+                    <span class="text-[10px] font-bold text-attic-500">{{ asset.category?.name || 'Uncategorized' }}</span>
                     <span
                       v-if="asset.location?.name"
                       class="text-[10px] text-muted"
@@ -445,16 +451,9 @@ watch(searchQuery, (val: string) => {
                   </div>
                 </td>
                 <td class="hidden p-3 md:table-cell">
-                  <span
-                    v-if="asset.category?.name"
-                    class="inline-flex rounded-full bg-attic-50 px-2.5 py-1 text-[10px] font-extrabold text-attic-600 ring-1 ring-attic-100 dark:bg-attic-500/10 dark:text-attic-300 dark:ring-attic-500/20"
-                  >
-                    {{ asset.category.name }}
+                  <span class="inline-flex rounded-full bg-attic-50 px-2.5 py-1 text-[10px] font-extrabold text-attic-600 ring-1 ring-attic-100 dark:bg-attic-500/10 dark:text-attic-300 dark:ring-attic-500/20">
+                    {{ asset.category?.name || 'Uncategorized' }}
                   </span>
-                  <span
-                    v-else
-                    class="text-xs text-gray-400"
-                  >—</span>
                 </td>
                 <td class="hidden max-w-64 p-3 md:table-cell">
                   <div

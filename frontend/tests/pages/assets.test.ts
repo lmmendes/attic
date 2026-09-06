@@ -224,9 +224,13 @@ describe('Assets Index Page', () => {
         { id: 'cat-2', name: 'Books' }
       ]
 
-      const categoryOptions = categories.map(c => ({ label: c.name, value: c.id }))
+      const categoryOptions = [
+        { label: 'Uncategorized', value: 'uncategorized' },
+        ...categories.map(c => ({ label: c.name, value: c.id }))
+      ]
 
       expect(categoryOptions).toEqual([
+        { label: 'Uncategorized', value: 'uncategorized' },
         { label: 'Electronics', value: 'cat-1' },
         { label: 'Books', value: 'cat-2' }
       ])
@@ -298,9 +302,12 @@ describe('Assets Index Page', () => {
 
     it('handles empty arrays gracefully', () => {
       const categories: { name: string, id: string }[] = []
-      const categoryOptions = categories?.map(c => ({ label: c.name, value: c.id })) || []
+      const categoryOptions = [
+        { label: 'Uncategorized', value: 'uncategorized' },
+        ...(categories?.map(c => ({ label: c.name, value: c.id })) || [])
+      ]
 
-      expect(categoryOptions).toEqual([])
+      expect(categoryOptions).toEqual([{ label: 'Uncategorized', value: 'uncategorized' }])
     })
   })
 

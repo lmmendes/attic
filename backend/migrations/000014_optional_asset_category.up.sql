@@ -1,0 +1,1 @@
+ALTER TABLE assets ALTER COLUMN category_id DROP NOT NULL;

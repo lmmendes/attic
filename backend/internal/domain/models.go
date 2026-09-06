@@ -149,7 +149,7 @@ type Collection struct {
 type Asset struct {
 	ID               uuid.UUID       `json:"id"`
 	OrganizationID   uuid.UUID       `json:"organization_id"`
-	CategoryID       uuid.UUID       `json:"category_id"`
+	CategoryID       *uuid.UUID      `json:"category_id,omitempty"`
 	LocationID       *uuid.UUID      `json:"location_id,omitempty"`
 	ConditionID      *uuid.UUID      `json:"condition_id,omitempty"`
 	CollectionID     *uuid.UUID      `json:"-"` // Legacy storage field; new memberships use asset_collections.

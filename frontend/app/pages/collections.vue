@@ -5,6 +5,23 @@ definePageMeta({ middleware: 'auth' })
 const { data: collections, status, error, refresh } = useApi<Collection[]>('/api/collections')
 const apiFetch = useApiFetch()
 const toast = useToast()
+const search = ref('')
+const filteredCollections = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  return (collections.value || []).filter(collection =>
+    collection.name.toLowerCase().includes(query) || collection.description?.toLowerCase().includes(query)
+  )
+})
+const summary = computed(() => {
+  const items = collections.value || []
+  const withAssets = items.filter(collection => collection.asset_count > 0).length
+  const ready = status.value === 'success' && !error.value
+  return [
+    { label: 'Collections', value: ready ? items.length : '—' },
+    { label: 'With assets', value: ready ? withAssets : '—' },
+    { label: 'Empty', value: ready ? items.length - withAssets : '—' }
+  ]
+})
 const editorOpen = ref(false)
 const deleting = ref<Collection | null>(null)
 const deleteOpen = computed({
@@ -67,24 +84,32 @@ async function remove() {
   <div class="space-y-6 pb-6">
     <header class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        <p class="text-xs font-bold uppercase tracking-widest text-attic-500">
+        <p class="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
           Your things, together
         </p>
-        <h1 class="text-3xl font-extrabold tracking-tight">
+        <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
           Collections
         </h1>
-        <p class="mt-2 text-sm text-muted">
+        <p class="mt-1 max-w-2xl text-sm text-muted">
           Gather games, furniture, and favorite finds into collections shared with everyone in your home.
         </p>
       </div>
       <UButton
         icon="i-lucide-plus"
-        class="shrink-0 rounded-xl"
+        class="shrink-0 rounded-xl font-bold shadow-primary"
         @click="edit()"
       >
         New collection
       </UButton>
     </header>
+    <LibrarySummary :items="summary" />
+    <LibraryToolbar
+      v-model="search"
+      title="Collection library"
+      placeholder="Search collections"
+      :count="filteredCollections.length"
+      :total="collections?.length || 0"
+    />
     <div
       v-if="status === 'pending'"
       role="status"
@@ -128,50 +153,49 @@ async function remove() {
       </UButton>
     </div>
     <div
-      v-else
-      class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+      v-else-if="!filteredCollections.length"
+      class="attic-panel rounded-2xl px-6 py-14 text-center"
     >
-      <article
-        v-for="collection in collections"
-        :key="collection.id"
-        class="attic-panel flex flex-col rounded-2xl p-5"
+      <UIcon
+        name="i-lucide-search-x"
+        class="mx-auto mb-3 size-7 text-mist-300"
+      />
+      <p class="font-bold text-mist-700 dark:text-mist-200">
+        No matching collections
+      </p>
+      <UButton
+        variant="ghost"
+        class="mt-2"
+        @click="search = ''"
       >
-        <NuxtLink
-          :to="{ path: '/assets', query: { collection_id: collection.id } }"
-          class="group flex-1 rounded-lg focus-visible:outline-2 focus-visible:outline-attic-500"
-        >
-          <div class="mb-4 flex size-12 items-center justify-center rounded-2xl bg-attic-500/10 text-attic-500"><UIcon
-            :name="collection.icon"
-            class="size-6"
-          /></div>
-          <h2 class="break-words text-lg font-bold group-hover:text-attic-500">{{ collection.name }}</h2>
-          <p
-            v-if="collection.description"
-            class="mt-1 line-clamp-3 text-sm text-muted"
-          >{{ collection.description }}</p>
-          <p class="mt-4 text-sm font-semibold">{{ collection.asset_count }} {{ collection.asset_count === 1 ? 'asset' : 'assets' }} <span aria-hidden="true">→</span></p>
-        </NuxtLink>
-        <div class="mt-4 flex gap-2 border-t border-subtle pt-3">
-          <UButton
-            icon="i-lucide-pencil"
-            variant="ghost"
-            color="neutral"
-            :aria-label="`Edit ${collection.name}`"
-            @click="edit(collection)"
-          >
-            Edit
-          </UButton>
-          <UButton
-            icon="i-lucide-trash-2"
-            variant="ghost"
-            color="error"
-            :aria-label="`Delete ${collection.name}`"
-            @click="formError = ''; deleting = collection"
-          >
-            Delete
-          </UButton>
-        </div>
-      </article>
+        Clear search
+      </UButton>
+    </div>
+    <div
+      v-else
+      class="attic-panel overflow-hidden rounded-[20px]"
+    >
+      <div class="hidden grid-cols-[minmax(0,1.05fr)_minmax(0,1.35fr)_auto] gap-4 border-b border-mist-100 bg-mist-50/70 px-5 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted dark:border-mist-700 dark:bg-mist-800/70 sm:grid">
+        <span>Collection</span>
+        <span>Description</span>
+        <span class="pr-2 text-right">Actions</span>
+      </div>
+      <div
+        role="list"
+        class="divide-y divide-mist-100 dark:divide-mist-700"
+      >
+        <LibraryCard
+          v-for="collection in filteredCollections"
+          :key="collection.id"
+          :name="collection.name"
+          :description="collection.description"
+          :icon="collection.icon || 'i-lucide-library'"
+          :asset-count="collection.asset_count"
+          :assets-to="'/assets?collection_id=' + encodeURIComponent(collection.id)"
+          @edit="edit(collection)"
+          @delete="formError = ''; deleting = collection"
+        />
+      </div>
     </div>
     <UModal
       v-model:open="editorOpen"

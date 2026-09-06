@@ -309,7 +309,7 @@ func (h *testPluginHandler) Import(w http.ResponseWriter, r *http.Request) {
 
 	asset := &domain.Asset{
 		OrganizationID:   h.orgID,
-		CategoryID:       cat.ID,
+		CategoryID:       &cat.ID,
 		Name:             importData.Name,
 		Description:      importData.Description,
 		Quantity:         1,

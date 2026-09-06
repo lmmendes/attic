@@ -79,7 +79,7 @@ export interface Asset {
   collections?: Collection[]
   id: string
   organization_id: string
-  category_id: string
+  category_id?: string
   location_id?: string
   condition_id?: string
   parent_id?: string

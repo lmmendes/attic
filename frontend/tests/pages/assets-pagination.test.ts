@@ -3,8 +3,9 @@ import { mountSuspended, mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { ref } from 'vue'
 import AssetsPage from '../../app/pages/assets/index.vue'
 
-const { api } = vi.hoisted(() => ({ api: vi.fn() }))
+const { api, routeQuery } = vi.hoisted(() => ({ api: vi.fn(), routeQuery: {} as Record<string, string> }))
 mockNuxtImport('useApi', () => api)
+mockNuxtImport('useRoute', () => () => ({ query: routeQuery }))
 
 const select = {
   props: ['modelValue', 'items'],
@@ -15,6 +16,7 @@ const select = {
 describe('Inventory pagination', () => {
   beforeEach(() => {
     api.mockReset()
+    delete routeQuery.category_id
     api.mockImplementation((url: string | (() => string)) => ({
       data: ref(typeof url === 'function'
         ? { assets: [], total: 240 }
@@ -26,6 +28,15 @@ describe('Inventory pagination', () => {
   const mountPage = () => mountSuspended(AssetsPage, {
     route: '/assets',
     global: { stubs: { USelectMenu: select, ImportModal: true } }
+  })
+
+  it('applies the category from a library card link', async () => {
+    routeQuery.category_id = 'selected'
+    const wrapper = await mountPage()
+    const getUrl = api.mock.calls.find(([url]) => typeof url === 'function')![0] as () => string
+    expect(getUrl()).toContain('category_id=selected')
+    expect((wrapper.findAll('select')[1]!.element as HTMLSelectElement).value).toBe('selected')
+    wrapper.unmount()
   })
 
   it('keeps the current and last page reachable beyond page five', async () => {

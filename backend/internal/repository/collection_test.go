@@ -52,7 +52,7 @@ func TestCollectionsMembershipLifecycle(t *testing.T) {
 	if !errors.Is(collections.Delete(ctx, org.ID, foreign.ID), pgx.ErrNoRows) {
 		t.Fatal("foreign collection deleted")
 	}
-	a := &domain.Asset{OrganizationID: org.ID, CategoryID: category.ID, Name: "Game", Quantity: 1, CollectionIDs: []uuid.UUID{first.ID, second.ID, first.ID}}
+	a := &domain.Asset{OrganizationID: org.ID, CategoryID: &category.ID, Name: "Game", Quantity: 1, CollectionIDs: []uuid.UUID{first.ID, second.ID, first.ID}}
 	must(assets.Create(ctx, a))
 	loaded, err := assets.GetByID(ctx, a.ID)
 	must(err)
@@ -81,7 +81,7 @@ func TestCollectionsMembershipLifecycle(t *testing.T) {
 	if loaded.Name != "Game" || len(loaded.Collections) != 2 {
 		t.Fatal("invalid update was not atomic")
 	}
-	invalid := &domain.Asset{OrganizationID: org.ID, CategoryID: category.ID, Name: "Invalid", Quantity: 1, CollectionIDs: []uuid.UUID{uuid.New()}}
+	invalid := &domain.Asset{OrganizationID: org.ID, CategoryID: &category.ID, Name: "Invalid", Quantity: 1, CollectionIDs: []uuid.UUID{uuid.New()}}
 	if !errors.Is(assets.Create(ctx, invalid), ErrInvalidCollections) {
 		t.Fatal("expected missing collection rejection")
 	}

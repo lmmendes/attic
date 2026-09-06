@@ -13,10 +13,11 @@ import (
 )
 
 const maxAssetQuantity = 1000000
+const uncategorizedCategoryFilter = "uncategorized"
 
 type CreateAssetRequest struct {
 	CollectionIDs []string        `json:"collection_ids,omitempty"`
-	CategoryID    string          `json:"category_id"`
+	CategoryID    *string         `json:"category_id,omitempty"`
 	LocationID    *string         `json:"location_id,omitempty"`
 	ConditionID   *string         `json:"condition_id,omitempty"`
 	Name          string          `json:"name"`
@@ -31,7 +32,7 @@ type CreateAssetRequest struct {
 
 type UpdateAssetRequest struct {
 	CollectionIDs []string        `json:"collection_ids,omitempty"`
-	CategoryID    string          `json:"category_id"`
+	CategoryID    *string         `json:"category_id,omitempty"`
 	LocationID    *string         `json:"location_id,omitempty"`
 	ConditionID   *string         `json:"condition_id,omitempty"`
 	Name          string          `json:"name"`
@@ -78,7 +79,9 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if catID := q.Get("category_id"); catID != "" {
-		if id, err := uuid.Parse(catID); err == nil {
+		if catID == uncategorizedCategoryFilter {
+			filter.Uncategorized = true
+		} else if id, err := uuid.Parse(catID); err == nil {
 			filter.CategoryID = &id
 		}
 	}
@@ -168,15 +171,19 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" || req.CategoryID == "" {
-		writeError(w, http.StatusBadRequest, "name and category_id are required")
+	if req.Name == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
 
-	categoryID, err := uuid.Parse(req.CategoryID)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid category_id")
-		return
+	var categoryID *uuid.UUID
+	if req.CategoryID != nil && *req.CategoryID != "" {
+		id, err := uuid.Parse(*req.CategoryID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid category_id")
+			return
+		}
+		categoryID = &id
 	}
 
 	asset := &domain.Asset{
@@ -186,6 +193,9 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		Description:    req.Description,
 		Quantity:       req.Quantity,
 		Attributes:     req.Attributes,
+	}
+	if categoryID == nil {
+		asset.Attributes = nil
 	}
 
 	if asset.Quantity <= 0 {
@@ -256,10 +266,14 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	categoryID, err := uuid.Parse(req.CategoryID)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid category_id")
-		return
+	var categoryID *uuid.UUID
+	if req.CategoryID != nil && *req.CategoryID != "" {
+		id, err := uuid.Parse(*req.CategoryID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid category_id")
+			return
+		}
+		categoryID = &id
 	}
 
 	asset.CategoryID = categoryID
@@ -274,6 +288,9 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	asset.Attributes = req.Attributes
+	if categoryID == nil {
+		asset.Attributes = nil
+	}
 
 	if req.LocationID != nil {
 		if id, err := parseUUIDString(*req.LocationID); err == nil {

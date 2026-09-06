@@ -22,6 +22,7 @@ type mockAssetRepo struct {
 	CreateError error
 	UpdateError error
 	DeleteError error
+	LastFilter  domain.AssetFilter
 }
 
 func newMockAssetRepo() *mockAssetRepo {
@@ -48,7 +49,8 @@ func (r *mockAssetRepo) GetByIDFull(_ context.Context, id uuid.UUID) (*domain.As
 	return r.assets[id], nil
 }
 
-func (r *mockAssetRepo) List(_ context.Context, _ uuid.UUID, _ domain.AssetFilter, page domain.Pagination) ([]domain.Asset, int, error) {
+func (r *mockAssetRepo) List(_ context.Context, _ uuid.UUID, filter domain.AssetFilter, page domain.Pagination) ([]domain.Asset, int, error) {
+	r.LastFilter = filter
 	if r.ListError != nil {
 		return nil, 0, r.ListError
 	}
@@ -155,7 +157,9 @@ func (h *testAssetHandler) listAssets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if catID := q.Get("category_id"); catID != "" {
-		if id, err := uuid.Parse(catID); err == nil {
+		if catID == uncategorizedCategoryFilter {
+			filter.Uncategorized = true
+		} else if id, err := uuid.Parse(catID); err == nil {
 			filter.CategoryID = &id
 		}
 	}
@@ -213,15 +217,19 @@ func (h *testAssetHandler) createAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" || req.CategoryID == "" {
-		writeError(w, http.StatusBadRequest, "name and category_id are required")
+	if req.Name == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
 
-	categoryID, err := uuid.Parse(req.CategoryID)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid category_id")
-		return
+	var categoryID *uuid.UUID
+	if req.CategoryID != nil && *req.CategoryID != "" {
+		id, err := uuid.Parse(*req.CategoryID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid category_id")
+			return
+		}
+		categoryID = &id
 	}
 
 	asset := &domain.Asset{
@@ -278,15 +286,23 @@ func (h *testAssetHandler) updateAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	categoryID, err := uuid.Parse(req.CategoryID)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid category_id")
-		return
+	var categoryID *uuid.UUID
+	if req.CategoryID != nil && *req.CategoryID != "" {
+		id, err := uuid.Parse(*req.CategoryID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid category_id")
+			return
+		}
+		categoryID = &id
 	}
 
 	asset.CategoryID = categoryID
 	asset.Name = req.Name
 	asset.Description = req.Description
+	asset.Attributes = req.Attributes
+	if categoryID == nil {
+		asset.Attributes = nil
+	}
 	asset.Quantity = req.Quantity
 	if asset.Quantity <= 0 {
 		asset.Quantity = 1
@@ -355,7 +371,7 @@ func createTestAsset(name string, categoryID uuid.UUID, price *float64) *domain.
 	return &domain.Asset{
 		ID:             uuid.New(),
 		OrganizationID: uuid.MustParse("00000000-0000-0000-0000-000000000001"),
-		CategoryID:     categoryID,
+		CategoryID:     &categoryID,
 		Name:           name,
 		Quantity:       1,
 		PurchasePrice:  price,
@@ -431,6 +447,20 @@ func Test_ListAssets_DefaultPagination(t *testing.T) {
 	}
 	if resp.Offset != 0 {
 		t.Errorf("expected default offset 0, got %d", resp.Offset)
+	}
+}
+
+func Test_ListAssets_UncategorizedFilter(t *testing.T) {
+	h := newTestAssetHandler()
+	req := httptest.NewRequest(http.MethodGet, "/api/assets?category_id=uncategorized", nil)
+	rec := httptest.NewRecorder()
+	h.listAssets(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+	if !h.assetRepo.LastFilter.Uncategorized || h.assetRepo.LastFilter.CategoryID != nil {
+		t.Fatalf("expected uncategorized filter, got %#v", h.assetRepo.LastFilter)
 	}
 }
 
@@ -537,7 +567,7 @@ func Test_CreateAsset_MissingName_ReturnsBadRequest(t *testing.T) {
 	}
 }
 
-func Test_CreateAsset_MissingCategoryID_ReturnsBadRequest(t *testing.T) {
+func Test_CreateAsset_MissingCategoryID_CreatesUncategorizedAsset(t *testing.T) {
 	h := newTestAssetHandler()
 
 	body := strings.NewReader(`{
@@ -549,8 +579,13 @@ func Test_CreateAsset_MissingCategoryID_ReturnsBadRequest(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.createAsset(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", rec.Code)
+	if rec.Code != http.StatusCreated {
+		t.Errorf("expected status 201, got %d", rec.Code)
+	}
+	var resp domain.Asset
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.CategoryID != nil {
+		t.Errorf("expected category_id to be nil, got %s", *resp.CategoryID)
 	}
 }
 
@@ -638,6 +673,31 @@ func Test_UpdateAsset_ValidRequest_ReturnsUpdated(t *testing.T) {
 	}
 	if resp.Quantity != 10 {
 		t.Errorf("expected quantity 10, got %d", resp.Quantity)
+	}
+}
+
+func Test_UpdateAsset_MissingCategoryID_ClearsCategoryAndAttributes(t *testing.T) {
+	h := newTestAssetHandler()
+	catID := uuid.New()
+	asset := createTestAsset("Categorized", catID, nil)
+	asset.Attributes = json.RawMessage(`{"platform":"PS5"}`)
+	h.assetRepo.addAsset(asset)
+
+	body := strings.NewReader(`{"name":"Uncategorized","quantity":1}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/assets/"+asset.ID.String(), body)
+	req = withChiURLParam(req, "id", asset.ID.String())
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.updateAsset(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d; body: %s", rec.Code, rec.Body.String())
+	}
+	if asset.CategoryID != nil {
+		t.Errorf("expected category_id to be cleared, got %s", *asset.CategoryID)
+	}
+	if asset.Attributes != nil {
+		t.Errorf("expected category attributes to be cleared, got %s", asset.Attributes)
 	}
 }
 

@@ -26,6 +26,8 @@ watch(() => asset.value?.category_id, async (categoryId) => {
     } catch {
       categoryWithAttrs.value = null
     }
+  } else {
+    categoryWithAttrs.value = null
   }
 }, { immediate: true })
 
