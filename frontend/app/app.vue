@@ -23,6 +23,22 @@ useSeoMeta({
 
 const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isOIDCEnabled, changePassword } = useAuth()
 
+type AppInfo = {
+  status: string
+  version: string
+}
+
+const { data: appInfo, execute: fetchAppInfo } = useApi<AppInfo>('/api/', {
+  immediate: false
+})
+const softwareVersion = computed(() => appInfo.value?.version || 'unknown')
+
+watch(loggedIn, (isLoggedIn) => {
+  if (isLoggedIn) {
+    void fetchAppInfo()
+  }
+}, { immediate: true })
+
 // Fetch session on app load
 onMounted(() => {
   fetchSession()
@@ -425,8 +441,14 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
 
           <!-- Scrollable content -->
           <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 xl:p-7">
-            <div class="max-w-[1440px] mx-auto">
-              <NuxtPage />
+            <div class="mx-auto flex min-h-full max-w-[1440px] flex-col">
+              <div class="flex-1">
+                <NuxtPage />
+              </div>
+
+              <footer class="shrink-0 pt-6 text-center text-xs font-medium text-muted dark:text-mist-400">
+                Attic version {{ softwareVersion }}
+              </footer>
             </div>
           </div>
         </main>
