@@ -22,13 +22,17 @@ Attic mirrors the way a home is organized with nested locations such as rooms, s
 - Filter by category, location, and condition
 
 **Smart Integrations**
-- Automated imports from Google Books, TMDB (movies), and BoardGameGeek
+- Automated imports from Google Books, TMDB (movies and TV), BoardGameGeek, and IGDB (video games)
 - Metadata and cover images populated automatically
 - Plugin system for adding new import sources
 
 Google Books works without credentials, but Google may apply a low shared quota to unauthenticated
 requests. Set `ATTIC_GOOGLE_BOOKS_API_KEY` to a Google Books API key for reliable imports in a
 self-hosted or shared deployment. The key is sent only to Google Books API requests.
+
+IGDB imports require `ATTIC_IGDB_CLIENT_ID` and `ATTIC_IGDB_CLIENT_SECRET` from a
+[Twitch application](https://dev.twitch.tv/console/apps). Attic exchanges these credentials for a
+short-lived access token and keeps the token in memory only.
 
 **Self-Hosted & Secure**
 - Docker-based deployment with complete data ownership
