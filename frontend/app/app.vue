@@ -22,6 +22,7 @@ useSeoMeta({
 })
 
 const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isOIDCEnabled, changePassword } = useAuth()
+const config = useRuntimeConfig()
 
 type AppInfo = {
   status: string
@@ -32,6 +33,7 @@ const { data: appInfo, execute: fetchAppInfo } = useApi<AppInfo>('/api/', {
   immediate: false
 })
 const softwareVersion = computed(() => appInfo.value?.version || 'unknown')
+const apiDocsUrl = computed(() => `${config.public.apiBase || ''}/api/docs`)
 
 watch(loggedIn, (isLoggedIn) => {
   if (isLoggedIn) {
@@ -447,7 +449,16 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
               </div>
 
               <footer class="shrink-0 pt-6 text-center text-xs font-medium text-muted dark:text-mist-400">
-                Attic version {{ softwareVersion }}
+                <span>Attic version {{ softwareVersion }}</span>
+                <span class="mx-2 text-mist-300 dark:text-mist-600">·</span>
+                <a
+                  :href="apiDocsUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-attic-600 underline decoration-attic-300 underline-offset-2 transition-colors hover:text-attic-700 dark:text-attic-300 dark:decoration-attic-500 dark:hover:text-attic-200"
+                >
+                  API
+                </a>
               </footer>
             </div>
           </div>
