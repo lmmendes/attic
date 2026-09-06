@@ -61,6 +61,14 @@ describe('ImportModal', () => {
       const emptyPlugins: typeof mockPlugins.value = []
       expect(emptyPlugins).toHaveLength(0)
     })
+
+    it('preselects the source when launched from the plugins page', () => {
+      const initialPluginId = 'plugin-2'
+      const selectedPlugin = mockPlugins.value.find(plugin => plugin.id === initialPluginId)
+
+      expect(selectedPlugin?.name).toBe('IGDB')
+      expect(selectedPlugin?.search_fields[0]?.key).toBe('name')
+    })
   })
 
   describe('Search (Step 2)', () => {

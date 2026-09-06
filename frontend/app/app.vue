@@ -11,8 +11,8 @@ useHead({
   }
 })
 
-const title = 'Attic - Asset Management'
-const description = 'A simple, powerful asset management system for organizations.'
+const title = 'Attic - Home Inventory'
+const description = 'A self-hosted home inventory for your belongings, rooms, warranties, receipts, and collections.'
 
 useSeoMeta({
   title,
@@ -80,6 +80,7 @@ const baseNavigation = [
   { label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' },
   { label: 'All Assets', to: '/assets', icon: 'i-lucide-package' },
   { label: 'Locations', to: '/locations', icon: 'i-lucide-map-pin' },
+  { label: 'Collections', to: '/collections', icon: 'i-lucide-library' },
   { label: 'Categories', to: '/categories', icon: 'i-lucide-tag' }
 ]
 
@@ -146,6 +147,7 @@ const userMenuItems = computed(() => {
 
 // Mobile sidebar state
 const sidebarOpen = ref(false)
+const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(route.path))
 </script>
 
 <template>
@@ -157,41 +159,44 @@ const sidebarOpen = ref(false)
 
     <!-- Main app layout with sidebar -->
     <template v-else>
-      <div class="h-screen flex overflow-hidden">
+      <div class="h-dvh flex overflow-hidden app-canvas">
         <!-- Sidebar -->
-        <aside class="hidden lg:flex w-64 bg-white dark:bg-mist-900 border-r border-gray-200 dark:border-gray-800 flex-col flex-shrink-0">
+        <aside class="hidden lg:flex w-68 bg-white/92 dark:bg-mist-900/92 backdrop-blur-xl border-r border-mist-200/80 dark:border-mist-800 flex-col flex-shrink-0">
           <!-- Logo -->
-          <div class="p-6">
+          <div class="p-5">
             <NuxtLink
               to="/"
-              class="flex items-center gap-3 mb-8"
+              class="flex items-center gap-3 px-2 mb-9"
             >
-              <div class="bg-attic-500 rounded-xl size-10 flex items-center justify-center text-white">
+              <div class="bg-gradient-to-br from-attic-500 to-attic-700 rounded-[14px] size-11 flex items-center justify-center text-white shadow-primary ring-1 ring-white/20">
                 <UIcon
                   name="i-lucide-archive"
-                  class="w-5 h-5"
+                  class="w-5.5 h-5.5"
                 />
               </div>
               <div>
                 <h1 class="text-mist-950 dark:text-white text-lg font-extrabold leading-none">
                   Attic
                 </h1>
-                <p class="text-mist-500 dark:text-gray-400 text-xs font-medium">
-                  Home Management
+                <p class="text-muted dark:text-mist-400 text-[11px] font-semibold tracking-wide uppercase mt-1">
+                  Home inventory
                 </p>
               </div>
             </NuxtLink>
 
             <!-- Navigation -->
             <nav class="space-y-1">
+              <p class="px-3 pb-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                Your home
+              </p>
               <NuxtLink
                 v-for="item in navigation"
                 :key="item.to"
                 :to="item.to"
-                class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors"
+                class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
                 :class="isActive(item.to)
-                  ? 'bg-attic-500/10 text-attic-500'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'"
+                  ? 'bg-attic-50 text-attic-600 shadow-sm ring-1 ring-attic-100 dark:bg-attic-500/15 dark:text-attic-300 dark:ring-attic-500/20'
+                  : 'text-mist-600 dark:text-mist-300 hover:bg-mist-50 dark:hover:bg-mist-800'"
               >
                 <UIcon
                   :name="item.icon"
@@ -206,15 +211,18 @@ const sidebarOpen = ref(false)
               </NuxtLink>
 
               <!-- Divider -->
-              <div class="pt-4 mt-4 border-t border-gray-100 dark:border-gray-800">
+              <div class="pt-5 mt-5 border-t border-mist-100 dark:border-mist-800">
+                <p class="px-3 pb-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted">
+                  Manage
+                </p>
                 <NuxtLink
                   v-for="item in secondaryNav"
                   :key="item.to"
                   :to="item.to"
-                  class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors"
+                  class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
                   :class="isActive(item.to)
-                    ? 'bg-attic-500/10 text-attic-500'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'"
+                    ? 'bg-attic-50 text-attic-600 shadow-sm ring-1 ring-attic-100 dark:bg-attic-500/15 dark:text-attic-300 dark:ring-attic-500/20'
+                    : 'text-mist-600 dark:text-mist-300 hover:bg-mist-50 dark:hover:bg-mist-800'"
                 >
                   <UIcon
                     :name="item.icon"
@@ -232,9 +240,9 @@ const sidebarOpen = ref(false)
           </div>
 
           <!-- User section at bottom -->
-          <div class="mt-auto p-6">
-            <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-full bg-attic-500 flex items-center justify-center text-white">
+          <div class="mt-auto p-4 border-t border-mist-100 dark:border-mist-800">
+            <div class="flex items-center gap-3 p-2 rounded-2xl bg-mist-50/80 dark:bg-mist-800/70">
+              <div class="w-9 h-9 rounded-xl bg-attic-100 dark:bg-attic-500/20 flex items-center justify-center text-attic-600 dark:text-attic-300">
                 <UIcon
                   name="i-lucide-user"
                   class="w-4 h-4"
@@ -244,7 +252,7 @@ const sidebarOpen = ref(false)
                 <span class="text-sm font-bold text-mist-950 dark:text-white truncate">
                   {{ user?.name || user?.email?.split('@')[0] || 'User' }}
                 </span>
-                <span class="text-xs text-mist-500 dark:text-gray-400 truncate">
+                <span class="text-xs text-muted dark:text-gray-400 truncate">
                   {{ user?.email }}
                 </span>
               </div>
@@ -254,13 +262,15 @@ const sidebarOpen = ref(false)
                   variant="ghost"
                   icon="i-lucide-settings"
                   size="sm"
+                  aria-label="Open account menu"
+                  title="Open account menu"
                 />
                 <template #account>
                   <div class="text-left">
                     <p class="font-medium">
                       {{ user?.name || 'User' }}
                     </p>
-                    <p class="text-xs text-mist-500 truncate">
+                    <p class="text-xs text-muted truncate">
                       {{ user?.email }}
                     </p>
                   </div>
@@ -300,8 +310,8 @@ const sidebarOpen = ref(false)
                   <h1 class="text-mist-950 dark:text-white text-lg font-extrabold leading-none">
                     Attic
                   </h1>
-                  <p class="text-mist-500 dark:text-gray-400 text-xs font-medium">
-                    Home Management
+                  <p class="text-muted dark:text-gray-400 text-xs font-medium">
+                    Home inventory
                   </p>
                 </div>
               </NuxtLink>
@@ -309,6 +319,8 @@ const sidebarOpen = ref(false)
                 color="neutral"
                 variant="ghost"
                 icon="i-lucide-x"
+                aria-label="Close navigation"
+                title="Close navigation"
                 @click="sidebarOpen = false"
               />
             </div>
@@ -374,7 +386,7 @@ const sidebarOpen = ref(false)
                 <span class="text-sm font-bold text-mist-950 dark:text-white truncate">
                   {{ user?.name || user?.email?.split('@')[0] || 'User' }}
                 </span>
-                <span class="text-xs text-mist-500 dark:text-gray-400 truncate">
+                <span class="text-xs text-muted dark:text-gray-400 truncate">
                   {{ user?.email }}
                 </span>
               </div>
@@ -390,6 +402,8 @@ const sidebarOpen = ref(false)
               color="neutral"
               variant="ghost"
               icon="i-lucide-menu"
+              aria-label="Open navigation"
+              title="Open navigation"
               @click="sidebarOpen = true"
             />
 
@@ -410,8 +424,8 @@ const sidebarOpen = ref(false)
           </header>
 
           <!-- Scrollable content -->
-          <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8">
-            <div class="max-w-7xl mx-auto">
+          <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 xl:p-7">
+            <div class="max-w-[1440px] mx-auto">
               <NuxtPage />
             </div>
           </div>
@@ -419,8 +433,11 @@ const sidebarOpen = ref(false)
 
         <!-- Mobile FAB -->
         <NuxtLink
+          v-if="!isAssetForm"
           to="/assets/new"
-          class="lg:hidden fixed bottom-6 right-6 size-14 rounded-full bg-attic-500 text-white shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50"
+          aria-label="Add asset"
+          title="Add asset"
+          class="lg:hidden fixed bottom-6 right-6 size-14 rounded-2xl bg-attic-500 text-white shadow-primary flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-50"
         >
           <UIcon
             name="i-lucide-plus"
@@ -431,21 +448,38 @@ const sidebarOpen = ref(false)
     </template>
 
     <!-- Password Change Modal -->
-    <UModal v-model:open="passwordModalOpen">
+    <UModal
+      v-model:open="passwordModalOpen"
+      title="Change Password"
+      description="Enter your current password and choose a new password."
+    >
       <template #content>
-        <UCard>
-          <template #header>
-            <div class="flex items-center gap-2">
-              <UIcon
-                name="i-lucide-key"
-                class="w-5 h-5"
-              />
-              <span class="font-semibold">Change Password</span>
+        <div class="w-full max-w-lg overflow-hidden rounded-[24px] bg-white shadow-xl ring-1 ring-mist-200/80 dark:bg-mist-800 dark:ring-mist-700">
+          <div class="relative overflow-hidden bg-gradient-to-br from-attic-500 via-attic-600 to-[#174AE8] px-6 py-6 text-white sm:px-7">
+            <div class="pointer-events-none absolute -right-12 -top-16 size-44 rounded-full border-[24px] border-white/10" />
+            <div class="relative flex items-start gap-4">
+              <div class="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20">
+                <UIcon
+                  name="i-lucide-shield-check"
+                  class="size-6"
+                />
+              </div>
+              <div>
+                <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/70">
+                  Account security
+                </p>
+                <h2 class="mt-1 text-xl font-extrabold tracking-[-0.03em]">
+                  Change your password
+                </h2>
+                <p class="mt-1 text-sm text-white/75">
+                  Keep your account protected with a password you don’t reuse elsewhere.
+                </p>
+              </div>
             </div>
-          </template>
+          </div>
 
           <form
-            class="space-y-4"
+            class="space-y-5 p-6 sm:p-7"
             @submit.prevent="handleChangePassword"
           >
             <UAlert
@@ -462,64 +496,86 @@ const sidebarOpen = ref(false)
               icon="i-lucide-check-circle"
             />
 
-            <UFormField
-              label="Current Password"
-              name="currentPassword"
-            >
-              <UInput
-                v-model="currentPassword"
-                type="password"
-                placeholder="Enter current password"
-                autocomplete="current-password"
-                required
-              />
-            </UFormField>
+            <div class="space-y-4">
+              <UFormField
+                label="Current password"
+                name="currentPassword"
+              >
+                <UInput
+                  v-model="currentPassword"
+                  type="password"
+                  placeholder="Enter current password"
+                  autocomplete="current-password"
+                  icon="i-lucide-lock-keyhole"
+                  size="lg"
+                  required
+                />
+              </UFormField>
 
-            <UFormField
-              label="New Password"
-              name="newPassword"
-            >
-              <UInput
-                v-model="newPassword"
-                type="password"
-                placeholder="Enter new password"
-                autocomplete="new-password"
-                required
-              />
-            </UFormField>
+              <div class="border-t border-mist-100 pt-4 dark:border-mist-700">
+                <p class="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-muted">
+                  New password
+                </p>
+                <div class="space-y-4">
+                  <UFormField
+                    label="New password"
+                    name="newPassword"
+                    help="Use at least 8 characters."
+                  >
+                    <UInput
+                      v-model="newPassword"
+                      type="password"
+                      placeholder="Create a new password"
+                      autocomplete="new-password"
+                      icon="i-lucide-key-round"
+                      size="lg"
+                      required
+                    />
+                  </UFormField>
 
-            <UFormField
-              label="Confirm New Password"
-              name="confirmPassword"
-            >
-              <UInput
-                v-model="confirmPassword"
-                type="password"
-                placeholder="Confirm new password"
-                autocomplete="new-password"
-                required
-              />
-            </UFormField>
+                  <UFormField
+                    label="Confirm new password"
+                    name="confirmPassword"
+                  >
+                    <UInput
+                      v-model="confirmPassword"
+                      type="password"
+                      placeholder="Repeat your new password"
+                      autocomplete="new-password"
+                      icon="i-lucide-check"
+                      size="lg"
+                      required
+                    />
+                  </UFormField>
+                </div>
+              </div>
+            </div>
 
-            <div class="flex justify-end gap-2 pt-2">
+            <div class="flex flex-col-reverse gap-2 border-t border-mist-100 pt-5 sm:flex-row sm:justify-end dark:border-mist-700">
               <UButton
                 color="neutral"
-                variant="outline"
+                variant="ghost"
+                class="rounded-xl font-bold"
                 @click="passwordModalOpen = false"
               >
                 Cancel
               </UButton>
               <UButton
                 type="submit"
-                color="primary"
+                class="rounded-xl font-bold shadow-primary"
                 :loading="passwordLoading"
                 :disabled="passwordLoading || !currentPassword || !newPassword || !confirmPassword"
               >
-                Change Password
+                <UIcon
+                  v-if="!passwordLoading"
+                  name="i-lucide-check"
+                  class="size-4"
+                />
+                Update password
               </UButton>
             </div>
           </form>
-        </UCard>
+        </div>
       </template>
     </UModal>
   </UApp>

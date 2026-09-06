@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Category, Attribute } from '~/types/api'
+import type { Category } from '~/types/api'
 
 definePageMeta({
   middleware: 'auth'
@@ -9,7 +9,6 @@ const toast = useToast()
 const apiFetch = useApiFetch()
 
 const { data: categories, refresh, status } = useApi<Category[]>('/api/categories')
-const { data: _attributes } = useApi<Attribute[]>('/api/attributes')
 
 // Fetch asset counts per category (endpoint may not exist yet, so we handle gracefully)
 const { data: categoryAssetCounts } = useApi<Record<string, number>>('/api/categories/asset-counts')
@@ -21,6 +20,7 @@ const categoryToDelete = ref<Category | null>(null)
 // Attributes modal
 const attributesModalOpen = ref(false)
 const viewingCategory = ref<Category | null>(null)
+const search = ref('')
 
 async function viewAttributes(category: Category) {
   try {
@@ -59,10 +59,23 @@ const totalItems = computed(() => {
   if (!categoryAssetCounts.value) return 0
   return Object.values(categoryAssetCounts.value).reduce((sum, count) => sum + count, 0)
 })
-const avgAttributes = computed(() => {
-  if (!categories.value?.length) return 0
-  const total = categories.value.reduce((sum, c) => sum + (c.attributes?.length || 0), 0)
-  return (total / categories.value.length).toFixed(1)
+const uniqueFields = computed(() => {
+  const fieldIds = new Set(
+    (categories.value || []).flatMap(category =>
+      (category.attributes || []).map(attribute => attribute.attribute_id)
+    )
+  )
+  return fieldIds.size
+})
+
+const filteredCategories = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  if (!query) return categories.value || []
+
+  return (categories.value || []).filter(category =>
+    category.name.toLowerCase().includes(query)
+    || category.description?.toLowerCase().includes(query)
+  )
 })
 
 // Get asset count for a category
@@ -134,62 +147,38 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-6 pb-6">
     <!-- Page Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight text-mist-950 dark:text-white mb-1">
-          Asset Categories
+        <p class="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
+          Inventory structure
+        </p>
+        <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
+          Categories
         </h1>
-        <p class="text-mist-500">
-          Organize and classify your home belongings with custom schemas.
+        <p class="mt-1 max-w-2xl text-sm text-muted">
+          Group your home inventory and choose the details to record for each kind of belonging.
         </p>
       </div>
       <UButton
         to="/categories/new"
         icon="i-lucide-plus"
-        class="h-11 px-6 font-bold shadow-lg shadow-attic-500/20"
+        class="rounded-xl font-bold shadow-primary"
       >
-        Add Category
+        New category
       </UButton>
     </div>
 
-    <!-- Stats Overview -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <!-- Total Categories -->
-      <div class="bg-white dark:bg-mist-800 p-6 rounded-2xl border border-mist-100 dark:border-mist-700 shadow-sm">
-        <p class="text-sm font-medium text-mist-500 mb-2 uppercase tracking-wider">
-          Total Categories
-        </p>
-        <div class="flex items-end justify-between">
-          <span class="text-3xl font-black text-mist-950 dark:text-white">{{ totalCategories }}</span>
-        </div>
-      </div>
-
-      <!-- Total Items Tracked -->
-      <div class="bg-white dark:bg-mist-800 p-6 rounded-2xl border border-mist-100 dark:border-mist-700 shadow-sm">
-        <p class="text-sm font-medium text-mist-500 mb-2 uppercase tracking-wider">
-          Total Items Tracked
-        </p>
-        <div class="flex items-end justify-between">
-          <span class="text-3xl font-black text-mist-950 dark:text-white">{{ totalItems }}</span>
-        </div>
-      </div>
-
-      <!-- Avg Attributes -->
-      <div class="bg-white dark:bg-mist-800 p-6 rounded-2xl border border-mist-100 dark:border-mist-700 shadow-sm">
-        <p class="text-sm font-medium text-mist-500 mb-2 uppercase tracking-wider">
-          Avg. Attributes
-        </p>
-        <div class="flex items-end justify-between">
-          <span class="text-3xl font-black text-mist-950 dark:text-white">{{ avgAttributes }}</span>
-          <span class="text-mist-500 text-xs">Per category</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Category Table -->
-    <div class="bg-white dark:bg-mist-800 rounded-2xl border border-mist-100 dark:border-mist-700 overflow-hidden shadow-sm">
+    <LibrarySummary :items="[{ label: 'Categories', value: totalCategories }, { label: 'Assets', value: totalItems }, { label: 'Unique fields', value: uniqueFields }]" />
+    <section class="space-y-6">
+      <LibraryToolbar
+        v-model="search"
+        title="Category library"
+        placeholder="Search categories"
+        :count="filteredCategories.length"
+        :total="totalCategories"
+      />
       <!-- Loading State -->
       <div
         v-if="status === 'pending'"
@@ -209,13 +198,13 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
         <div class="size-16 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-4">
           <UIcon
             name="i-lucide-tag"
-            class="w-8 h-8 text-mist-400"
+            class="w-8 h-8 text-muted"
           />
         </div>
         <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
           No categories yet
         </h3>
-        <p class="text-sm text-mist-500 mb-4 max-w-sm">
+        <p class="text-sm text-muted mb-4 max-w-sm">
           Create your first category to start organizing your assets.
         </p>
         <UButton to="/categories/new">
@@ -223,130 +212,73 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
         </UButton>
       </div>
 
-      <!-- Table -->
+      <div
+        v-else-if="!filteredCategories.length"
+        class="px-4 py-14 text-center"
+      >
+        <UIcon
+          name="i-lucide-search-x"
+          class="mx-auto mb-3 size-7 text-mist-300"
+        />
+        <p class="font-bold text-mist-700 dark:text-mist-200">
+          No matching categories
+        </p>
+        <button
+          type="button"
+          class="mt-1 text-sm font-semibold text-attic-500 hover:text-attic-600"
+          @click="search = ''"
+        >
+          Clear search
+        </button>
+      </div>
+
       <div
         v-else
-        class="overflow-x-auto"
+        class="attic-panel overflow-hidden rounded-[20px]"
       >
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-mist-50 dark:bg-mist-700/50">
-              <th class="px-6 py-4 text-xs font-black uppercase tracking-widest text-mist-500">
-                Category Name
-              </th>
-              <th class="px-6 py-4 text-xs font-black uppercase tracking-widest text-mist-500">
-                Description
-              </th>
-              <th class="px-6 py-4 text-xs font-black uppercase tracking-widest text-mist-500">
-                Attributes
-              </th>
-              <th class="px-6 py-4 text-xs font-black uppercase tracking-widest text-mist-500">
-                Items
-              </th>
-              <th class="px-6 py-4 text-xs font-black uppercase tracking-widest text-mist-500 text-right">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-mist-100 dark:divide-mist-700">
-            <tr
-              v-for="category in categories"
-              :key="category.id"
-              class="group hover:bg-mist-50/50 dark:hover:bg-mist-700/30 transition-colors"
-            >
-              <!-- Category Name with Icon -->
-              <td class="px-6 py-5">
-                <div class="flex items-center gap-3">
-                  <div
-                    class="size-10 rounded-lg flex items-center justify-center"
-                    :class="[getCategoryStyle(category).bgColor, getCategoryStyle(category).textColor]"
-                  >
-                    <UIcon
-                      :name="getCategoryStyle(category).icon"
-                      class="w-5 h-5"
-                    />
-                  </div>
-                  <span class="font-bold text-lg text-mist-950 dark:text-white">
-                    {{ category.name }}
-                  </span>
-                </div>
-              </td>
-
-              <!-- Description -->
-              <td class="px-6 py-5 text-mist-500 text-sm max-w-xs">
-                <span class="line-clamp-2">
-                  {{ category.description || 'No description' }}
-                </span>
-              </td>
-
-              <!-- Attributes Button -->
-              <td class="px-6 py-5">
-                <button
-                  class="flex items-center gap-1.5 px-3 py-1.5 bg-attic-500/10 text-attic-500 text-xs font-bold rounded-full hover:bg-attic-500/20 transition-colors"
-                  @click="viewAttributes(category)"
-                >
-                  <UIcon
-                    name="i-lucide-list"
-                    class="w-3.5 h-3.5"
-                  />
-                  {{ category.attributes?.length || 0 }} Attributes
-                </button>
-              </td>
-
-              <!-- Items Count -->
-              <td class="px-6 py-5">
-                <NuxtLink
-                  :to="`/assets?category_id=${category.id}`"
-                  class="text-sm font-semibold px-2.5 py-1 bg-mist-100 dark:bg-mist-700 rounded-lg hover:bg-mist-200 dark:hover:bg-mist-600 transition-colors"
-                >
-                  {{ getAssetCount(category.id) }} Items
-                </NuxtLink>
-              </td>
-
-              <!-- Actions -->
-              <td class="px-6 py-5 text-right">
-                <div class="flex items-center justify-end gap-2">
-                  <NuxtLink
-                    :to="`/categories/${category.id}/edit`"
-                    class="p-2 text-mist-500 hover:text-attic-500 hover:bg-attic-500/10 rounded-lg transition-all"
-                    title="Edit Category"
-                  >
-                    <UIcon
-                      name="i-lucide-edit"
-                      class="w-5 h-5"
-                    />
-                  </NuxtLink>
-                  <button
-                    class="p-2 text-mist-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                    title="Delete Category"
-                    @click="confirmDelete(category)"
-                  >
-                    <UIcon
-                      name="i-lucide-trash-2"
-                      class="w-5 h-5"
-                    />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="hidden grid-cols-[minmax(0,1.05fr)_minmax(0,1.35fr)_auto] gap-4 border-b border-mist-100 bg-mist-50/70 px-5 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted dark:border-mist-700 dark:bg-mist-800/70 sm:grid">
+          <span>Category</span>
+          <span>Details</span>
+          <span class="pr-2 text-right">Actions</span>
+        </div>
+        <div
+          role="list"
+          class="divide-y divide-mist-100 dark:divide-mist-700"
+        >
+          <LibraryCard
+            v-for="category in filteredCategories"
+            :key="category.id"
+            :name="category.name"
+            :description="category.description"
+            :icon="getCategoryStyle(category).icon"
+            :icon-class="getCategoryStyle(category).bgColor + ' ' + getCategoryStyle(category).textColor"
+            :asset-count="getAssetCount(category.id)"
+            :assets-to="'/assets?category_id=' + encodeURIComponent(category.id)"
+            :edit-to="'/categories/' + category.id + '/edit'"
+            @delete="confirmDelete(category)"
+          >
+            <template #metadata>
+              <UButton
+                icon="i-lucide-list-checks"
+                variant="soft"
+                size="xs"
+                :aria-label="'View fields for ' + category.name"
+                @click="viewAttributes(category)"
+              >
+                {{ category.attributes?.length || 0 }} {{ category.attributes?.length === 1 ? 'field' : 'fields' }}
+              </UButton>
+            </template>
+          </LibraryCard>
+        </div>
       </div>
-    </div>
-
-    <!-- Tip Section -->
-    <div class="p-4 bg-attic-500/5 rounded-xl border border-attic-500/10 flex items-start gap-3">
-      <UIcon
-        name="i-lucide-lightbulb"
-        class="w-5 h-5 text-attic-500 flex-shrink-0 mt-0.5"
-      />
-      <p class="text-sm text-attic-600 dark:text-attic-400 leading-relaxed">
-        <strong>Tip:</strong> You can define mandatory attributes (like Purchase Price or Serial Number) for each category. These will be automatically prompted whenever you add a new item to that category.
-      </p>
-    </div>
+    </section>
 
     <!-- Delete Confirmation Modal -->
-    <UModal v-model:open="deleteModalOpen">
+    <UModal
+      v-model:open="deleteModalOpen"
+      title="Delete Category"
+      description="Confirm permanent deletion of this category."
+    >
       <template #content>
         <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl p-6 max-w-md">
           <div class="flex items-start gap-4">
@@ -360,7 +292,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
               <h3 class="text-lg font-bold text-mist-950 dark:text-white">
                 Delete Category
               </h3>
-              <p class="text-sm text-mist-500 mt-2">
+              <p class="text-sm text-muted mt-2">
                 Are you sure you want to delete <strong>{{ categoryToDelete?.name }}</strong>? This action cannot be undone.
               </p>
             </div>
@@ -385,7 +317,11 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
     </UModal>
 
     <!-- Attributes View Modal -->
-    <UModal v-model:open="attributesModalOpen">
+    <UModal
+      v-model:open="attributesModalOpen"
+      :title="`${viewingCategory?.name || 'Category'} Attributes`"
+      :description="`${viewingCategory?.attributes?.length || 0} attributes defined`"
+    >
       <template #content>
         <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl max-w-md w-full">
           <div class="p-6 border-b border-mist-100 dark:border-mist-700">
@@ -404,7 +340,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
                 <h3 class="text-lg font-bold text-mist-950 dark:text-white">
                   {{ viewingCategory?.name }} Attributes
                 </h3>
-                <p class="text-sm text-mist-500">
+                <p class="text-sm text-muted">
                   {{ viewingCategory?.attributes?.length || 0 }} attributes defined
                 </p>
               </div>
@@ -420,7 +356,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
                 name="i-lucide-list"
                 class="w-10 h-10 text-mist-300 mx-auto mb-3"
               />
-              <p class="text-sm text-mist-500">
+              <p class="text-sm text-muted">
                 No attributes defined for this category.
               </p>
             </div>
@@ -449,7 +385,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
                   </span>
                 </div>
                 <div class="flex items-center gap-2">
-                  <span class="text-xs text-mist-500 bg-mist-200 dark:bg-mist-600 px-2 py-0.5 rounded">
+                  <span class="text-xs text-muted bg-mist-200 dark:bg-mist-600 px-2 py-0.5 rounded">
                     {{ attr.attribute?.data_type || 'string' }}
                   </span>
                   <span

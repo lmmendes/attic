@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Asset, Category, Location, Condition } from '~/types/api'
+import { isValidAssetQuantity, QUANTITY_VALIDATION_MESSAGE } from '~/utils/assetValidation'
 
 definePageMeta({
   middleware: 'auth'
@@ -17,9 +18,16 @@ const { data: categories } = useApi<Category[]>('/api/categories')
 const { data: locations } = useApi<Location[]>('/api/locations')
 const { data: conditions } = useApi<Condition[]>('/api/conditions')
 
+const detailsOpen = ref(false)
+const purchaseOpen = ref(false)
+function revealInvalidSection(event: Event) {
+  (event.currentTarget as HTMLDetailsElement).open = true
+}
+
 const loading = ref(false)
 const selectedCategory = ref<Category | null>(null)
 const form = reactive({
+  collection_ids: [] as string[],
   name: '',
   description: '',
   category_id: undefined as string | undefined,
@@ -42,6 +50,7 @@ watch(
       form.description = newAsset.description || ''
       form.category_id = newAsset.category_id
       form.location_id = newAsset.location_id || undefined
+      form.collection_ids = [...(newAsset.collection_ids || [])]
       form.condition_id = newAsset.condition_id || undefined
       form.quantity = newAsset.quantity
       form.attributes = newAsset.attributes
@@ -53,9 +62,15 @@ watch(
           )
         : {}
       form.purchase_at = newAsset.purchase_at?.split('T')[0] || ''
-      form.purchase_price = newAsset.purchase_price || undefined
+      form.purchase_price = newAsset.purchase_price ?? undefined
       form.purchase_note = newAsset.purchase_note || ''
       form.notes = newAsset.notes || ''
+      detailsOpen.value = Boolean(
+        form.condition_id || form.description.trim() || form.notes.trim() || form.quantity !== 1
+      )
+      purchaseOpen.value = Boolean(
+        form.purchase_at || form.purchase_price != null || form.purchase_note.trim()
+      )
 
       // Load category with attributes
       if (newAsset.category_id) {
@@ -183,8 +198,13 @@ const conditionOptions = computed(() => [
 ])
 
 async function submitForm() {
-  if (!form.name || !form.category_id) {
-    toast.add({ title: 'Name and category are required', color: 'error' })
+  if (!form.name) {
+    toast.add({ title: 'Name is required', color: 'error' })
+    return
+  }
+
+  if (!isValidAssetQuantity(form.quantity)) {
+    toast.add({ title: QUANTITY_VALIDATION_MESSAGE, color: 'error' })
     return
   }
 
@@ -195,12 +215,13 @@ async function submitForm() {
       description: form.description || undefined,
       category_id: form.category_id,
       location_id: form.location_id || undefined,
+      collection_ids: form.collection_ids,
       condition_id: form.condition_id || undefined,
       quantity: form.quantity,
       attributes:
         Object.keys(form.attributes).length > 0 ? form.attributes : undefined,
       purchase_at: form.purchase_at || undefined,
-      purchase_price: form.purchase_price || undefined,
+      purchase_price: form.purchase_price ?? undefined,
       purchase_note: form.purchase_note || undefined,
       notes: form.notes || undefined
     }
@@ -222,21 +243,10 @@ async function submitForm() {
     loading.value = false
   }
 }
-
-// Calculate form progress
-const formProgress = computed(() => {
-  let filled = 0
-  const total = 4 // name, category, location, condition
-  if (form.name) filled++
-  if (form.category_id) filled++
-  if (form.location_id) filled++
-  if (form.condition_id) filled++
-  return (filled / total) * 100
-})
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto space-y-8">
+  <div class="mx-auto max-w-[1040px] space-y-5 pb-6">
     <!-- Loading State -->
     <div
       v-if="assetStatus === 'pending'"
@@ -255,16 +265,16 @@ const formProgress = computed(() => {
 
     <template v-else>
       <!-- Breadcrumbs & Heading -->
-      <div class="space-y-4">
+      <div class="space-y-3">
         <nav
           aria-label="Breadcrumb"
-          class="flex"
+          class="flex text-xs"
         >
-          <ol class="flex items-center space-x-2">
+          <ol class="flex items-center gap-1.5">
             <li>
               <NuxtLink
                 to="/"
-                class="text-gray-500 hover:text-attic-500 dark:text-gray-400 transition-colors text-sm font-medium"
+                class="font-semibold text-muted transition-colors hover:text-attic-500"
               >
                 Dashboard
               </NuxtLink>
@@ -275,7 +285,7 @@ const formProgress = computed(() => {
             <li>
               <NuxtLink
                 to="/assets"
-                class="text-gray-500 hover:text-attic-500 dark:text-gray-400 transition-colors text-sm font-medium"
+                class="font-semibold text-muted transition-colors hover:text-attic-500"
               >
                 Assets
               </NuxtLink>
@@ -286,7 +296,7 @@ const formProgress = computed(() => {
             <li>
               <NuxtLink
                 :to="`/assets/${route.params.id}`"
-                class="text-gray-500 hover:text-attic-500 dark:text-gray-400 transition-colors text-sm font-medium"
+                class="max-w-48 truncate font-semibold text-muted transition-colors hover:text-attic-500"
               >
                 {{ asset?.name || 'Asset' }}
               </NuxtLink>
@@ -297,33 +307,36 @@ const formProgress = computed(() => {
             <li>
               <span
                 aria-current="page"
-                class="text-attic-500 font-medium text-sm"
+                class="font-bold text-attic-500"
               >Edit</span>
             </li>
           </ol>
         </nav>
 
-        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <h2 class="text-3xl font-extrabold text-mist-950 dark:text-white tracking-tight">
-              Edit Asset
-            </h2>
-            <p class="text-gray-500 dark:text-gray-400 mt-1">
-              Update the details for "{{ asset?.name }}".
+            <p class="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
+              Asset editor
+            </p>
+            <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
+              Edit {{ asset?.name }}
+            </h1>
+            <p class="mt-1 text-sm text-muted">
+              Keep its identity, location, and purchase details up to date.
             </p>
           </div>
-          <div class="flex items-center gap-3">
+          <div class="hidden items-center gap-2 sm:flex">
             <UButton
               :to="`/assets/${route.params.id}`"
               variant="ghost"
               color="neutral"
-              class="font-medium"
+              class="rounded-xl font-semibold"
             >
               Cancel
             </UButton>
             <UButton
               :loading="loading"
-              class="shadow-lg shadow-attic-500/20 font-bold"
+              class="rounded-xl font-bold shadow-primary"
               icon="i-lucide-save"
               @click="submitForm"
             >
@@ -335,21 +348,29 @@ const formProgress = computed(() => {
 
       <!-- Main Form Card -->
       <form
-        class="bg-white dark:bg-mist-800 rounded-xl shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-700 overflow-hidden"
+        class="space-y-5"
         @submit.prevent="submitForm"
       >
-        <!-- Progress Indicator -->
-        <div class="h-1 w-full bg-gray-100 dark:bg-gray-700">
-          <div
-            class="h-full bg-attic-500 rounded-r-full transition-all duration-500"
-            :style="{ width: `${formProgress}%` }"
-          />
-        </div>
-
-        <div class="p-6 sm:p-10 space-y-10">
+        <div class="space-y-5">
           <!-- Section 1: Universal Essentials -->
-          <section class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+          <section class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6">
+            <div class="flex items-start gap-3">
+              <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-attic-50 text-attic-500 dark:bg-attic-500/10">
+                <UIcon
+                  name="i-lucide-package"
+                  class="size-4.5"
+                />
+              </div>
+              <div>
+                <h2 class="font-extrabold text-mist-950 dark:text-white">
+                  Basic information
+                </h2>
+                <p class="text-xs text-muted">
+                  The essential details used to identify and organize this asset.
+                </p>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 items-start gap-5 md:grid-cols-12">
               <!-- Name -->
               <div class="md:col-span-8 space-y-2">
                 <label
@@ -364,7 +385,7 @@ const formProgress = computed(() => {
                     v-model="form.name"
                     type="text"
                     placeholder="e.g. Vintage Canon AE-1"
-                    class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 sm:text-lg py-3 px-4 shadow-sm transition-colors placeholder:text-gray-400"
+                    class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-mist-950 shadow-sm transition-colors placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                   >
                   <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity">
                     <UIcon
@@ -396,15 +417,35 @@ const formProgress = computed(() => {
             </div>
 
             <!-- Category Grid -->
-            <div class="space-y-3 pt-2">
+            <div class="space-y-3">
               <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Category <span class="text-amber-500">*</span>
+                Category <span class="normal-case font-medium text-muted">(optional)</span>
               </label>
-              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <div class="flex flex-wrap gap-2">
+                <label class="group relative min-w-36 cursor-pointer">
+                  <input
+                    v-model="form.category_id"
+                    type="radio"
+                    name="category"
+                    :value="undefined"
+                    class="peer sr-only"
+                  >
+                  <div class="flex h-11 items-center gap-2 rounded-xl border border-mist-200 bg-mist-50/50 px-3 pr-8 transition-all hover:border-attic-300 hover:bg-attic-50/50 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-attic-500 peer-checked:border-attic-500 peer-checked:bg-attic-50 peer-checked:ring-2 peer-checked:ring-attic-500/10 dark:border-mist-700 dark:bg-mist-800 dark:peer-checked:bg-attic-500/10">
+                    <UIcon
+                      name="i-lucide-inbox"
+                      class="size-4 shrink-0 text-muted transition-colors group-hover:text-attic-500"
+                    />
+                    <span class="truncate text-xs font-bold text-mist-600 dark:text-mist-300">No category</span>
+                  </div>
+                  <UIcon
+                    name="i-lucide-check-circle"
+                    class="absolute right-2.5 top-3 size-4 text-attic-500 opacity-0 transition-opacity peer-checked:opacity-100"
+                  />
+                </label>
                 <label
                   v-for="cat in categories"
                   :key="cat.id"
-                  class="cursor-pointer group relative"
+                  class="group relative min-w-36 cursor-pointer"
                 >
                   <input
                     v-model="form.category_id"
@@ -413,14 +454,14 @@ const formProgress = computed(() => {
                     :value="cat.id"
                     class="peer sr-only"
                   >
-                  <div class="flex flex-col items-center justify-center p-4 rounded-lg border-2 border-gray-100 dark:border-gray-700 hover:border-attic-500/50 dark:hover:border-attic-500/50 transition-all bg-white dark:bg-gray-800 h-28 gap-2 peer-checked:border-attic-500 peer-checked:bg-attic-50 dark:peer-checked:bg-attic-900/20">
+                  <div class="flex h-11 items-center gap-2 rounded-xl border border-mist-200 bg-mist-50/50 px-3 pr-8 transition-all hover:border-attic-300 hover:bg-attic-50/50 peer-checked:border-attic-500 peer-checked:bg-attic-50 peer-checked:ring-2 peer-checked:ring-attic-500/10 dark:border-mist-700 dark:bg-mist-800 dark:peer-checked:bg-attic-500/10">
                     <UIcon
                       name="i-lucide-folder"
-                      class="w-8 h-8 text-gray-400 peer-checked:text-attic-500 group-hover:text-attic-500 transition-colors"
+                      class="size-4 shrink-0 text-muted transition-colors group-hover:text-attic-500"
                     />
-                    <span class="text-xs font-bold text-gray-600 dark:text-gray-300 text-center truncate w-full">{{ cat.name }}</span>
+                    <span class="truncate text-xs font-bold text-mist-600 dark:text-mist-300">{{ cat.name }}</span>
                   </div>
-                  <div class="absolute top-2 right-2 opacity-0 peer-checked:opacity-100 text-attic-500 transition-opacity">
+                  <div class="absolute right-2.5 top-3 text-attic-500 opacity-0 transition-opacity peer-checked:opacity-100">
                     <UIcon
                       name="i-lucide-check-circle"
                       class="w-4 h-4"
@@ -432,25 +473,43 @@ const formProgress = computed(() => {
                 v-if="!categories?.length"
                 class="text-sm text-gray-400"
               >
-                No categories available. <NuxtLink
+                No categories available. You can keep this asset uncategorized or <NuxtLink
                   to="/categories"
                   class="text-attic-500 hover:underline"
-                >Create one first</NuxtLink>.
+                >create one</NuxtLink>.
               </p>
             </div>
+            <AssetCollectionsField v-model="form.collection_ids" />
           </section>
 
-          <hr class="border-t border-gray-100 dark:border-gray-700">
+          <hr class="hidden">
 
           <!-- Section 2: Additional Details -->
-          <section class="space-y-6">
-            <h3 class="text-lg font-bold text-mist-950 dark:text-white flex items-center gap-2">
+          <details
+            :open="detailsOpen"
+            class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6"
+            @invalid.capture="revealInvalidSection"
+          >
+            <summary class="flex cursor-pointer list-none items-start gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-attic-500 [&::-webkit-details-marker]:hidden">
+              <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                <UIcon
+                  name="i-lucide-clipboard-list"
+                  class="size-4.5"
+                />
+              </div>
+              <div>
+                <h2 class="font-extrabold text-mist-950 dark:text-white">
+                  Details and notes
+                </h2>
+                <p class="text-xs text-muted">
+                  Condition, quantity, descriptions, and private context.
+                </p>
+              </div>
               <UIcon
-                name="i-lucide-clipboard-list"
-                class="w-5 h-5 text-attic-500"
+                name="i-lucide-chevron-down"
+                class="ml-auto mt-2 size-4 shrink-0 text-muted transition-transform in-open:rotate-180"
               />
-              Additional Details
-            </h3>
+            </summary>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <!-- Condition -->
@@ -464,6 +523,7 @@ const formProgress = computed(() => {
                   placeholder="Select condition..."
                   value-key="value"
                   class="w-full"
+                  size="lg"
                 />
               </div>
 
@@ -476,7 +536,7 @@ const formProgress = computed(() => {
                   v-model.number="form.quantity"
                   type="number"
                   min="1"
-                  class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm"
+                  class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                 >
               </div>
             </div>
@@ -488,9 +548,9 @@ const formProgress = computed(() => {
               </label>
               <textarea
                 v-model="form.description"
-                rows="3"
+                rows="4"
                 placeholder="Product description, features, specifications..."
-                class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm resize-none placeholder:text-gray-400"
+                class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               />
             </div>
 
@@ -503,25 +563,34 @@ const formProgress = computed(() => {
                 v-model="form.notes"
                 rows="3"
                 placeholder="Your personal notes: condition details, where you bought it, special memories..."
-                class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm resize-none placeholder:text-gray-400"
+                class="block w-full resize-none rounded-xl border-terracotta-100 bg-terracotta-50/40 px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-terracotta-300 focus:ring-terracotta-300 dark:border-terracotta-900/40 dark:bg-terracotta-950/10 dark:text-white"
               />
             </div>
-          </section>
+          </details>
 
           <!-- Category Attributes -->
           <template v-if="selectedCategory?.attributes?.length">
-            <hr class="border-t border-gray-100 dark:border-gray-700">
+            <hr class="hidden">
 
-            <section class="space-y-6">
-              <h3 class="text-lg font-bold text-mist-950 dark:text-white flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-sliders-horizontal"
-                  class="w-5 h-5 text-attic-500"
-                />
-                {{ selectedCategory.name }} Attributes
-              </h3>
+            <section class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6">
+              <div class="flex items-start gap-3">
+                <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-terracotta-50 text-terracotta-500 dark:bg-terracotta-500/10 dark:text-terracotta-300">
+                  <UIcon
+                    name="i-lucide-sliders-horizontal"
+                    class="size-4.5"
+                  />
+                </div>
+                <div>
+                  <h2 class="font-extrabold text-mist-950 dark:text-white">
+                    {{ selectedCategory.name }} attributes
+                  </h2>
+                  <p class="text-xs text-muted">
+                    Category-specific information for this asset.
+                  </p>
+                </div>
+              </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="max-w-3xl space-y-5">
                 <div
                   v-for="ca in selectedCategory.attributes"
                   :key="ca.attribute_id"
@@ -560,8 +629,8 @@ const formProgress = computed(() => {
                       v-else-if="ca.attribute.data_type === 'text'"
                       :value="String(form.attributes[ca.attribute.key] ?? '')"
                       :placeholder="`Enter ${ca.attribute.name.toLowerCase()}`"
-                      rows="3"
-                      class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm resize-none placeholder:text-gray-400"
+                      rows="4"
+                      class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                       @input="form.attributes[ca.attribute.key] = ($event.target as HTMLTextAreaElement).value"
                     />
 
@@ -572,7 +641,7 @@ const formProgress = computed(() => {
                       :type="getInputType(ca.attribute.data_type)"
                       :step="ca.attribute.data_type === 'number' ? 'any' : undefined"
                       :placeholder="`Enter ${ca.attribute.name.toLowerCase()}`"
-                      class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm placeholder:text-gray-400"
+                      class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                     >
                   </template>
                 </div>
@@ -582,22 +651,39 @@ const formProgress = computed(() => {
 
           <div
             v-else-if="form.category_id && !selectedCategory?.attributes?.length"
-            class="text-center py-4 text-gray-400"
+            class="attic-panel rounded-[20px] py-5 text-center text-sm text-muted"
           >
             <p>This category has no custom attributes.</p>
           </div>
 
-          <hr class="border-t border-gray-100 dark:border-gray-700">
+          <hr class="hidden">
 
           <!-- Section 3: Purchase Information -->
-          <section class="space-y-6">
-            <h3 class="text-lg font-bold text-mist-950 dark:text-white flex items-center gap-2">
+          <details
+            :open="purchaseOpen"
+            class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6"
+            @invalid.capture="revealInvalidSection"
+          >
+            <summary class="flex cursor-pointer list-none items-start gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-attic-500 [&::-webkit-details-marker]:hidden">
+              <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
+                <UIcon
+                  name="i-lucide-receipt"
+                  class="size-4.5"
+                />
+              </div>
+              <div>
+                <h2 class="font-extrabold text-mist-950 dark:text-white">
+                  Purchase information
+                </h2>
+                <p class="text-xs text-muted">
+                  Optional cost and purchase records.
+                </p>
+              </div>
               <UIcon
-                name="i-lucide-receipt"
-                class="w-5 h-5 text-attic-500"
+                name="i-lucide-chevron-down"
+                class="ml-auto mt-2 size-4 shrink-0 text-muted transition-transform in-open:rotate-180"
               />
-              Purchase Information
-            </h3>
+            </summary>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <!-- Purchase Date -->
@@ -608,7 +694,7 @@ const formProgress = computed(() => {
                 <input
                   v-model="form.purchase_at"
                   type="date"
-                  class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm"
+                  class="block w-full rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                 >
               </div>
 
@@ -625,7 +711,7 @@ const formProgress = computed(() => {
                     step="0.01"
                     min="0"
                     placeholder="0.00"
-                    class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 pl-8 pr-4 shadow-sm placeholder:text-gray-400"
+                    class="block w-full rounded-xl border-mist-200 bg-white py-3 pl-8 pr-4 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                   >
                 </div>
               </div>
@@ -640,15 +726,15 @@ const formProgress = computed(() => {
                 v-model="form.purchase_note"
                 rows="3"
                 placeholder="Store, receipt number, warranty info, etc."
-                class="block w-full rounded-lg border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-mist-950 dark:text-white focus:border-attic-500 focus:ring-attic-500 text-sm py-3 px-4 shadow-sm resize-none placeholder:text-gray-400"
+                class="block w-full resize-none rounded-xl border-mist-200 bg-white px-4 py-3 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
               />
             </div>
-          </section>
+          </details>
         </div>
 
         <!-- Footer Action Area -->
-        <div class="bg-gray-50 dark:bg-gray-800/50 px-6 sm:px-10 py-4 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div class="text-xs text-gray-400 dark:text-gray-500">
+        <div class="attic-panel flex flex-col items-center justify-between gap-3 rounded-[18px] px-4 py-3 sm:flex-row">
+          <div class="text-xs text-muted">
             <span class="text-amber-500">*</span> Required fields
           </div>
           <div class="flex items-center gap-3">
@@ -662,7 +748,7 @@ const formProgress = computed(() => {
             <UButton
               type="submit"
               :loading="loading"
-              class="shadow-lg shadow-attic-500/20"
+              class="rounded-xl shadow-primary"
               icon="i-lucide-save"
             >
               Save Changes
@@ -670,19 +756,6 @@ const formProgress = computed(() => {
           </div>
         </div>
       </form>
-
-      <!-- Tip -->
-      <div class="flex justify-center pb-8">
-        <div class="max-w-lg text-center">
-          <p class="text-sm text-gray-400 dark:text-gray-500 flex items-center justify-center gap-2">
-            <UIcon
-              name="i-lucide-lightbulb"
-              class="w-4 h-4"
-            />
-            Tip: Changes are saved immediately when you click "Save Changes".
-          </p>
-        </div>
-      </div>
     </template>
   </div>
 </template>

@@ -72,12 +72,14 @@ type LocationRepository interface {
 
 // AssetFilter defines filters for asset queries
 type AssetFilter struct {
-	CategoryID  *uuid.UUID
-	LocationID  *uuid.UUID
-	ConditionID *uuid.UUID
-	TagIDs      []uuid.UUID
-	Query       string // Full-text search query
-	Attributes  map[string]any
+	CollectionID  *uuid.UUID
+	CategoryID    *uuid.UUID
+	Uncategorized bool
+	LocationID    *uuid.UUID
+	ConditionID   *uuid.UUID
+	TagIDs        []uuid.UUID
+	Query         string // Full-text search query
+	Attributes    map[string]any
 }
 
 // Pagination defines pagination parameters
@@ -96,7 +98,7 @@ type AssetRepository interface {
 	Update(ctx context.Context, asset *Asset) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	SetTags(ctx context.Context, assetID uuid.UUID, tagIDs []uuid.UUID) error
-	GetTotalValue(ctx context.Context, orgID uuid.UUID) (float64, error)
+	GetTotalValue(ctx context.Context, orgID uuid.UUID, filter AssetFilter) (float64, error)
 }
 
 // TagRepository handles tag persistence

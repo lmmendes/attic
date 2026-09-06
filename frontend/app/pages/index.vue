@@ -1,33 +1,66 @@
 <script setup lang="ts">
-import type { Asset, AssetStats, Category, Location, Warranty } from '~/types/api'
+import type { Asset, AssetStats, Category, Collection, Location, Warranty } from '~/types/api'
+import { getDashboardUrls } from '~/utils/dashboardUrls'
 
-definePageMeta({
-  middleware: 'auth'
-})
+definePageMeta({ middleware: 'auth' })
 
 const { user } = useAuth()
-
-// Fetch dashboard data when logged in
-const { data: assets } = useApi<{ assets: Asset[], total: number }>('/api/assets?limit=4')
-
-const { data: assetStats } = useApi<AssetStats>('/api/assets/stats')
-
 const { data: categories } = useApi<Category[]>('/api/categories')
-
 const { data: locations } = useApi<Location[]>('/api/locations')
-
+const { data: collections, error: collectionsError } = useApi<Collection[]>('/api/collections')
 const { data: expiringWarranties } = useApi<Warranty[]>('/api/warranties/expiring?days=30')
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(value)
+const selectedLocationId = ref('all')
+
+interface LocationTreeNode {
+  location: Location
+  children: LocationTreeNode[]
 }
 
-// Get greeting based on time of day
+function buildLocationOptions(items: Location[]): { label: string, value: string }[] {
+  const childrenMap = new Map<string | undefined, Location[]>()
+  items.forEach((location) => {
+    const parentId = location.parent_id || undefined
+    if (!childrenMap.has(parentId)) childrenMap.set(parentId, [])
+    childrenMap.get(parentId)!.push(location)
+  })
+
+  const buildTree = (parentId: string | undefined): LocationTreeNode[] =>
+    (childrenMap.get(parentId) || [])
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(location => ({ location, children: buildTree(location.id) }))
+
+  const flattenTree = (nodes: LocationTreeNode[], depth = 0): { label: string, value: string }[] =>
+    nodes.flatMap((node) => {
+      const indent = depth > 0 ? `${'\u00A0'.repeat(depth * 2)}└ ` : ''
+      return [
+        { label: `${indent}${node.location.name}`, value: node.location.id },
+        ...flattenTree(node.children, depth + 1)
+      ]
+    })
+
+  return [
+    { label: 'All locations', value: 'all' },
+    ...flattenTree(buildTree(undefined))
+  ]
+}
+
+const locationOptions = computed(() => buildLocationOptions(locations.value || []))
+const selectedLocation = computed(() =>
+  locations.value?.find(location => location.id === selectedLocationId.value)
+)
+const dashboardUrls = computed(() => getDashboardUrls(selectedLocationId.value))
+const assetsUrl = computed(() => dashboardUrls.value.assets)
+const assetStatsUrl = computed(() => dashboardUrls.value.stats)
+const assetsPageUrl = computed(() => dashboardUrls.value.inventory)
+
+const { data: assets } = useApi<{ assets: Asset[], total: number }>(() => assetsUrl.value)
+const { data: assetStats } = useApi<AssetStats>(() => assetStatsUrl.value)
+
+const formatCurrency = (value: number) => new Intl.NumberFormat('en-US', {
+  style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0
+}).format(value)
+
 const greeting = computed(() => {
   const hour = new Date().getHours()
   if (hour < 12) return 'Good morning'
@@ -36,263 +69,370 @@ const greeting = computed(() => {
 })
 
 const userName = computed(() => {
-  if (user.value?.name) {
-    return user.value.name.split(' ')[0]
-  }
+  if (user.value?.name) return user.value.name.split(' ')[0]
   return user.value?.email?.split('@')[0] || 'there'
 })
 
-// Format relative time
-const formatRelativeTime = (dateString: string) => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+const currentDate = new Intl.DateTimeFormat('en-US', {
+  weekday: 'long', month: 'long', day: 'numeric'
+}).format(new Date())
 
-  if (diffDays === 0) return 'Added today'
-  if (diffDays === 1) return 'Added yesterday'
-  if (diffDays < 7) return `Added ${diffDays} days ago`
-  return `Added ${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? 's' : ''} ago`
+const formatRelativeTime = (dateString: string) => {
+  const diffDays = Math.floor((Date.now() - new Date(dateString).getTime()) / 86400000)
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays < 7) return `${diffDays} days ago`
+  const weeks = Math.floor(diffDays / 7)
+  return `${weeks} week${weeks > 1 ? 's' : ''} ago`
 }
+
+const overviewMetrics = computed(() => [
+  { label: 'Assets', value: assets.value?.total || 0, icon: 'i-lucide-package', to: assetsPageUrl.value },
+  { label: 'Locations', value: locations.value?.length || 0, icon: 'i-lucide-map-pin', to: '/locations' },
+  { label: 'Expiring', value: expiringWarranties.value?.length || 0, icon: 'i-lucide-shield-alert', to: '/warranties' }
+])
+
+const quickLinks = computed(() => [
+  {
+    label: 'Collections', description: collectionsError.value ? 'Manage your collections' : `${collections.value?.length || 0} shared collections`,
+    icon: 'i-lucide-library', to: '/collections',
+    iconClass: 'bg-attic-100 text-attic-600 dark:bg-attic-500/15 dark:text-attic-300'
+  },
+  {
+    label: 'Browse assets', description: `${assets.value?.total || 0} items catalogued`,
+    icon: 'i-lucide-package-search', to: assetsPageUrl.value,
+    iconClass: 'bg-attic-100 text-attic-600 dark:bg-attic-500/15 dark:text-attic-300'
+  },
+  {
+    label: 'Locations', description: `${locations.value?.length || 0} storage spaces`,
+    icon: 'i-lucide-map-pinned', to: '/locations',
+    iconClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+  },
+  {
+    label: 'Categories', description: `${categories.value?.length || 0} ways to organize`,
+    icon: 'i-lucide-shapes', to: '/categories',
+    iconClass: 'bg-terracotta-100 text-terracotta-600 dark:bg-terracotta-500/10 dark:text-terracotta-300'
+  },
+  {
+    label: 'Warranties',
+    description: expiringWarranties.value?.length ? `${expiringWarranties.value.length} need attention` : 'Everything is up to date',
+    icon: 'i-lucide-shield-check', to: '/warranties',
+    iconClass: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
+  }
+])
 </script>
 
 <template>
-  <div class="flex flex-col gap-8">
-    <!-- Welcome Section -->
-    <div>
-      <h2 class="text-2xl font-bold text-mist-950 dark:text-white">
-        {{ greeting }}, {{ userName }}
-      </h2>
-      <p class="text-mist-500 mt-1">
-        Here is what's happening in your Attic today.
-      </p>
-    </div>
-
-    <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <!-- Total Assets -->
-      <NuxtLink
-        to="/assets"
-        class="bg-white dark:bg-mist-800 p-6 rounded-xl shadow-card border border-mist-100 dark:border-mist-700 flex flex-col justify-between h-32 relative overflow-hidden group hover:shadow-soft transition-all"
-      >
-        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-          <UIcon
-            name="i-lucide-box"
-            class="w-16 h-16 text-attic-500"
-          />
-        </div>
-        <p class="text-mist-500 font-medium text-sm">Total Assets</p>
-        <div class="flex items-baseline gap-2">
-          <span class="text-3xl font-bold text-mist-950 dark:text-white">{{ assets?.total || 0 }}</span>
-        </div>
-      </NuxtLink>
-
-      <!-- Total Value -->
-      <NuxtLink
-        to="/assets"
-        class="bg-white dark:bg-mist-800 p-6 rounded-xl shadow-card border border-mist-100 dark:border-mist-700 flex flex-col justify-between h-32 relative overflow-hidden group hover:shadow-soft transition-all"
-      >
-        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-          <UIcon
-            name="i-lucide-banknote"
-            class="w-16 h-16 text-attic-500"
-          />
-        </div>
-        <p class="text-mist-500 font-medium text-sm">Total Value</p>
-        <div class="flex items-baseline gap-2">
-          <span class="text-3xl font-bold text-mist-950 dark:text-white">{{ formatCurrency(assetStats?.total_value || 0) }}</span>
-        </div>
-      </NuxtLink>
-
-      <!-- Expiring Warranties -->
-      <NuxtLink
-        to="/warranties"
-        class="bg-white dark:bg-mist-800 p-6 rounded-xl shadow-card border border-mist-100 dark:border-mist-700 flex flex-col justify-between h-32 relative overflow-hidden group hover:shadow-soft transition-all"
-      >
-        <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-          <UIcon
-            name="i-lucide-shield-alert"
-            class="w-16 h-16 text-amber-500"
-          />
-        </div>
-        <p class="text-mist-500 font-medium text-sm">Expiring Warranties</p>
-        <div class="flex items-baseline gap-2">
-          <span class="text-3xl font-bold text-mist-950 dark:text-white">{{ expiringWarranties?.length || 0 }}</span>
-          <span
-            v-if="(expiringWarranties?.length || 0) > 0"
-            class="text-xs text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full font-bold"
-          >
-            within 30 days
-          </span>
-        </div>
-      </NuxtLink>
-    </div>
-
-    <!-- Main Layout Grid (2 Columns) -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <!-- Left Column: Recent Assets -->
-      <div class="lg:col-span-2 flex flex-col gap-6">
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg font-bold text-mist-950 dark:text-white">
-            Recently Added
-          </h3>
-          <NuxtLink
-            to="/assets"
-            class="text-sm font-medium text-attic-500 hover:text-attic-700 hover:underline"
-          >
-            View All
-          </NuxtLink>
-        </div>
-
-        <div
-          v-if="assets?.assets?.length"
-          class="grid grid-cols-1 sm:grid-cols-2 gap-4"
-        >
-          <NuxtLink
-            v-for="asset in assets.assets"
-            :key="asset.id"
-            :to="`/assets/${asset.id}`"
-            class="bg-white dark:bg-mist-800 p-4 rounded-xl shadow-card border border-mist-100 dark:border-mist-700 flex gap-4 hover:shadow-soft transition-all cursor-pointer group"
-          >
-            <div class="w-20 h-20 rounded-lg bg-mist-100 dark:bg-mist-700 flex-shrink-0 flex items-center justify-center">
-              <UIcon
-                name="i-lucide-package"
-                class="w-8 h-8 text-mist-400 group-hover:text-attic-500 transition-colors"
-              />
-            </div>
-            <div class="flex flex-col justify-center min-w-0">
-              <h4 class="font-bold text-mist-950 dark:text-white truncate">
-                {{ asset.name }}
-              </h4>
-              <p class="text-sm text-mist-500 mb-2 truncate">
-                {{ asset.category?.name || 'Uncategorized' }}
-                <span v-if="asset.location?.name"> &bull; {{ asset.location.name }}</span>
-              </p>
-              <span class="text-xs text-mist-500 bg-mist-200 dark:bg-mist-700 px-2 py-1 rounded w-fit">
-                {{ formatRelativeTime(asset.created_at) }}
-              </span>
-            </div>
-          </NuxtLink>
-        </div>
-
-        <!-- Empty state -->
-        <div
-          v-else
-          class="bg-white dark:bg-mist-800 p-8 rounded-xl shadow-card border border-mist-100 dark:border-mist-700 text-center"
-        >
-          <UIcon
-            name="i-lucide-inbox"
-            class="w-12 h-12 mx-auto mb-4 text-mist-300"
-          />
-          <p class="text-mist-500 mb-4">
-            No assets yet. Start by adding your first asset.
-          </p>
-          <UButton
-            to="/assets/new"
-            variant="soft"
-          >
-            Add Asset
-          </UButton>
-        </div>
+  <div class="grid grid-cols-1 gap-5 pb-20 xl:grid-cols-[minmax(0,1.6fr)_minmax(340px,0.8fr)] xl:pb-6">
+    <header class="xl:col-span-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p class="mb-1.5 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500 dark:text-attic-300">
+          {{ currentDate }}
+        </p>
+        <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
+          {{ greeting }}, {{ userName }}.
+        </h1>
+        <p class="mt-1 text-sm text-muted">
+          Your belongings, and where to find them.
+        </p>
       </div>
+      <div class="flex items-center gap-2">
+        <UButton
+          to="/assets?focus=search"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-search"
+          class="rounded-xl"
+        >
+          Find an asset
+        </UButton>
+        <UButton
+          to="/assets/new"
+          icon="i-lucide-plus"
+          class="rounded-xl shadow-primary"
+        >
+          Add asset
+        </UButton>
+      </div>
+    </header>
 
-      <!-- Right Column: Quick Stats -->
-      <div class="flex flex-col gap-6">
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg font-bold text-mist-950 dark:text-white">
-            Quick Overview
-          </h3>
-        </div>
-
-        <div class="bg-white dark:bg-mist-800 rounded-xl shadow-card border border-mist-100 dark:border-mist-700 p-4">
-          <div class="flex flex-col gap-1">
-            <!-- Categories -->
-            <NuxtLink
-              to="/categories"
-              class="flex items-center gap-2 p-2 hover:bg-mist-100 dark:hover:bg-mist-700 rounded cursor-pointer group"
-            >
+    <div class="relative isolate sm:min-h-[250px] overflow-hidden rounded-[24px] bg-gradient-to-br from-attic-500 via-attic-600 to-[#174AE8] p-5 text-white shadow-primary sm:p-6">
+      <div class="pointer-events-none absolute -right-24 -top-32 size-80 rounded-full border-[42px] border-white/5" />
+      <div class="pointer-events-none absolute -bottom-32 left-1/3 size-64 rounded-full bg-white/5 blur-2xl" />
+      <div class="relative flex h-full flex-col justify-between gap-4 sm:gap-6">
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="flex size-9 items-center justify-center rounded-xl border border-white/15 bg-white/10 backdrop-blur-sm">
               <UIcon
-                name="i-lucide-folder-tree"
-                class="w-5 h-5 text-mist-500 group-hover:text-attic-500"
-              />
-              <span class="font-medium text-sm text-mist-950 dark:text-white">Categories</span>
-              <span class="ml-auto text-xs font-mono text-mist-500 bg-mist-200 dark:bg-mist-700 px-1.5 py-0.5 rounded">
-                {{ categories?.length || 0 }}
-              </span>
-            </NuxtLink>
-
-            <!-- Locations -->
-            <NuxtLink
-              to="/locations"
-              class="flex items-center gap-2 p-2 hover:bg-mist-100 dark:hover:bg-mist-700 rounded cursor-pointer group"
-            >
-              <UIcon
-                name="i-lucide-map-pin"
-                class="w-5 h-5 text-mist-500 group-hover:text-attic-500"
-              />
-              <span class="font-medium text-sm text-mist-950 dark:text-white">Locations</span>
-              <span class="ml-auto text-xs font-mono text-mist-500 bg-mist-200 dark:bg-mist-700 px-1.5 py-0.5 rounded">
-                {{ locations?.length || 0 }}
-              </span>
-            </NuxtLink>
-
-            <!-- Warranties expiring -->
-            <NuxtLink
-              to="/warranties"
-              class="flex items-center gap-2 p-2 hover:bg-mist-100 dark:hover:bg-mist-700 rounded cursor-pointer group"
-            >
-              <UIcon
-                name="i-lucide-shield-check"
-                class="w-5 h-5 text-mist-500 group-hover:text-attic-500"
-              />
-              <span class="font-medium text-sm text-mist-950 dark:text-white">Warranties</span>
-              <div class="ml-auto flex items-center gap-2">
-                <span
-                  v-if="(expiringWarranties?.length || 0) > 0"
-                  class="w-2 h-2 rounded-full bg-amber-500"
-                />
-                <span class="text-xs font-mono text-mist-500 bg-mist-200 dark:bg-mist-700 px-1.5 py-0.5 rounded">
-                  {{ expiringWarranties?.length || 0 }}
-                </span>
-              </div>
-            </NuxtLink>
-          </div>
-        </div>
-
-        <!-- Quick actions -->
-        <div class="bg-gradient-to-br from-mist-200 to-white dark:from-mist-800 dark:to-mist-700 p-4 rounded-xl border border-mist-200 dark:border-mist-600">
-          <div class="flex items-start gap-3">
-            <div class="p-2 bg-white dark:bg-mist-600 rounded-lg shadow-sm">
-              <UIcon
-                name="i-lucide-plus-circle"
-                class="w-5 h-5 text-attic-500"
+                name="i-lucide-chart-no-axes-combined"
+                class="size-5"
               />
             </div>
             <div>
-              <h4 class="text-sm font-bold text-mist-950 dark:text-white">
-                Quick Actions
-              </h4>
-              <p class="text-xs text-mist-500 mt-1 leading-relaxed">
-                Add a new asset, category, or location to keep your inventory organized.
+              <p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/85">
+                Inventory overview
               </p>
-              <div class="flex gap-2 mt-3 flex-wrap">
-                <UButton
-                  to="/assets/new"
-                  size="xs"
-                >
-                  New Asset
-                </UButton>
-                <UButton
-                  to="/categories"
-                  size="xs"
-                  color="neutral"
-                  variant="soft"
-                >
-                  Categories
-                </UButton>
-              </div>
+              <USelectMenu
+                v-model="selectedLocationId"
+                :items="locationOptions"
+                value-key="value"
+                aria-label="Filter dashboard by location"
+                variant="none"
+                size="xs"
+                class="-ml-1 mt-0.5 w-auto max-w-44"
+                :ui="{
+                  base: 'min-h-0 gap-1 rounded-md px-1 py-0.5 text-sm font-bold text-white/90 hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white/50',
+                  value: 'truncate',
+                  trailingIcon: 'size-3.5 text-white/85'
+                }"
+              />
             </div>
           </div>
+          <NuxtLink
+            :to="assetsPageUrl"
+            aria-label="Open all assets"
+            class="flex size-9 items-center justify-center rounded-xl border border-white/15 bg-white/10 transition hover:bg-white/20"
+          >
+            <UIcon
+              name="i-lucide-arrow-up-right"
+              class="size-4"
+            />
+          </NuxtLink>
         </div>
+        <div>
+          <p class="text-xs font-bold uppercase tracking-[0.14em] text-white/85">
+            Total purchase value
+          </p>
+          <p class="mt-1 text-3xl font-black tracking-[-0.05em] sm:text-4xl">
+            {{ formatCurrency(assetStats?.total_value || 0) }}
+          </p>
+        </div>
+        <div class="grid grid-cols-3 overflow-hidden rounded-2xl border border-white/15 bg-white/10 backdrop-blur-sm">
+          <NuxtLink
+            v-for="(metric, index) in overviewMetrics"
+            :key="metric.label"
+            :to="metric.to"
+            class="group flex min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-2 py-3 text-center transition hover:bg-white/10 sm:px-4"
+            :class="index > 0 ? 'border-l border-white/15' : ''"
+          >
+            <UIcon
+              :name="metric.icon"
+              class="size-4 text-white/75 transition group-hover:text-white"
+            />
+            <span class="text-base font-black">{{ metric.value }}</span>
+            <span class="w-full text-xs font-medium text-white/85 sm:w-auto">{{ metric.label }}</span>
+          </NuxtLink>
+        </div>
+      </div>
+    </div>
+
+    <section class="xl:col-span-2">
+      <div class="mb-3 flex items-end justify-between gap-4">
+        <div>
+          <p class="text-xs font-extrabold uppercase tracking-[0.14em] text-muted">
+            Your inventory
+          </p>
+          <h2 class="text-lg font-extrabold text-mist-950 dark:text-white md:text-xl">
+            Recently updated
+          </h2>
+        </div>
+        <NuxtLink
+          :to="assetsPageUrl"
+          class="group flex items-center gap-1.5 text-sm font-bold text-attic-500 dark:text-attic-300 hover:text-attic-700"
+        >
+          View all <UIcon
+            name="i-lucide-arrow-right"
+            class="size-4 transition group-hover:translate-x-0.5"
+          />
+        </NuxtLink>
+      </div>
+
+      <div
+        v-if="assets?.assets?.length"
+        class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+      >
+        <NuxtLink
+          v-for="asset in assets.assets"
+          :key="asset.id"
+          :to="`/assets/${asset.id}`"
+          class="attic-panel attic-panel-interactive group flex overflow-hidden rounded-[18px] sm:block"
+        >
+          <div class="relative w-20 shrink-0 overflow-hidden bg-gradient-to-br sm:aspect-[2/1] sm:w-auto from-attic-50 to-mist-100 dark:from-mist-700 dark:to-mist-800">
+            <img
+              v-if="asset.main_attachment_url"
+              :src="asset.main_attachment_url"
+              :alt="asset.name"
+              class="size-full object-cover transition duration-300 group-hover:scale-[1.03]"
+            >
+            <div
+              v-else
+              class="flex size-full items-center justify-center"
+            >
+              <div class="flex size-14 items-center justify-center rounded-2xl bg-white/80 text-attic-500 dark:text-attic-300 shadow-sm dark:bg-mist-700">
+                <UIcon
+                  name="i-lucide-package"
+                  class="size-6"
+                />
+              </div>
+            </div>
+            <span class="absolute left-3 top-3 hidden rounded-full sm:inline bg-white/90 px-2.5 py-1 text-[10px] font-extrabold text-mist-600 shadow-sm backdrop-blur dark:bg-mist-900/85 dark:text-mist-300">
+              {{ asset.category?.name || 'Uncategorized' }}
+            </span>
+          </div>
+          <div class="min-w-0 flex-1 p-3.5">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h3 class="line-clamp-2 font-extrabold text-mist-950 dark:text-white">{{ asset.name }}</h3>
+                <p class="mt-1 flex items-center gap-1.5 truncate text-xs text-muted">
+                  <UIcon
+                    name="i-lucide-map-pin"
+                    class="size-3.5 shrink-0"
+                  />{{ asset.location?.name || 'No location' }}
+                </p>
+                <div
+                  class="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] text-muted"
+                  :title="asset.collections?.length ? asset.collections.map(collection => collection.name).join(', ') : 'No collections'"
+                >
+                  <UIcon
+                    name="i-lucide-library"
+                    class="size-3.5 shrink-0"
+                  />
+                  <template v-if="asset.collections?.length">
+                    <span class="truncate rounded-md bg-attic-50 px-1.5 py-0.5 font-semibold text-attic-600 dark:bg-attic-500/10 dark:text-attic-300">
+                      {{ asset.collections[0]?.name }}
+                    </span>
+                    <span
+                      v-if="asset.collections.length > 1"
+                      class="shrink-0 font-bold text-attic-500 dark:text-attic-300"
+                    >
+                      +{{ asset.collections.length - 1 }}
+                    </span>
+                  </template>
+                  <span v-else>No collections</span>
+                </div>
+              </div>
+              <UIcon
+                name="i-lucide-arrow-up-right"
+                class="mt-0.5 size-4 shrink-0 text-mist-300 transition group-hover:text-attic-500 dark:text-attic-300"
+              />
+            </div>
+            <p class="mt-2.5 text-[11px] font-semibold text-muted">{{ formatRelativeTime(asset.updated_at) }}</p>
+          </div>
+        </NuxtLink>
+      </div>
+
+      <div
+        v-else-if="selectedLocation"
+        class="attic-panel rounded-[24px] px-6 py-14 text-center"
+      >
+        <div class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-attic-50 text-attic-500 dark:text-attic-300 dark:bg-attic-500/10">
+          <UIcon
+            name="i-lucide-map-pin-off"
+            class="size-6"
+          />
+        </div>
+        <h3 class="mt-4 font-extrabold text-mist-950 dark:text-white">
+          No assets in {{ selectedLocation.name }}
+        </h3>
+        <p class="mx-auto mt-1 max-w-sm text-sm text-muted">
+          Try another location or view the full inventory.
+        </p>
+        <UButton
+          variant="outline"
+          color="neutral"
+          icon="i-lucide-layers"
+          class="mt-5 rounded-xl"
+          @click="selectedLocationId = 'all'"
+        >
+          View all locations
+        </UButton>
+      </div>
+
+      <div
+        v-else
+        class="attic-panel rounded-[24px] px-6 py-14 text-center"
+      >
+        <div class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-attic-50 text-attic-500 dark:text-attic-300 dark:bg-attic-500/10">
+          <UIcon
+            name="i-lucide-package-open"
+            class="size-6"
+          />
+        </div>
+        <h3 class="mt-4 font-extrabold text-mist-950 dark:text-white">
+          Your inventory starts here
+        </h3>
+        <p class="mx-auto mt-1 max-w-sm text-sm text-muted">
+          Add your first asset and Attic will keep the details organized.
+        </p>
+        <UButton
+          to="/assets/new"
+          icon="i-lucide-plus"
+          class="mt-5 rounded-xl"
+        >
+          Add your first asset
+        </UButton>
+      </div>
+    </section>
+
+    <NuxtLink
+      v-if="(expiringWarranties?.length || 0) > 0"
+      to="/warranties"
+      class="xl:col-span-2 group flex flex-col gap-4 rounded-[22px] border border-amber-200 bg-amber-50 p-5 transition hover:border-amber-300 dark:border-amber-800/50 dark:bg-amber-900/10 sm:flex-row sm:items-center"
+    >
+      <div class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
+        <UIcon
+          name="i-lucide-shield-alert"
+          class="size-5"
+        />
+      </div>
+      <div class="flex-1">
+        <p class="font-extrabold text-mist-950 dark:text-white">A warranty check is due</p>
+        <p class="mt-0.5 text-sm text-mist-600 dark:text-mist-400">
+          {{ expiringWarranties?.length }} {{ expiringWarranties?.length === 1 ? 'warranty expires' : 'warranties expire' }} in the next 30 days.
+        </p>
+      </div>
+      <span class="flex items-center gap-1.5 text-sm font-bold text-amber-700 dark:text-amber-400">
+        Review coverage <UIcon
+          name="i-lucide-arrow-right"
+          class="size-4 transition group-hover:translate-x-0.5"
+        />
+      </span>
+    </NuxtLink>
+    <div class="attic-panel xl:col-start-2 xl:row-start-2 rounded-[22px] p-4">
+      <div class="mb-2 flex items-center justify-between">
+        <h2 class="text-lg font-extrabold text-mist-950 dark:text-white">
+          Quick access
+        </h2>
+        <UIcon
+          name="i-lucide-sparkles"
+          class="size-5 text-terracotta-400"
+        />
+      </div>
+      <div class="grid gap-1 sm:grid-cols-2 xl:grid-cols-1">
+        <NuxtLink
+          v-for="link in quickLinks"
+          :key="link.to"
+          :to="link.to"
+          class="group flex min-h-11 items-center gap-2.5 rounded-xl px-2 py-1 transition hover:bg-mist-50 dark:hover:bg-mist-700/50"
+        >
+          <div
+            class="flex size-8 shrink-0 items-center justify-center rounded-lg"
+            :class="link.iconClass"
+          >
+            <UIcon
+              :name="link.icon"
+              class="size-4"
+            />
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-bold text-mist-950 dark:text-white">{{ link.label }}</p>
+            <p class="truncate text-xs text-muted">{{ link.description }}</p>
+          </div>
+          <UIcon
+            name="i-lucide-chevron-right"
+            class="size-4 text-mist-300 transition group-hover:translate-x-0.5 group-hover:text-attic-500 dark:text-attic-300"
+          />
+        </NuxtLink>
       </div>
     </div>
   </div>

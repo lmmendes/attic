@@ -63,10 +63,23 @@ export interface Condition {
   updated_at: string
 }
 
-export interface Asset {
+export interface Collection {
   id: string
   organization_id: string
-  category_id: string
+  name: string
+  description?: string
+  icon: string
+  asset_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Asset {
+  collection_ids?: string[]
+  collections?: Collection[]
+  id: string
+  organization_id: string
+  category_id?: string
   location_id?: string
   condition_id?: string
   parent_id?: string
@@ -134,6 +147,7 @@ export interface AssetsResponse {
 }
 
 export interface AssetFilters {
+  collection_id?: string
   q?: string
   category_id?: string
   location_id?: string

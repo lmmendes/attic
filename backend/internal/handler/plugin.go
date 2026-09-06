@@ -297,7 +297,7 @@ func (h *PluginHandler) Import(w http.ResponseWriter, r *http.Request) {
 	// Create the asset
 	asset := &domain.Asset{
 		OrganizationID:   h.orgID,
-		CategoryID:       cat.ID,
+		CategoryID:       &cat.ID,
 		Name:             importData.Name,
 		Description:      importData.Description,
 		Quantity:         1,

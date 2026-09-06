@@ -26,6 +26,7 @@ type Repositories struct {
 	Organizations *repository.OrganizationRepository
 	Users         *repository.UserRepository
 	Categories    *repository.CategoryRepository
+	Collections   *repository.CollectionRepository
 	Locations     *repository.LocationRepository
 	Conditions    *repository.ConditionRepository
 	Assets        *repository.AssetRepository

@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { DialogDescription, DialogTitle } from 'reka-ui'
 import type { Plugin, PluginSearchResult, PluginsResponse, PluginSearchResponse, PluginImportResponse } from '~/types/api'
 
 const props = defineProps<{
   open: boolean
+  initialPluginId?: string
 }>()
 
 const emit = defineEmits<{
@@ -21,6 +23,18 @@ const searchQuery = ref('')
 const searchResults = ref<PluginSearchResult[]>([])
 const searching = ref(false)
 const importing = ref(false)
+
+const modalTitle = computed(() => {
+  if (step.value === 'select') return 'Choose a source'
+  if (step.value === 'search') return `Search ${selectedPlugin.value?.name || 'catalog'}`
+  return 'Adding to your collection'
+})
+
+const modalDescription = computed(() => {
+  if (step.value === 'select') return 'Select the catalog that best matches the asset you are adding.'
+  if (step.value === 'search') return `Search ${selectedPlugin.value?.name || 'the selected catalog'} for an item to import.`
+  return 'The selected item is being added to your collection.'
+})
 
 // Load plugins from API
 const { data: pluginsData } = useApi<PluginsResponse>('/api/plugins')
@@ -48,6 +62,12 @@ watch(() => props.open, (isOpen) => {
     searchResults.value = []
   }
 })
+
+watch([() => props.open, plugins], ([isOpen, availablePlugins]) => {
+  if (!isOpen || !props.initialPluginId || selectedPlugin.value) return
+  const plugin = availablePlugins.find(item => item.id === props.initialPluginId)
+  if (plugin) selectPlugin(plugin)
+}, { immediate: true })
 
 function selectPlugin(plugin: Plugin) {
   selectedPlugin.value = plugin
@@ -162,7 +182,7 @@ function close() {
     @update:open="$emit('update:open', $event)"
   >
     <template #header>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-3">
         <UButton
           v-if="step === 'search'"
           variant="ghost"
@@ -170,42 +190,49 @@ function close() {
           size="sm"
           @click="goBack"
         />
-        <h3 class="text-lg font-semibold">
-          <template v-if="step === 'select'">
-            Import from External Source
-          </template>
-          <template v-else-if="step === 'search'">
-            {{ selectedPlugin?.name }}
-          </template>
-          <template v-else>
-            Importing...
-          </template>
-        </h3>
+        <div class="flex size-9 items-center justify-center rounded-xl bg-attic-50 text-attic-500 dark:bg-attic-500/10">
+          <UIcon
+            name="i-lucide-database-zap"
+            class="size-4.5"
+          />
+        </div>
+        <div>
+          <p class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-attic-500">
+            Catalog import
+          </p>
+          <DialogTitle
+            as="h3"
+            class="font-extrabold text-mist-950 dark:text-white"
+          >
+            {{ modalTitle }}
+          </DialogTitle>
+        </div>
       </div>
     </template>
 
     <template #body>
+      <DialogDescription :class="step === 'select' ? 'mb-4 text-sm text-muted' : 'sr-only'">
+        {{ modalDescription }}
+      </DialogDescription>
+
       <!-- Step 1: Select Plugin -->
       <div
         v-if="step === 'select'"
         class="space-y-3"
       >
-        <p class="text-sm text-gray-500 mb-4">
-          Choose a source to import from:
-        </p>
-
-        <div
+        <button
           v-for="plugin in plugins"
           :key="plugin.id"
-          class="p-4 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          type="button"
+          class="w-full cursor-pointer rounded-xl border border-mist-200 p-4 text-left transition-colors hover:border-attic-300 hover:bg-attic-50/40 dark:border-mist-700 dark:hover:bg-attic-500/5"
           @click="selectPlugin(plugin)"
         >
           <div class="flex items-center justify-between">
-            <div>
-              <h4 class="font-medium">
+            <div class="min-w-0">
+              <h4 class="font-extrabold text-mist-950 dark:text-white">
                 {{ plugin.name }}
               </h4>
-              <p class="text-sm text-gray-500">
+              <p class="mt-0.5 line-clamp-2 text-sm text-muted">
                 {{ plugin.description }}
               </p>
             </div>
@@ -214,7 +241,7 @@ function close() {
               class="w-5 h-5 text-gray-400"
             />
           </div>
-        </div>
+        </button>
 
         <div
           v-if="plugins.length === 0"
@@ -230,19 +257,20 @@ function close() {
         class="space-y-4"
       >
         <form
-          class="flex gap-2"
+          class="flex flex-col gap-2 sm:flex-row"
           @submit.prevent="search"
         >
           <USelectMenu
             v-model="searchField"
             :items="searchFieldOptions"
-            class="w-32"
+            class="w-full sm:w-36"
             value-key="value"
           />
           <UInput
             v-model="searchQuery"
             placeholder="Search..."
             class="flex-1"
+            size="lg"
             autofocus
           />
           <UButton
@@ -250,6 +278,7 @@ function close() {
             icon="i-lucide-search"
             :loading="searching"
             :disabled="!searchQuery.trim()"
+            class="rounded-xl font-bold"
           >
             Search
           </UButton>
@@ -258,22 +287,22 @@ function close() {
         <!-- Results -->
         <div
           v-if="searchResults.length > 0"
-          class="space-y-2 max-h-96 overflow-y-auto"
+          class="max-h-96 space-y-2 overflow-y-auto pr-1"
         >
           <div
             v-for="result in searchResults"
             :key="result.external_id"
-            class="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+            class="flex items-center gap-3 rounded-xl border border-mist-100 p-3 transition-colors hover:border-attic-200 hover:bg-attic-50/30 dark:border-mist-700 dark:hover:bg-attic-500/5"
           >
             <img
               v-if="result.image_url"
               :src="result.image_url"
               :alt="result.title"
-              class="w-12 h-16 object-cover rounded"
+              class="h-16 w-12 rounded-lg object-cover"
             >
             <div
               v-else
-              class="w-12 h-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center"
+              class="flex h-16 w-12 items-center justify-center rounded-lg bg-mist-100 dark:bg-mist-700"
             >
               <UIcon
                 name="i-lucide-image-off"
@@ -281,8 +310,8 @@ function close() {
               />
             </div>
 
-            <div class="flex-1 min-w-0">
-              <h4 class="font-medium truncate">
+            <div class="min-w-0 flex-1">
+              <h4 class="truncate font-bold text-mist-950 dark:text-white">
                 {{ result.title }}
               </h4>
               <p class="text-sm text-gray-500 truncate">
@@ -292,6 +321,7 @@ function close() {
 
             <UButton
               size="sm"
+              class="rounded-lg font-bold"
               @click="importItem(result)"
             >
               Import
@@ -301,7 +331,7 @@ function close() {
 
         <div
           v-else-if="!searching && searchQuery"
-          class="text-center py-8 text-gray-500"
+          class="rounded-xl bg-mist-50 py-8 text-center text-muted dark:bg-mist-800"
         >
           <UIcon
             name="i-lucide-search-x"
@@ -312,7 +342,7 @@ function close() {
 
         <div
           v-else-if="!searching"
-          class="text-center py-8 text-gray-500"
+          class="rounded-xl bg-mist-50 py-8 text-center text-muted dark:bg-mist-800"
         >
           <UIcon
             name="i-lucide-search"
@@ -329,10 +359,10 @@ function close() {
       >
         <UIcon
           name="i-lucide-loader-2"
-          class="w-12 h-12 animate-spin text-primary mb-4"
+          class="mb-4 size-12 animate-spin text-attic-500"
         />
-        <p class="text-gray-500">
-          Importing item...
+        <p class="font-semibold text-muted">
+          Importing item…
         </p>
       </div>
     </template>
@@ -342,6 +372,7 @@ function close() {
         <UButton
           variant="ghost"
           :disabled="importing"
+          class="rounded-xl"
           @click="close"
         >
           Cancel

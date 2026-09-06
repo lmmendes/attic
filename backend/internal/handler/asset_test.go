@@ -16,12 +16,13 @@ import (
 
 // mockAssetRepo implements a minimal asset repository for testing
 type mockAssetRepo struct {
-	assets       map[uuid.UUID]*domain.Asset
-	ListError    error
-	GetError     error
-	CreateError  error
-	UpdateError  error
-	DeleteError  error
+	assets      map[uuid.UUID]*domain.Asset
+	ListError   error
+	GetError    error
+	CreateError error
+	UpdateError error
+	DeleteError error
+	LastFilter  domain.AssetFilter
 }
 
 func newMockAssetRepo() *mockAssetRepo {
@@ -48,7 +49,8 @@ func (r *mockAssetRepo) GetByIDFull(_ context.Context, id uuid.UUID) (*domain.As
 	return r.assets[id], nil
 }
 
-func (r *mockAssetRepo) List(_ context.Context, _ uuid.UUID, _ domain.AssetFilter, page domain.Pagination) ([]domain.Asset, int, error) {
+func (r *mockAssetRepo) List(_ context.Context, _ uuid.UUID, filter domain.AssetFilter, page domain.Pagination) ([]domain.Asset, int, error) {
+	r.LastFilter = filter
 	if r.ListError != nil {
 		return nil, 0, r.ListError
 	}
@@ -107,11 +109,14 @@ func (r *mockAssetRepo) SetTags(_ context.Context, _ uuid.UUID, _ []uuid.UUID) e
 	return nil
 }
 
-func (r *mockAssetRepo) GetTotalValue(_ context.Context, _ uuid.UUID) (float64, error) {
+func (r *mockAssetRepo) GetTotalValue(_ context.Context, _ uuid.UUID, filter domain.AssetFilter) (float64, error) {
 	var total float64
 	for _, a := range r.assets {
+		if filter.LocationID != nil && (a.LocationID == nil || *a.LocationID != *filter.LocationID) {
+			continue
+		}
 		if a.PurchasePrice != nil {
-			total += *a.PurchasePrice
+			total += *a.PurchasePrice * float64(a.Quantity)
 		}
 	}
 	return total, nil
@@ -152,7 +157,9 @@ func (h *testAssetHandler) listAssets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if catID := q.Get("category_id"); catID != "" {
-		if id, err := uuid.Parse(catID); err == nil {
+		if catID == uncategorizedCategoryFilter {
+			filter.Uncategorized = true
+		} else if id, err := uuid.Parse(catID); err == nil {
 			filter.CategoryID = &id
 		}
 	}
@@ -210,15 +217,19 @@ func (h *testAssetHandler) createAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" || req.CategoryID == "" {
-		writeError(w, http.StatusBadRequest, "name and category_id are required")
+	if req.Name == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
 
-	categoryID, err := uuid.Parse(req.CategoryID)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid category_id")
-		return
+	var categoryID *uuid.UUID
+	if req.CategoryID != nil && *req.CategoryID != "" {
+		id, err := uuid.Parse(*req.CategoryID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid category_id")
+			return
+		}
+		categoryID = &id
 	}
 
 	asset := &domain.Asset{
@@ -275,15 +286,23 @@ func (h *testAssetHandler) updateAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	categoryID, err := uuid.Parse(req.CategoryID)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid category_id")
-		return
+	var categoryID *uuid.UUID
+	if req.CategoryID != nil && *req.CategoryID != "" {
+		id, err := uuid.Parse(*req.CategoryID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid category_id")
+			return
+		}
+		categoryID = &id
 	}
 
 	asset.CategoryID = categoryID
 	asset.Name = req.Name
 	asset.Description = req.Description
+	asset.Attributes = req.Attributes
+	if categoryID == nil {
+		asset.Attributes = nil
+	}
 	asset.Quantity = req.Quantity
 	if asset.Quantity <= 0 {
 		asset.Quantity = 1
@@ -314,7 +333,17 @@ func (h *testAssetHandler) deleteAsset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *testAssetHandler) getAssetStats(w http.ResponseWriter, r *http.Request) {
-	totalValue, err := h.assetRepo.GetTotalValue(r.Context(), h.orgID)
+	filter := domain.AssetFilter{}
+	if locID := r.URL.Query().Get("location_id"); locID != "" {
+		id, err := uuid.Parse(locID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid location ID")
+			return
+		}
+		filter.LocationID = &id
+	}
+
+	totalValue, err := h.assetRepo.GetTotalValue(r.Context(), h.orgID, filter)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get asset stats")
 		return
@@ -342,7 +371,7 @@ func createTestAsset(name string, categoryID uuid.UUID, price *float64) *domain.
 	return &domain.Asset{
 		ID:             uuid.New(),
 		OrganizationID: uuid.MustParse("00000000-0000-0000-0000-000000000001"),
-		CategoryID:     categoryID,
+		CategoryID:     &categoryID,
 		Name:           name,
 		Quantity:       1,
 		PurchasePrice:  price,
@@ -418,6 +447,20 @@ func Test_ListAssets_DefaultPagination(t *testing.T) {
 	}
 	if resp.Offset != 0 {
 		t.Errorf("expected default offset 0, got %d", resp.Offset)
+	}
+}
+
+func Test_ListAssets_UncategorizedFilter(t *testing.T) {
+	h := newTestAssetHandler()
+	req := httptest.NewRequest(http.MethodGet, "/api/assets?category_id=uncategorized", nil)
+	rec := httptest.NewRecorder()
+	h.listAssets(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+	if !h.assetRepo.LastFilter.Uncategorized || h.assetRepo.LastFilter.CategoryID != nil {
+		t.Fatalf("expected uncategorized filter, got %#v", h.assetRepo.LastFilter)
 	}
 }
 
@@ -524,7 +567,7 @@ func Test_CreateAsset_MissingName_ReturnsBadRequest(t *testing.T) {
 	}
 }
 
-func Test_CreateAsset_MissingCategoryID_ReturnsBadRequest(t *testing.T) {
+func Test_CreateAsset_MissingCategoryID_CreatesUncategorizedAsset(t *testing.T) {
 	h := newTestAssetHandler()
 
 	body := strings.NewReader(`{
@@ -536,8 +579,13 @@ func Test_CreateAsset_MissingCategoryID_ReturnsBadRequest(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.createAsset(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", rec.Code)
+	if rec.Code != http.StatusCreated {
+		t.Errorf("expected status 201, got %d", rec.Code)
+	}
+	var resp domain.Asset
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.CategoryID != nil {
+		t.Errorf("expected category_id to be nil, got %s", *resp.CategoryID)
 	}
 }
 
@@ -625,6 +673,31 @@ func Test_UpdateAsset_ValidRequest_ReturnsUpdated(t *testing.T) {
 	}
 	if resp.Quantity != 10 {
 		t.Errorf("expected quantity 10, got %d", resp.Quantity)
+	}
+}
+
+func Test_UpdateAsset_MissingCategoryID_ClearsCategoryAndAttributes(t *testing.T) {
+	h := newTestAssetHandler()
+	catID := uuid.New()
+	asset := createTestAsset("Categorized", catID, nil)
+	asset.Attributes = json.RawMessage(`{"platform":"PS5"}`)
+	h.assetRepo.addAsset(asset)
+
+	body := strings.NewReader(`{"name":"Uncategorized","quantity":1}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/assets/"+asset.ID.String(), body)
+	req = withChiURLParam(req, "id", asset.ID.String())
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.updateAsset(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d; body: %s", rec.Code, rec.Body.String())
+	}
+	if asset.CategoryID != nil {
+		t.Errorf("expected category_id to be cleared, got %s", *asset.CategoryID)
+	}
+	if asset.Attributes != nil {
+		t.Errorf("expected category attributes to be cleared, got %s", asset.Attributes)
 	}
 }
 
@@ -742,5 +815,50 @@ func Test_GetAssetStats_NoAssets_ReturnsZero(t *testing.T) {
 
 	if resp.TotalValue != 0 {
 		t.Errorf("expected total value 0, got %.2f", resp.TotalValue)
+	}
+}
+
+func Test_GetAssetStats_FiltersByLocation(t *testing.T) {
+	h := newTestAssetHandler()
+	catID := uuid.New()
+	selectedLocationID := uuid.New()
+	otherLocationID := uuid.New()
+	selectedPrice := 125.0
+	otherPrice := 300.0
+
+	selectedAsset := createTestAsset("Selected asset", catID, &selectedPrice)
+	selectedAsset.LocationID = &selectedLocationID
+	h.assetRepo.addAsset(selectedAsset)
+
+	otherAsset := createTestAsset("Other asset", catID, &otherPrice)
+	otherAsset.LocationID = &otherLocationID
+	h.assetRepo.addAsset(otherAsset)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/assets/stats?location_id="+selectedLocationID.String(), nil)
+	rec := httptest.NewRecorder()
+	h.getAssetStats(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
+	}
+
+	var resp AssetStatsResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.TotalValue != selectedPrice {
+		t.Errorf("expected total value %.2f, got %.2f", selectedPrice, resp.TotalValue)
+	}
+}
+
+func Test_GetAssetStats_InvalidLocation_ReturnsBadRequest(t *testing.T) {
+	h := newTestAssetHandler()
+	req := httptest.NewRequest(http.MethodGet, "/api/assets/stats?location_id=not-a-uuid", nil)
+	rec := httptest.NewRecorder()
+
+	h.getAssetStats(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", rec.Code)
 	}
 }

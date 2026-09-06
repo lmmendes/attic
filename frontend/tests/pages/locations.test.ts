@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { getIconLabel } from '../../app/utils/iconLabel'
+import { getLocationNameError } from '../../app/utils/locationValidation'
 
 interface Location {
   id: string
@@ -21,6 +23,21 @@ describe('Locations Page', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  describe('form accessibility and validation', () => {
+    it.each(['', ' ', '\n\t'])('rejects a blank location name', (name) => {
+      expect(getLocationNameError(name)).toBe('Location name is required')
+    })
+
+    it('accepts a non-blank location name', () => {
+      expect(getLocationNameError('  Office  ')).toBeNull()
+    })
+
+    it('provides human-readable names for icon choices', () => {
+      expect(getIconLabel('i-lucide-map-pin')).toBe('Map Pin')
+      expect(getIconLabel('i-lucide-door-open')).toBe('Door Open')
+    })
   })
 
   describe('tree building', () => {

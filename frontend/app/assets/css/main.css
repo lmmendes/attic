@@ -5,18 +5,31 @@
   /* Typography - Manrope font */
   --font-sans: 'Manrope', sans-serif;
 
-  /* Primary Color Palette - Vibrant Teal (#1d798b base) */
-  --color-attic-50: #f0f9fb;
-  --color-attic-100: #d9f0f4;
-  --color-attic-200: #b8e3eb;
-  --color-attic-300: #87cfdc;
-  --color-attic-400: #4fb3c6;
-  --color-attic-500: #1d798b;
-  --color-attic-600: #1a6b7b;
-  --color-attic-700: #175a68;
-  --color-attic-800: #154a55;
-  --color-attic-900: #133d47;
-  --color-attic-950: #0c262d;
+  /* Attic blue - shared with the mobile app (#315cf4) */
+  --color-attic-50: #f3f6ff;
+  --color-attic-100: #e7ecff;
+  --color-attic-200: #cfd9ff;
+  --color-attic-300: #a9baff;
+  --color-attic-400: #7892ff;
+  --color-attic-500: #315cf4;
+  --color-attic-600: #264de0;
+  --color-attic-700: #203fc0;
+  --color-attic-800: #21399a;
+  --color-attic-900: #20347a;
+  --color-attic-950: #17204a;
+
+  /* Coral accent - shared with the mobile app (#ff795b) */
+  --color-terracotta-50: #fff5f2;
+  --color-terracotta-100: #ffe9e2;
+  --color-terracotta-200: #ffd2c7;
+  --color-terracotta-300: #ffad99;
+  --color-terracotta-400: #ff795b;
+  --color-terracotta-500: #f65d3b;
+  --color-terracotta-600: #dd4020;
+  --color-terracotta-700: #b93218;
+  --color-terracotta-800: #992d19;
+  --color-terracotta-900: #7f2b1c;
+  --color-terracotta-950: #451208;
 
   /* Alert/Accent Color - Amber/Warning */
   --color-amber-50: #fffbeb;
@@ -32,28 +45,74 @@
   --color-amber-950: #451a03;
 
   /* Custom Neutral - Clean grays */
-  --color-mist-50: #f9fafb;
-  --color-mist-100: #f3f4f6;
-  --color-mist-200: #e5e7eb;
-  --color-mist-300: #d1d5db;
-  --color-mist-400: #9ca3af;
-  --color-mist-500: #667f85;
-  --color-mist-600: #4b5563;
-  --color-mist-700: #374151;
-  --color-mist-800: #1f2937;
-  --color-mist-900: #121617;
-  --color-mist-950: #030712;
+  --color-mist-50: #f6f7f9;
+  --color-mist-100: #eff1f5;
+  --color-mist-200: #dde1ea;
+  --color-mist-300: #c6cbd6;
+  --color-mist-400: #9298a8;
+  --color-mist-500: #676b7a;
+  --color-mist-600: #505463;
+  --color-mist-700: #3d404d;
+  --color-mist-800: #272a36;
+  --color-mist-900: #191b25;
+  --color-mist-950: #11142d;
 
   /* Border Radius */
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  --radius-xl: 1.25rem;
 
   /* Box Shadows */
-  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
-  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --shadow-primary: 0 10px 15px -3px rgba(29, 121, 139, 0.2), 0 4px 6px -4px rgba(29, 121, 139, 0.2);
+  --shadow-soft: 0 18px 45px -24px rgba(17, 20, 45, 0.24);
+  --shadow-card: 0 1px 2px rgba(17, 20, 45, 0.03), 0 8px 24px -18px rgba(17, 20, 45, 0.18);
+  --shadow-primary: 0 18px 35px -16px rgba(49, 92, 244, 0.48);
+}
+
+:root {
+  --ui-text-muted: var(--color-mist-500);
+  --ui-text-dimmed: var(--color-mist-500);
+}
+
+.dark {
+  --ui-text-muted: var(--color-mist-300);
+  --ui-text-dimmed: var(--color-mist-300);
+}
+
+html {
+  background: var(--color-mist-50);
+}
+
+body {
+  color: var(--color-mist-950);
+  letter-spacing: -0.01em;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-canvas {
+  background:
+    radial-gradient(circle at 78% -10%, rgba(49, 92, 244, 0.08), transparent 30rem),
+    var(--color-mist-50);
+}
+
+.attic-panel {
+  border: 1px solid color-mix(in srgb, var(--color-mist-200) 82%, transparent);
+  background: color-mix(in srgb, white 94%, transparent);
+  box-shadow: var(--shadow-card);
+}
+
+.attic-panel-interactive {
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.attic-panel-interactive:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-attic-200);
+  box-shadow: var(--shadow-soft);
 }
 
 /* Custom scrollbar */
@@ -71,7 +130,7 @@
 }
 
 @utility text-muted {
-  color: var(--color-mist-500);
+  color: var(--ui-text-muted);
 }
 
 @utility bg-surface {
@@ -100,6 +159,18 @@
 
 /* Dark mode overrides */
 @variant dark {
+  html {
+    background: var(--color-mist-900);
+  }
+  .app-canvas {
+    background:
+      radial-gradient(circle at 78% -10%, rgba(49, 92, 244, 0.13), transparent 32rem),
+      var(--color-mist-900);
+  }
+  .attic-panel {
+    border-color: var(--color-mist-700);
+    background: color-mix(in srgb, var(--color-mist-800) 94%, transparent);
+  }
   .text-main {
     color: white;
   }

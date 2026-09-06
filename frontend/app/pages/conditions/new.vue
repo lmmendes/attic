@@ -105,11 +105,11 @@ function cancel() {
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="mx-auto max-w-[900px] space-y-5 pb-6">
     <!-- Breadcrumbs & Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-      <div class="flex flex-col gap-2">
-        <nav class="flex items-center text-sm font-medium text-mist-500">
+    <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div class="space-y-3">
+        <nav class="flex items-center text-xs font-semibold text-muted">
           <NuxtLink
             to="/"
             class="hover:text-attic-500 transition-colors"
@@ -124,21 +124,25 @@ function cancel() {
             Conditions
           </NuxtLink>
           <span class="mx-2 text-mist-300 dark:text-mist-600">/</span>
-          <span class="text-mist-950 dark:text-white">New</span>
+          <span class="font-bold text-attic-500">New</span>
         </nav>
         <div>
-          <h1 class="text-3xl font-extrabold tracking-tight text-mist-950 dark:text-white">
-            Create Condition
+          <p class="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
+            Condition editor
+          </p>
+          <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
+            New condition
           </h1>
-          <p class="text-mist-500 mt-1">
+          <p class="mt-1 text-sm text-muted">
             Define a new quality level to describe the state of your assets.
           </p>
         </div>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="hidden items-center gap-2 sm:flex">
         <UButton
           variant="ghost"
           color="neutral"
+          class="rounded-xl font-semibold"
           @click="cancel"
         >
           Cancel
@@ -146,6 +150,7 @@ function cancel() {
         <UButton
           icon="i-lucide-save"
           :loading="saving"
+          class="rounded-xl font-bold shadow-primary"
           @click="saveCondition"
         >
           Save Condition
@@ -154,21 +159,33 @@ function cancel() {
     </div>
 
     <!-- Form Card -->
-    <div class="max-w-2xl">
+    <div class="space-y-5">
       <!-- Quick Presets -->
-      <div class="mb-6">
-        <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-3">
-          Quick Start
-        </label>
+      <section class="attic-panel rounded-[20px] p-5 sm:p-6">
+        <div class="mb-4 flex items-start gap-3">
+          <div class="flex size-9 items-center justify-center rounded-xl bg-terracotta-50 text-terracotta-500 dark:bg-terracotta-500/10">
+            <UIcon
+              name="i-lucide-wand-sparkles"
+              class="size-4.5"
+            />
+          </div>
+          <div>
+            <h2 class="font-extrabold text-mist-950 dark:text-white">
+              Quick start
+            </h2><p class="text-xs text-muted">
+              Choose a common quality level or create your own.
+            </p>
+          </div>
+        </div>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="preset in presets"
             :key="preset.code"
             type="button"
-            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all"
+            class="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition-all"
             :class="form.code === preset.code
-              ? `bg-${preset.color}-100 dark:bg-${preset.color}-900/30 border-${preset.color}-300 dark:border-${preset.color}-700 text-${preset.color}-700 dark:text-${preset.color}-300`
-              : 'bg-white dark:bg-mist-800 border-mist-200 dark:border-mist-600 text-mist-600 dark:text-mist-400 hover:border-mist-300 dark:hover:border-mist-500'"
+              ? 'border-attic-500 bg-attic-50 text-attic-600 ring-2 ring-attic-500/10 dark:bg-attic-500/10 dark:text-attic-300'
+              : 'border-mist-200 bg-mist-50 text-mist-600 hover:border-attic-300 hover:bg-attic-50/50 dark:border-mist-600 dark:bg-mist-800 dark:text-mist-400'"
             @click="applyPreset(preset)"
           >
             <UIcon
@@ -178,13 +195,24 @@ function cancel() {
             {{ preset.label }}
           </button>
         </div>
-        <p class="text-xs text-mist-400 mt-2">
-          Click a preset to quick-fill the form, or create a custom condition below.
-        </p>
-      </div>
+      </section>
 
-      <div class="bg-white dark:bg-mist-800 rounded-xl shadow-soft border border-mist-100 dark:border-mist-700 p-6">
-        <div class="space-y-6">
+      <section class="attic-panel rounded-[20px] p-5 sm:p-6">
+        <div class="mb-5 flex items-start gap-3">
+          <div class="flex size-9 items-center justify-center rounded-xl bg-attic-50 text-attic-500 dark:bg-attic-500/10">
+            <UIcon
+              name="i-lucide-sliders-horizontal"
+              class="size-4.5"
+            />
+          </div><div>
+            <h2 class="font-extrabold text-mist-950 dark:text-white">
+              Condition details
+            </h2><p class="text-xs text-muted">
+              Set the label, stable code, and position in the scale.
+            </p>
+          </div>
+        </div>
+        <div class="max-w-3xl space-y-5">
           <!-- Label Field -->
           <div>
             <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
@@ -194,9 +222,9 @@ function cancel() {
               v-model="form.label"
               type="text"
               placeholder="e.g. Like New"
-              class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 font-medium text-mist-950 dark:text-white"
+              class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-dimmed font-medium text-mist-950 dark:text-white"
             >
-            <p class="text-xs text-mist-400 mt-1">
+            <p class="text-xs text-muted mt-1">
               The display name shown when selecting a condition.
             </p>
           </div>
@@ -210,10 +238,10 @@ function cancel() {
               v-model="form.code"
               type="text"
               placeholder="e.g. LIKE_NEW"
-              class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 font-mono text-sm text-mist-950 dark:text-white uppercase"
+              class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-dimmed font-mono text-sm text-mist-950 dark:text-white uppercase"
               @input="onCodeInput"
             >
-            <p class="text-xs text-mist-400 mt-1">
+            <p class="text-xs text-muted mt-1">
               A unique uppercase identifier. Auto-generated from label.
             </p>
           </div>
@@ -222,17 +250,17 @@ function cancel() {
           <div>
             <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
               Description
-              <span class="font-normal text-mist-400">(optional)</span>
+              <span class="font-normal text-muted">(optional)</span>
             </label>
             <textarea
               v-model="form.description"
               rows="3"
               maxlength="200"
               placeholder="Describe what this condition means..."
-              class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 text-sm resize-none text-mist-950 dark:text-white"
+              class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-dimmed text-sm resize-none text-mist-950 dark:text-white"
             />
             <div class="flex justify-end mt-1">
-              <span class="text-xs text-mist-400">{{ descriptionCount }}/200</span>
+              <span class="text-xs text-muted">{{ descriptionCount }}/200</span>
             </div>
           </div>
 
@@ -247,15 +275,15 @@ function cancel() {
               min="1"
               class="w-32 px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all text-sm text-mist-950 dark:text-white"
             >
-            <p class="text-xs text-mist-400 mt-1">
+            <p class="text-xs text-muted mt-1">
               Controls the display order. Lower numbers appear first.
             </p>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Info Box -->
-      <div class="mt-6 p-4 rounded-lg bg-attic-50 dark:bg-attic-900/20 border border-attic-200 dark:border-attic-800/50">
+      <div class="rounded-[18px] border border-attic-200 bg-attic-50 p-4 dark:border-attic-800/50 dark:bg-attic-900/20">
         <div class="flex gap-3">
           <UIcon
             name="i-lucide-lightbulb"
@@ -270,6 +298,24 @@ function cancel() {
             </p>
           </div>
         </div>
+      </div>
+
+      <div class="attic-panel flex items-center justify-end gap-2 rounded-[18px] px-4 py-3">
+        <UButton
+          variant="ghost"
+          color="neutral"
+          @click="cancel"
+        >
+          Cancel
+        </UButton>
+        <UButton
+          icon="i-lucide-save"
+          :loading="saving"
+          class="rounded-xl shadow-primary"
+          @click="saveCondition"
+        >
+          Save condition
+        </UButton>
       </div>
     </div>
   </div>

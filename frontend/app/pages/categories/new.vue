@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { getIconLabel } from '~/utils/iconLabel'
 import type { Attribute } from '~/types/api'
 
 definePageMeta({
@@ -196,7 +197,7 @@ function cancel() {
     <!-- Breadcrumbs & Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div class="flex flex-col gap-2">
-        <nav class="flex items-center text-sm font-medium text-mist-500">
+        <nav class="flex items-center text-sm font-medium text-muted">
           <NuxtLink
             to="/"
             class="hover:text-attic-500 transition-colors"
@@ -217,7 +218,7 @@ function cancel() {
           <h1 class="text-3xl font-extrabold tracking-tight text-mist-950 dark:text-white">
             Create Category
           </h1>
-          <p class="text-mist-500 mt-1">
+          <p class="text-muted mt-1">
             Define the structure for a new group of assets.
           </p>
         </div>
@@ -264,7 +265,7 @@ function cancel() {
                 v-model="form.name"
                 type="text"
                 placeholder="e.g. Rare Books"
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 font-medium text-mist-950 dark:text-white"
+                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-dimmed font-medium text-mist-950 dark:text-white"
               >
             </div>
             <div>
@@ -276,10 +277,10 @@ function cancel() {
                 rows="4"
                 maxlength="140"
                 placeholder="What kind of assets belong here?"
-                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-mist-400 text-sm resize-none text-mist-950 dark:text-white"
+                class="w-full px-4 py-3 rounded-lg bg-mist-50 dark:bg-mist-900 border border-mist-200 dark:border-mist-600 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 outline-none transition-all placeholder:text-dimmed text-sm resize-none text-mist-950 dark:text-white"
               />
               <div class="flex justify-end mt-1">
-                <span class="text-xs text-mist-400">{{ descriptionCount }}/140</span>
+                <span class="text-xs text-muted">{{ descriptionCount }}/140</span>
               </div>
             </div>
           </div>
@@ -296,16 +297,19 @@ function cancel() {
               Icon
             </h3>
           </div>
-          <div class="max-h-[280px] overflow-y-auto custom-scrollbar pr-1">
+          <div class="pr-1 sm:max-h-[280px] sm:overflow-y-auto custom-scrollbar">
             <div class="grid grid-cols-5 gap-3">
               <button
                 v-for="icon in icons"
                 :key="icon"
                 type="button"
+                :aria-label="`${getIconLabel(icon)} icon`"
+                :title="`${getIconLabel(icon)} icon`"
+                :aria-pressed="form.icon === icon"
                 class="aspect-square rounded-xl flex items-center justify-center transition-all"
                 :class="form.icon === icon
                   ? 'bg-attic-500 text-white ring-2 ring-offset-2 ring-attic-500 dark:ring-offset-mist-800'
-                  : 'bg-mist-50 dark:bg-mist-900 text-mist-500 hover:text-attic-500 hover:bg-mist-100 dark:hover:bg-mist-700 border border-transparent hover:border-mist-200 dark:hover:border-mist-600'"
+                  : 'bg-mist-50 dark:bg-mist-900 text-muted hover:text-attic-500 hover:bg-mist-100 dark:hover:bg-mist-700 border border-transparent hover:border-mist-200 dark:hover:border-mist-600'"
                 @click="form.icon = icon"
               >
                 <UIcon
@@ -332,7 +336,7 @@ function cancel() {
                 <h3 class="text-lg font-bold text-mist-950 dark:text-white">
                   Attribute Schema
                 </h3>
-                <p class="text-xs text-mist-500">
+                <p class="text-xs text-muted">
                   Construct the data model for your items.
                 </p>
               </div>
@@ -355,12 +359,12 @@ function cancel() {
             <div class="flex-grow p-6 bg-mist-50 dark:bg-mist-900/50 relative overflow-y-auto custom-scrollbar">
               <div class="relative z-10 space-y-3">
                 <div class="flex items-center justify-between mb-4">
-                  <h4 class="text-xs font-bold uppercase tracking-wider text-mist-400">
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-muted">
                     Active Attributes
                   </h4>
                   <span
                     v-if="selectedAttributes.length > 0"
-                    class="text-xs text-mist-400"
+                    class="text-xs text-muted"
                   >
                     {{ selectedAttributes.length }} selected
                   </span>
@@ -391,17 +395,21 @@ function cancel() {
                     <p class="font-bold text-sm text-mist-950 dark:text-white">
                       {{ getAttribute(attr.attribute_id)?.name || 'Unknown' }}
                     </p>
-                    <p class="text-xs text-mist-500">
+                    <p class="text-xs text-muted">
                       {{ getAttribute(attr.attribute_id)?.key || 'unknown_key' }} · {{ getAttribute(attr.attribute_id)?.data_type || 'string' }}
                     </p>
                   </div>
                   <div class="flex items-center gap-4 border-l border-mist-100 dark:border-mist-700 pl-4">
                     <div class="flex flex-col items-end">
-                      <span class="text-[10px] font-semibold uppercase tracking-wider text-mist-400 mb-1">
+                      <label
+                        :for="`required-${attr.attribute_id}`"
+                        class="text-[10px] font-semibold uppercase tracking-wider text-muted mb-1"
+                      >
                         Required
-                      </span>
+                      </label>
                       <label class="relative inline-flex items-center cursor-pointer">
                         <input
+                          :id="`required-${attr.attribute_id}`"
                           v-model="attr.required"
                           type="checkbox"
                           class="sr-only peer"
@@ -411,7 +419,8 @@ function cancel() {
                     </div>
                     <button
                       type="button"
-                      class="text-mist-400 hover:text-red-500 transition-colors p-1"
+                      class="text-muted hover:text-red-500 transition-colors p-1"
+                      :aria-label="`Remove ${getAttribute(attr.attribute_id)?.name || 'attribute'}`"
                       @click="removeAttribute(index)"
                     >
                       <UIcon
@@ -425,7 +434,7 @@ function cancel() {
                 <!-- Empty State / Drop Placeholder -->
                 <div
                   v-if="selectedAttributes.length === 0"
-                  class="h-32 border-2 border-dashed border-mist-300 dark:border-mist-600 rounded-lg flex flex-col items-center justify-center text-mist-400 bg-white/50 dark:bg-mist-800/50"
+                  class="h-32 border-2 border-dashed border-mist-300 dark:border-mist-600 rounded-lg flex flex-col items-center justify-center text-muted bg-white/50 dark:bg-mist-800/50"
                 >
                   <UIcon
                     name="i-lucide-list-plus"
@@ -437,7 +446,7 @@ function cancel() {
                 <!-- Add more placeholder when has items -->
                 <div
                   v-else
-                  class="h-16 border-2 border-dashed border-mist-200 dark:border-mist-700 rounded-lg flex items-center justify-center text-mist-400 bg-white/30 dark:bg-mist-800/30"
+                  class="h-16 border-2 border-dashed border-mist-200 dark:border-mist-700 rounded-lg flex items-center justify-center text-muted bg-white/30 dark:bg-mist-800/30"
                 >
                   <span class="text-xs">Select more from the library</span>
                 </div>
@@ -450,7 +459,7 @@ function cancel() {
                 <div class="relative">
                   <UIcon
                     name="i-lucide-search"
-                    class="absolute left-3 top-2.5 w-4 h-4 text-mist-400"
+                    class="absolute left-3 top-2.5 w-4 h-4 text-muted"
                   />
                   <input
                     v-model="attributeSearch"
@@ -461,7 +470,7 @@ function cancel() {
                 </div>
               </div>
               <div class="p-4 overflow-y-auto max-h-[400px] custom-scrollbar space-y-2">
-                <h5 class="text-xs font-bold text-mist-400 uppercase mb-3">
+                <h5 class="text-xs font-bold text-muted uppercase mb-3">
                   Available ({{ filteredAttributes.length }})
                 </h5>
 
@@ -474,7 +483,7 @@ function cancel() {
                     name="i-lucide-list"
                     class="w-8 h-8 text-mist-300 mx-auto mb-2"
                   />
-                  <p class="text-sm text-mist-500 mb-2">
+                  <p class="text-sm text-muted mb-2">
                     No attributes created yet
                   </p>
                   <NuxtLink
@@ -490,7 +499,7 @@ function cancel() {
                   v-else-if="filteredAttributes.length === 0"
                   class="text-center py-6"
                 >
-                  <p class="text-sm text-mist-500">
+                  <p class="text-sm text-muted">
                     {{ attributeSearch ? 'No matching attributes' : 'All attributes selected' }}
                   </p>
                 </div>
@@ -516,7 +525,7 @@ function cancel() {
                     <p class="text-sm font-medium text-mist-700 dark:text-mist-200">
                       {{ attr.name }}
                     </p>
-                    <p class="text-xs text-mist-400">
+                    <p class="text-xs text-muted">
                       {{ attr.key }} · {{ attr.data_type }}
                     </p>
                   </div>

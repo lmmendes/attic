@@ -24,7 +24,7 @@ func Test_AssetRepository_Create_Success(t *testing.T) {
 	repo := NewAssetRepository(testDB.Pool)
 	asset := &domain.Asset{
 		OrganizationID: org.ID,
-		CategoryID:     cat.ID,
+		CategoryID:     &cat.ID,
 		Name:           "iPhone 15",
 		Quantity:       1,
 	}
@@ -39,6 +39,29 @@ func Test_AssetRepository_Create_Success(t *testing.T) {
 	}
 	if asset.CreatedAt.IsZero() {
 		t.Error("expected CreatedAt to be set")
+	}
+}
+
+func Test_AssetRepository_Create_WithoutCategory(t *testing.T) {
+	ctx := context.Background()
+	if err := testDB.TruncateAll(ctx); err != nil {
+		t.Fatalf("failed to truncate: %v", err)
+	}
+
+	fixtures := testutil.NewFixtures(testDB.Pool)
+	org, _ := fixtures.CreateOrganization(ctx, "Test Org")
+	repo := NewAssetRepository(testDB.Pool)
+	asset := &domain.Asset{OrganizationID: org.ID, Name: "Unsorted item", Quantity: 1}
+
+	if err := repo.Create(ctx, asset); err != nil {
+		t.Fatalf("failed to create uncategorized asset: %v", err)
+	}
+	fetched, err := repo.GetByIDFull(ctx, asset.ID)
+	if err != nil {
+		t.Fatalf("failed to fetch uncategorized asset: %v", err)
+	}
+	if fetched == nil || fetched.CategoryID != nil || fetched.Category != nil {
+		t.Fatalf("expected uncategorized asset, got %#v", fetched)
 	}
 }
 
@@ -63,7 +86,7 @@ func Test_AssetRepository_Create_WithAllFields(t *testing.T) {
 
 	asset := &domain.Asset{
 		OrganizationID: org.ID,
-		CategoryID:     cat.ID,
+		CategoryID:     &cat.ID,
 		LocationID:     &loc.ID,
 		ConditionID:    &cond.ID,
 		Name:           "iPhone 15",
@@ -147,7 +170,7 @@ func Test_AssetRepository_GetByIDFull_WithRelations(t *testing.T) {
 	repo := NewAssetRepository(testDB.Pool)
 	asset := &domain.Asset{
 		OrganizationID: org.ID,
-		CategoryID:     cat.ID,
+		CategoryID:     &cat.ID,
 		LocationID:     &loc.ID,
 		ConditionID:    &cond.ID,
 		Name:           "iPhone",
@@ -256,6 +279,32 @@ func Test_AssetRepository_List_FilterByCategory(t *testing.T) {
 	}
 }
 
+func Test_AssetRepository_List_FilterByUncategorized(t *testing.T) {
+	ctx := context.Background()
+	if err := testDB.TruncateAll(ctx); err != nil {
+		t.Fatalf("failed to truncate: %v", err)
+	}
+
+	fixtures := testutil.NewFixtures(testDB.Pool)
+	org, _ := fixtures.CreateOrganization(ctx, "Test Org")
+	cat, _ := fixtures.CreateCategory(ctx, org.ID, "Electronics", nil)
+	repo := NewAssetRepository(testDB.Pool)
+	if err := repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, Name: "Unsorted", Quantity: 1}); err != nil {
+		t.Fatalf("failed to create uncategorized asset: %v", err)
+	}
+	if err := repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, Name: "Phone", Quantity: 1}); err != nil {
+		t.Fatalf("failed to create categorized asset: %v", err)
+	}
+
+	assets, total, err := repo.List(ctx, org.ID, domain.AssetFilter{Uncategorized: true}, domain.Pagination{Limit: 100})
+	if err != nil {
+		t.Fatalf("failed to list uncategorized assets: %v", err)
+	}
+	if total != 1 || len(assets) != 1 || assets[0].Name != "Unsorted" {
+		t.Fatalf("expected only the uncategorized asset, got total=%d assets=%#v", total, assets)
+	}
+}
+
 func Test_AssetRepository_List_FilterByLocation(t *testing.T) {
 	ctx := context.Background()
 	if err := testDB.TruncateAll(ctx); err != nil {
@@ -269,9 +318,9 @@ func Test_AssetRepository_List_FilterByLocation(t *testing.T) {
 	loc2, _ := fixtures.CreateLocation(ctx, org.ID, "Warehouse", nil)
 
 	repo := NewAssetRepository(testDB.Pool)
-	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: cat.ID, LocationID: &loc1.ID, Name: "Asset 1", Quantity: 1})
-	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: cat.ID, LocationID: &loc1.ID, Name: "Asset 2", Quantity: 1})
-	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: cat.ID, LocationID: &loc2.ID, Name: "Asset 3", Quantity: 1})
+	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, LocationID: &loc1.ID, Name: "Asset 1", Quantity: 1})
+	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, LocationID: &loc1.ID, Name: "Asset 2", Quantity: 1})
+	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, LocationID: &loc2.ID, Name: "Asset 3", Quantity: 1})
 
 	assets, total, err := repo.List(ctx, org.ID, domain.AssetFilter{LocationID: &loc1.ID}, domain.Pagination{Limit: 100})
 	if err != nil {
@@ -299,8 +348,8 @@ func Test_AssetRepository_List_FilterByCondition(t *testing.T) {
 	condUsed, _ := fixtures.CreateCondition(ctx, org.ID, "USED", "Used", 2)
 
 	repo := NewAssetRepository(testDB.Pool)
-	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: cat.ID, ConditionID: &condNew.ID, Name: "New Asset", Quantity: 1})
-	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: cat.ID, ConditionID: &condUsed.ID, Name: "Used Asset", Quantity: 1})
+	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, ConditionID: &condNew.ID, Name: "New Asset", Quantity: 1})
+	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, ConditionID: &condUsed.ID, Name: "Used Asset", Quantity: 1})
 
 	assets, total, err := repo.List(ctx, org.ID, domain.AssetFilter{ConditionID: &condNew.ID}, domain.Pagination{Limit: 100})
 	if err != nil {
@@ -328,8 +377,8 @@ func Test_AssetRepository_Search_FullText(t *testing.T) {
 	repo := NewAssetRepository(testDB.Pool)
 	desc1 := "Apple smartphone with great camera"
 	desc2 := "Samsung tablet for reading"
-	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: cat.ID, Name: "iPhone 15 Pro", Description: &desc1, Quantity: 1})
-	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: cat.ID, Name: "Galaxy Tab", Description: &desc2, Quantity: 1})
+	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, Name: "iPhone 15 Pro", Description: &desc1, Quantity: 1})
+	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, Name: "Galaxy Tab", Description: &desc2, Quantity: 1})
 
 	assets, total, err := repo.Search(ctx, org.ID, "iPhone", domain.Pagination{Limit: 100})
 	if err != nil {
@@ -358,7 +407,7 @@ func Test_AssetRepository_Update_Success(t *testing.T) {
 	repo := NewAssetRepository(testDB.Pool)
 	asset := &domain.Asset{
 		OrganizationID: org.ID,
-		CategoryID:     cat.ID,
+		CategoryID:     &cat.ID,
 		Name:           "Old Name",
 		Quantity:       1,
 	}
@@ -398,7 +447,7 @@ func Test_AssetRepository_Update_WithNilAttributes_StoresEmptyObject(t *testing.
 	repo := NewAssetRepository(testDB.Pool)
 	asset := &domain.Asset{
 		OrganizationID: org.ID,
-		CategoryID:     cat.ID,
+		CategoryID:     &cat.ID,
 		Name:           "Test Asset",
 		Quantity:       1,
 	}
@@ -495,10 +544,10 @@ func Test_AssetRepository_GetTotalValue(t *testing.T) {
 
 	repo := NewAssetRepository(testDB.Pool)
 	price1, price2 := 100.0, 200.0
-	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: cat.ID, Name: "Asset 1", Quantity: 2, PurchasePrice: &price1})
-	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: cat.ID, Name: "Asset 2", Quantity: 1, PurchasePrice: &price2})
+	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, Name: "Asset 1", Quantity: 2, PurchasePrice: &price1})
+	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, Name: "Asset 2", Quantity: 1, PurchasePrice: &price2})
 
-	total, err := repo.GetTotalValue(ctx, org.ID)
+	total, err := repo.GetTotalValue(ctx, org.ID, domain.AssetFilter{})
 	if err != nil {
 		t.Fatalf("failed to get total value: %v", err)
 	}

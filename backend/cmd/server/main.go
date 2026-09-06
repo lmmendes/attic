@@ -120,6 +120,7 @@ func main() {
 		Organizations: repository.NewOrganizationRepository(db.Pool),
 		Users:         userRepo,
 		Categories:    repository.NewCategoryRepository(db.Pool),
+		Collections:   repository.NewCollectionRepository(db.Pool),
 		Locations:     repository.NewLocationRepository(db.Pool),
 		Conditions:    repository.NewConditionRepository(db.Pool),
 		Assets:        repository.NewAssetRepository(db.Pool),
@@ -307,6 +308,15 @@ func main() {
 			r.Put("/{id}", userMgmtHandler.UpdateUser)
 			r.Delete("/{id}", userMgmtHandler.DeleteUser)
 			r.Post("/{id}/reset-password", userMgmtHandler.ResetPassword)
+		})
+
+		// Collections are shared by authenticated users in the workspace.
+		r.Route("/collections", func(r chi.Router) {
+			r.Get("/", h.ListCollections)
+			r.Post("/", h.CreateCollection)
+			r.Get("/{id}", h.GetCollection)
+			r.Put("/{id}", h.UpdateCollection)
+			r.Delete("/{id}", h.DeleteCollection)
 		})
 
 		// Categories

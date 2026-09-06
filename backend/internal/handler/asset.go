@@ -2,21 +2,24 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/lmmendes/attic/internal/domain"
+	"github.com/lmmendes/attic/internal/repository"
 )
 
 const maxAssetQuantity = 1000000
+const uncategorizedCategoryFilter = "uncategorized"
 
 type CreateAssetRequest struct {
-	CategoryID    string          `json:"category_id"`
+	CollectionIDs []string        `json:"collection_ids,omitempty"`
+	CategoryID    *string         `json:"category_id,omitempty"`
 	LocationID    *string         `json:"location_id,omitempty"`
 	ConditionID   *string         `json:"condition_id,omitempty"`
-	CollectionID  *string         `json:"collection_id,omitempty"`
 	Name          string          `json:"name"`
 	Description   *string         `json:"description,omitempty"`
 	Quantity      int             `json:"quantity"`
@@ -28,10 +31,10 @@ type CreateAssetRequest struct {
 }
 
 type UpdateAssetRequest struct {
-	CategoryID    string          `json:"category_id"`
+	CollectionIDs []string        `json:"collection_ids,omitempty"`
+	CategoryID    *string         `json:"category_id,omitempty"`
 	LocationID    *string         `json:"location_id,omitempty"`
 	ConditionID   *string         `json:"condition_id,omitempty"`
-	CollectionID  *string         `json:"collection_id,omitempty"`
 	Name          string          `json:"name"`
 	Description   *string         `json:"description,omitempty"`
 	Quantity      int             `json:"quantity"`
@@ -76,7 +79,9 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if catID := q.Get("category_id"); catID != "" {
-		if id, err := uuid.Parse(catID); err == nil {
+		if catID == uncategorizedCategoryFilter {
+			filter.Uncategorized = true
+		} else if id, err := uuid.Parse(catID); err == nil {
 			filter.CategoryID = &id
 		}
 	}
@@ -92,6 +97,14 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	page := domain.Pagination{Limit: limit, Offset: offset}
+	if value := q.Get("collection_id"); value != "" {
+		id, err := uuid.Parse(value)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid collection ID")
+			return
+		}
+		filter.CollectionID = &id
+	}
 	assets, total, err := h.repos.Assets.List(r.Context(), h.orgID, filter, page)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list assets")
@@ -134,7 +147,7 @@ func (h *Handler) GetAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to get asset")
 		return
 	}
-	if asset == nil {
+	if asset == nil || asset.OrganizationID != h.orgID {
 		writeError(w, http.StatusNotFound, "asset not found")
 		return
 	}
@@ -158,15 +171,19 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" || req.CategoryID == "" {
-		writeError(w, http.StatusBadRequest, "name and category_id are required")
+	if req.Name == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
 
-	categoryID, err := uuid.Parse(req.CategoryID)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid category_id")
-		return
+	var categoryID *uuid.UUID
+	if req.CategoryID != nil && *req.CategoryID != "" {
+		id, err := uuid.Parse(*req.CategoryID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid category_id")
+			return
+		}
+		categoryID = &id
 	}
 
 	asset := &domain.Asset{
@@ -176,6 +193,9 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		Description:    req.Description,
 		Quantity:       req.Quantity,
 		Attributes:     req.Attributes,
+	}
+	if categoryID == nil {
+		asset.Attributes = nil
 	}
 
 	if asset.Quantity <= 0 {
@@ -196,11 +216,6 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 			asset.ConditionID = &id
 		}
 	}
-	if req.CollectionID != nil {
-		if id, err := parseUUIDString(*req.CollectionID); err == nil {
-			asset.CollectionID = &id
-		}
-	}
 	if req.PurchaseAt != nil && *req.PurchaseAt != "" {
 		if t, err := time.Parse("2006-01-02", *req.PurchaseAt); err == nil {
 			asset.PurchaseAt = &t
@@ -210,7 +225,17 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	asset.PurchaseNote = req.PurchaseNote
 	asset.Notes = req.Notes
 
+	collectionIDs, err := parseCollectionIDs(req.CollectionIDs)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	asset.CollectionIDs = collectionIDs
 	if err := h.repos.Assets.Create(r.Context(), asset); err != nil {
+		if errors.Is(err, repository.ErrInvalidCollections) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "failed to create asset")
 		return
 	}
@@ -236,15 +261,19 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to get asset")
 		return
 	}
-	if asset == nil {
+	if asset == nil || asset.OrganizationID != h.orgID {
 		writeError(w, http.StatusNotFound, "asset not found")
 		return
 	}
 
-	categoryID, err := uuid.Parse(req.CategoryID)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid category_id")
-		return
+	var categoryID *uuid.UUID
+	if req.CategoryID != nil && *req.CategoryID != "" {
+		id, err := uuid.Parse(*req.CategoryID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid category_id")
+			return
+		}
+		categoryID = &id
 	}
 
 	asset.CategoryID = categoryID
@@ -259,6 +288,9 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	asset.Attributes = req.Attributes
+	if categoryID == nil {
+		asset.Attributes = nil
+	}
 
 	if req.LocationID != nil {
 		if id, err := parseUUIDString(*req.LocationID); err == nil {
@@ -274,13 +306,6 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	} else {
 		asset.ConditionID = nil
 	}
-	if req.CollectionID != nil {
-		if id, err := parseUUIDString(*req.CollectionID); err == nil {
-			asset.CollectionID = &id
-		}
-	} else {
-		asset.CollectionID = nil
-	}
 	if req.PurchaseAt != nil && *req.PurchaseAt != "" {
 		if t, err := time.Parse("2006-01-02", *req.PurchaseAt); err == nil {
 			asset.PurchaseAt = &t
@@ -291,8 +316,18 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	asset.PurchasePrice = req.PurchasePrice
 	asset.PurchaseNote = req.PurchaseNote
 	asset.Notes = req.Notes
+	collectionIDs, err := parseCollectionIDs(req.CollectionIDs)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	asset.CollectionIDs = collectionIDs
 
 	if err := h.repos.Assets.Update(r.Context(), asset); err != nil {
+		if errors.Is(err, repository.ErrInvalidCollections) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "failed to update asset")
 		return
 	}
@@ -324,7 +359,17 @@ type AssetStatsResponse struct {
 }
 
 func (h *Handler) GetAssetStats(w http.ResponseWriter, r *http.Request) {
-	totalValue, err := h.repos.Assets.GetTotalValue(r.Context(), h.orgID)
+	filter := domain.AssetFilter{}
+	if locID := r.URL.Query().Get("location_id"); locID != "" {
+		id, err := uuid.Parse(locID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid location ID")
+			return
+		}
+		filter.LocationID = &id
+	}
+
+	totalValue, err := h.repos.Assets.GetTotalValue(r.Context(), h.orgID, filter)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get asset stats")
 		return

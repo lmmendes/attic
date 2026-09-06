@@ -12,12 +12,12 @@ export default defineAppConfig({
     },
     card: {
       slots: {
-        root: 'bg-white dark:bg-mist-800 ring-1 ring-mist-200 dark:ring-mist-700 rounded-xl shadow-card'
+        root: 'bg-white dark:bg-mist-800 ring-1 ring-mist-200 dark:ring-mist-700 rounded-2xl shadow-card'
       }
     },
     input: {
       slots: {
-        root: 'rounded-lg'
+        root: 'rounded-xl'
       }
     }
   }

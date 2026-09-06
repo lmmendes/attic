@@ -119,6 +119,10 @@ func (h *AuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 				if err == nil && dbUser != nil {
 					userMap["role"] = string(dbUser.Role)
 					userMap["id"] = dbUser.ID.String()
+					userMap["email"] = dbUser.Email
+					if dbUser.DisplayName != nil {
+						userMap["name"] = *dbUser.DisplayName
+					}
 				}
 			}
 		}
@@ -128,6 +132,19 @@ func (h *AuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	info := h.sessionManager.GetSessionInfo(r)
+	if session, err := h.sessionManager.GetSession(r); err == nil && session != nil {
+		if dbUser, err := h.userRepo.GetByID(r.Context(), session.UserID); err == nil && dbUser != nil {
+			if userMap, ok := info["user"].(map[string]any); ok {
+				userMap["email"] = dbUser.Email
+				userMap["role"] = dbUser.Role
+				if dbUser.DisplayName != nil {
+					userMap["name"] = *dbUser.DisplayName
+				} else {
+					userMap["name"] = ""
+				}
+			}
+		}
+	}
 	info["oidc_enabled"] = h.oidcEnabled
 	info["oidc_auto_redirect"] = h.oidcAutoRedirect
 	w.Header().Set("Content-Type", "application/json")

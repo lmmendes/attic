@@ -40,6 +40,9 @@ func (r *AssetRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.As
 	if err != nil {
 		return nil, err
 	}
+	if err := r.loadAssetCollections(ctx, []*domain.Asset{&a}); err != nil {
+		return nil, err
+	}
 	return &a, nil
 }
 
@@ -50,12 +53,14 @@ func (r *AssetRepository) GetByIDFull(ctx context.Context, id uuid.UUID) (*domai
 	}
 
 	// Load category
-	catQuery := `SELECT id, organization_id, parent_id, name, description, created_at, updated_at FROM categories WHERE id = $1`
-	var cat domain.Category
-	if err := r.pool.QueryRow(ctx, catQuery, asset.CategoryID).Scan(
-		&cat.ID, &cat.OrganizationID, &cat.ParentID, &cat.Name, &cat.Description, &cat.CreatedAt, &cat.UpdatedAt,
-	); err == nil {
-		asset.Category = &cat
+	if asset.CategoryID != nil {
+		catQuery := `SELECT id, organization_id, parent_id, name, description, created_at, updated_at FROM categories WHERE id = $1`
+		var cat domain.Category
+		if err := r.pool.QueryRow(ctx, catQuery, *asset.CategoryID).Scan(
+			&cat.ID, &cat.OrganizationID, &cat.ParentID, &cat.Name, &cat.Description, &cat.CreatedAt, &cat.UpdatedAt,
+		); err == nil {
+			asset.Category = &cat
+		}
 	}
 
 	// Load location if set
@@ -136,7 +141,9 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 
 	conditions = append(conditions, "a.deleted_at IS NULL")
 
-	if filter.CategoryID != nil {
+	if filter.Uncategorized {
+		conditions = append(conditions, "a.category_id IS NULL")
+	} else if filter.CategoryID != nil {
 		conditions = append(conditions, fmt.Sprintf("a.category_id = $%d", argNum))
 		args = append(args, *filter.CategoryID)
 		argNum++
@@ -154,6 +161,13 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 	if filter.Query != "" {
 		conditions = append(conditions, fmt.Sprintf("a.search_vector @@ plainto_tsquery('english', $%d)", argNum))
 		args = append(args, filter.Query)
+		argNum++
+	}
+	if filter.CollectionID != nil {
+		conditions = append(conditions, fmt.Sprintf(`EXISTS (SELECT 1 FROM asset_collections ac
+            JOIN collections cl ON cl.id = ac.collection_id AND cl.organization_id = a.organization_id
+            WHERE ac.asset_id = a.id AND ac.collection_id = $%d)`, argNum))
+		args = append(args, *filter.CollectionID)
 		argNum++
 	}
 
@@ -249,7 +263,18 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 		assets = append(assets, a)
 	}
 
-	return assets, total, rows.Err()
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	assetPointers := make([]*domain.Asset, len(assets))
+	for i := range assets {
+		assetPointers[i] = &assets[i]
+	}
+	if err := r.loadAssetCollections(ctx, assetPointers); err != nil {
+		return nil, 0, err
+	}
+	return assets, total, nil
 }
 
 func (r *AssetRepository) Search(ctx context.Context, orgID uuid.UUID, query string, page domain.Pagination) ([]domain.Asset, int, error) {
@@ -258,6 +283,11 @@ func (r *AssetRepository) Search(ctx context.Context, orgID uuid.UUID, query str
 }
 
 func (r *AssetRepository) Create(ctx context.Context, a *domain.Asset) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
 	query := `
 		INSERT INTO assets (id, organization_id, category_id, location_id, condition_id, collection_id,
 		                    name, description, quantity, attributes, purchase_at, purchase_price, purchase_note, notes,
@@ -271,14 +301,28 @@ func (r *AssetRepository) Create(ctx context.Context, a *domain.Asset) error {
 	if a.Attributes == nil {
 		a.Attributes = []byte("{}")
 	}
-	return r.pool.QueryRow(ctx, query,
+	if err := tx.QueryRow(ctx, query,
 		a.ID, a.OrganizationID, a.CategoryID, a.LocationID, a.ConditionID, a.CollectionID,
 		a.Name, a.Description, a.Quantity, a.Attributes, a.PurchaseAt, a.PurchasePrice, a.PurchaseNote, a.Notes,
 		a.ImportPluginID, a.ImportExternalID,
-	).Scan(&a.CreatedAt, &a.UpdatedAt)
+	).Scan(&a.CreatedAt, &a.UpdatedAt); err != nil {
+		return err
+	}
+	if a.CollectionIDs == nil {
+		a.CollectionIDs = []uuid.UUID{}
+	}
+	if err := replaceAssetCollections(ctx, tx, a); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *AssetRepository) Update(ctx context.Context, a *domain.Asset) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
 	query := `
 		UPDATE assets
 		SET category_id = $2, location_id = $3, condition_id = $4, collection_id = $5,
@@ -289,10 +333,19 @@ func (r *AssetRepository) Update(ctx context.Context, a *domain.Asset) error {
 	if a.Attributes == nil {
 		a.Attributes = []byte("{}")
 	}
-	return r.pool.QueryRow(ctx, query,
+	if err := tx.QueryRow(ctx, query,
 		a.ID, a.CategoryID, a.LocationID, a.ConditionID, a.CollectionID,
 		a.Name, a.Description, a.Quantity, a.Attributes, a.PurchaseAt, a.PurchasePrice, a.PurchaseNote, a.Notes,
-	).Scan(&a.UpdatedAt)
+	).Scan(&a.UpdatedAt); err != nil {
+		return err
+	}
+	if err := replaceAssetCollections(ctx, tx, a); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	return r.loadAssetCollections(ctx, []*domain.Asset{a})
 }
 
 func (r *AssetRepository) Delete(ctx context.Context, id uuid.UUID) error {
@@ -323,14 +376,19 @@ func (r *AssetRepository) SetTags(ctx context.Context, assetID uuid.UUID, tagIDs
 	return tx.Commit(ctx)
 }
 
-func (r *AssetRepository) GetTotalValue(ctx context.Context, orgID uuid.UUID) (float64, error) {
+func (r *AssetRepository) GetTotalValue(ctx context.Context, orgID uuid.UUID, filter domain.AssetFilter) (float64, error) {
 	query := `
 		SELECT COALESCE(SUM(purchase_price * quantity), 0)
 		FROM assets
 		WHERE organization_id = $1 AND deleted_at IS NULL
 	`
+	args := []any{orgID}
+	if filter.LocationID != nil {
+		query += " AND location_id = $2"
+		args = append(args, *filter.LocationID)
+	}
 	var total float64
-	err := r.pool.QueryRow(ctx, query, orgID).Scan(&total)
+	err := r.pool.QueryRow(ctx, query, args...).Scan(&total)
 	return total, err
 }
 

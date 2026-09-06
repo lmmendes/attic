@@ -224,9 +224,13 @@ describe('Assets Index Page', () => {
         { id: 'cat-2', name: 'Books' }
       ]
 
-      const categoryOptions = categories.map(c => ({ label: c.name, value: c.id }))
+      const categoryOptions = [
+        { label: 'Uncategorized', value: 'uncategorized' },
+        ...categories.map(c => ({ label: c.name, value: c.id }))
+      ]
 
       expect(categoryOptions).toEqual([
+        { label: 'Uncategorized', value: 'uncategorized' },
         { label: 'Electronics', value: 'cat-1' },
         { label: 'Books', value: 'cat-2' }
       ])
@@ -298,9 +302,12 @@ describe('Assets Index Page', () => {
 
     it('handles empty arrays gracefully', () => {
       const categories: { name: string, id: string }[] = []
-      const categoryOptions = categories?.map(c => ({ label: c.name, value: c.id })) || []
+      const categoryOptions = [
+        { label: 'Uncategorized', value: 'uncategorized' },
+        ...(categories?.map(c => ({ label: c.name, value: c.id })) || [])
+      ]
 
-      expect(categoryOptions).toEqual([])
+      expect(categoryOptions).toEqual([{ label: 'Uncategorized', value: 'uncategorized' }])
     })
   })
 
@@ -316,6 +323,23 @@ describe('Assets Index Page', () => {
       onImported(assetId)
 
       expect(mockRouterPush).toHaveBeenCalledWith('/assets/new-asset-123/edit')
+    })
+  })
+
+  describe('row actions', () => {
+    it('navigates when dropdown actions are selected', () => {
+      const routerPush = vi.fn()
+      const asset = { id: 'asset-123' }
+      const items = [[
+        { label: 'View', onSelect: () => routerPush(`/assets/${asset.id}`) },
+        { label: 'Edit', onSelect: () => routerPush(`/assets/${asset.id}/edit`) }
+      ]]
+
+      items[0]![0]!.onSelect()
+      items[0]![1]!.onSelect()
+
+      expect(routerPush).toHaveBeenNthCalledWith(1, '/assets/asset-123')
+      expect(routerPush).toHaveBeenNthCalledWith(2, '/assets/asset-123/edit')
     })
   })
 

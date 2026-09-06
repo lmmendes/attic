@@ -12,6 +12,16 @@ const { data: attributes, refresh, status } = useApi<Attribute[]>('/api/attribut
 
 // Search
 const searchQuery = ref('')
+const selectedType = ref('all')
+
+const dataTypes = [
+  { value: 'all', label: 'All fields', icon: 'i-lucide-layers-3' },
+  { value: 'string', label: 'Short text', icon: 'i-lucide-type' },
+  { value: 'text', label: 'Long text', icon: 'i-lucide-align-left' },
+  { value: 'number', label: 'Number', icon: 'i-lucide-hash' },
+  { value: 'boolean', label: 'Yes / No', icon: 'i-lucide-toggle-left' },
+  { value: 'date', label: 'Date', icon: 'i-lucide-calendar' }
+]
 
 // Pagination
 const currentPage = ref(1)
@@ -20,12 +30,21 @@ const itemsPerPage = ref(10)
 // Filtered attributes
 const filteredAttributes = computed(() => {
   if (!attributes.value) return []
-  if (!searchQuery.value.trim()) return attributes.value
-  const query = searchQuery.value.toLowerCase()
-  return attributes.value.filter(
-    a => a.name.toLowerCase().includes(query) || a.key.toLowerCase().includes(query)
-  )
+  const query = searchQuery.value.trim().toLowerCase()
+
+  return attributes.value.filter((attribute) => {
+    const matchesSearch = !query
+      || attribute.name.toLowerCase().includes(query)
+      || attribute.key.toLowerCase().includes(query)
+    const matchesType = selectedType.value === 'all' || attribute.data_type === selectedType.value
+    return matchesSearch && matchesType
+  })
 })
+
+function getTypeCount(type: string): number {
+  if (type === 'all') return attributes.value?.length || 0
+  return attributes.value?.filter(attribute => attribute.data_type === type).length || 0
+}
 
 // Paginated attributes
 const paginatedAttributes = computed(() => {
@@ -38,8 +57,14 @@ const paginatedAttributes = computed(() => {
 const totalPages = computed(() => Math.ceil(filteredAttributes.value.length / itemsPerPage.value))
 
 // Reset to page 1 when search changes
-watch(searchQuery, () => {
+watch([searchQuery, selectedType], () => {
   currentPage.value = 1
+})
+
+watch(totalPages, (pages) => {
+  if (currentPage.value > Math.max(1, pages)) {
+    currentPage.value = Math.max(1, pages)
+  }
 })
 
 // Pagination helpers
@@ -89,7 +114,7 @@ function getTypeStyle(type: string): { icon: string, bgColor: string, textColor:
         bgColor: 'bg-slate-100 dark:bg-slate-800',
         textColor: 'text-slate-700 dark:text-slate-300',
         borderColor: 'border-slate-200 dark:border-slate-700',
-        label: 'String'
+        label: 'Short text'
       }
     case 'text':
       return {
@@ -97,7 +122,7 @@ function getTypeStyle(type: string): { icon: string, bgColor: string, textColor:
         bgColor: 'bg-indigo-50 dark:bg-indigo-900/30',
         textColor: 'text-indigo-700 dark:text-indigo-300',
         borderColor: 'border-indigo-100 dark:border-indigo-900/50',
-        label: 'Text'
+        label: 'Long text'
       }
     case 'number':
       return {
@@ -167,44 +192,81 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-5 pb-6">
     <!-- Page Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <header class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight text-mist-950 dark:text-white mb-1">
-          Custom Attributes
+        <p class="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
+          Schema library
+        </p>
+        <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
+          Fields
         </h1>
-        <p class="text-mist-500">
-          Define the specific data points you want to track for your home inventory.
+        <p class="mt-1 max-w-2xl text-sm text-muted">
+          Reusable details that categories can add to their asset forms.
         </p>
       </div>
       <UButton
         to="/attributes/new"
         icon="i-lucide-plus"
-        class="h-11 px-6 font-bold shadow-lg shadow-attic-500/20"
+        class="rounded-xl font-bold shadow-primary"
       >
-        Add Attribute
+        New field
       </UButton>
-    </div>
+    </header>
 
-    <!-- Toolbar -->
-    <div class="flex items-center gap-4">
-      <div class="relative flex-1 max-w-sm">
-        <UIcon
-          name="i-lucide-search"
-          class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mist-400"
-        />
-        <input
+    <section class="attic-panel rounded-[18px] p-3 sm:p-4">
+      <div class="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
+        <div class="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 2xl:pb-0">
+          <button
+            v-for="type in dataTypes"
+            :key="type.value"
+            type="button"
+            :aria-pressed="selectedType === type.value"
+            class="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-colors"
+            :class="selectedType === type.value
+              ? 'bg-attic-500 text-white shadow-sm'
+              : 'bg-mist-50 text-muted hover:bg-attic-50 hover:text-attic-600 dark:bg-mist-700/60 dark:text-mist-300'"
+            @click="selectedType = type.value"
+          >
+            <UIcon
+              :name="type.icon"
+              class="size-3.5"
+            />
+            {{ type.label }}
+            <span
+              class="rounded-md px-1.5 py-0.5 text-[10px]"
+              :class="selectedType === type.value ? 'bg-white/15 text-white' : 'bg-white text-muted dark:bg-mist-800'"
+            >
+              {{ getTypeCount(type.value) }}
+            </span>
+          </button>
+        </div>
+        <UInput
           v-model="searchQuery"
-          type="text"
-          placeholder="Search attributes..."
-          class="w-full pl-10 pr-4 py-2.5 bg-mist-50 dark:bg-mist-800 border border-mist-200 dark:border-mist-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-attic-500/20 focus:border-attic-500 text-mist-950 dark:text-white placeholder-mist-400"
-        >
+          icon="i-lucide-search"
+          placeholder="Search name or key"
+          class="w-full shrink-0 2xl:w-64"
+          size="lg"
+        />
       </div>
-    </div>
+    </section>
 
     <!-- Data Table -->
-    <div class="overflow-hidden rounded-xl border border-mist-100 dark:border-mist-700 bg-white dark:bg-mist-800 shadow-sm">
+    <section class="attic-panel overflow-hidden rounded-[20px]">
+      <div class="flex items-center justify-between border-b border-mist-100 px-4 py-4 dark:border-mist-700 sm:px-5">
+        <div>
+          <h2 class="font-extrabold text-mist-950 dark:text-white">
+            Field library
+          </h2>
+          <p class="text-xs text-muted">
+            Names are for people; keys are used to store the data.
+          </p>
+        </div>
+        <span class="rounded-lg bg-mist-50 px-2.5 py-1 text-xs font-bold text-muted dark:bg-mist-700/60">
+          {{ filteredAttributes.length }} shown
+        </span>
+      </div>
       <!-- Loading State -->
       <div
         v-if="status === 'pending'"
@@ -218,29 +280,29 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
 
       <!-- Empty State -->
       <div
-        v-else-if="!filteredAttributes.length && !searchQuery"
+        v-else-if="!attributes?.length"
         class="flex flex-col items-center justify-center py-20 px-4 text-center"
       >
         <div class="size-16 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-4">
           <UIcon
             name="i-lucide-list"
-            class="w-8 h-8 text-mist-400"
+            class="w-8 h-8 text-muted"
           />
         </div>
         <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
-          No attributes yet
+          No fields yet
         </h3>
-        <p class="text-sm text-mist-500 mb-4 max-w-sm">
-          Create your first attribute to start defining custom data points for your assets.
+        <p class="text-sm text-muted mb-4 max-w-sm">
+          Create your first reusable field, then add it to one or more categories.
         </p>
         <UButton to="/attributes/new">
-          Create Attribute
+          Create field
         </UButton>
       </div>
 
       <!-- No Results -->
       <div
-        v-else-if="!filteredAttributes.length && searchQuery"
+        v-else-if="!filteredAttributes.length"
         class="flex flex-col items-center justify-center py-20 px-4 text-center"
       >
         <UIcon
@@ -250,110 +312,86 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
         <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
           No results found
         </h3>
-        <p class="text-sm text-mist-500">
-          No attributes match "{{ searchQuery }}"
+        <p class="text-sm text-muted">
+          No fields match these filters.
         </p>
+        <button
+          type="button"
+          class="mt-2 text-sm font-semibold text-attic-500 hover:text-attic-600"
+          @click="searchQuery = ''; selectedType = 'all'"
+        >
+          Clear filters
+        </button>
       </div>
 
-      <!-- Table -->
       <template v-else>
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-[600px] border-collapse">
-            <thead class="bg-mist-50/50 dark:bg-mist-700/30 border-b border-mist-100 dark:border-mist-700">
-              <tr>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
-                  Attribute Name
-                </th>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
-                  Data Type
-                </th>
-                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-mist-500">
-                  Key
-                </th>
-                <th class="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-mist-500">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-mist-100 dark:divide-mist-700">
-              <tr
-                v-for="attr in paginatedAttributes"
-                :key="attr.id"
-                class="group hover:bg-mist-50/50 dark:hover:bg-mist-700/30 transition-colors"
+        <div class="divide-y divide-mist-100 dark:divide-mist-700">
+          <article
+            v-for="attr in paginatedAttributes"
+            :key="attr.id"
+            class="grid gap-3 px-4 py-4 transition-colors hover:bg-mist-50/60 dark:hover:bg-mist-700/20 sm:grid-cols-[minmax(0,1.25fr)_minmax(150px,.7fr)_auto] sm:items-center sm:px-5"
+          >
+            <div class="flex min-w-0 items-center gap-3">
+              <div
+                class="flex size-10 shrink-0 items-center justify-center rounded-xl"
+                :class="[getAttributeIcon(attr).bgColor, getAttributeIcon(attr).textColor]"
               >
-                <!-- Attribute Name with Icon -->
-                <td class="px-6 py-4">
-                  <div class="flex items-center gap-3">
-                    <div
-                      class="size-9 rounded-full flex items-center justify-center"
-                      :class="[getAttributeIcon(attr).bgColor, getAttributeIcon(attr).textColor]"
-                    >
-                      <UIcon
-                        :name="getAttributeIcon(attr).icon"
-                        class="w-4 h-4"
-                      />
-                    </div>
-                    <span class="text-mist-950 dark:text-white text-sm font-semibold">
-                      {{ attr.name }}
-                    </span>
-                  </div>
-                </td>
+                <UIcon
+                  :name="getAttributeIcon(attr).icon"
+                  class="size-4.5"
+                />
+              </div>
+              <div class="min-w-0">
+                <h3 class="truncate text-sm font-extrabold text-mist-950 dark:text-white">
+                  {{ attr.name }}
+                </h3>
+                <code class="mt-0.5 block truncate font-mono text-xs text-muted">
+                  {{ attr.key }}
+                </code>
+              </div>
+            </div>
 
-                <!-- Data Type Badge -->
-                <td class="px-6 py-4">
-                  <span
-                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border"
-                    :class="[getTypeStyle(attr.data_type).bgColor, getTypeStyle(attr.data_type).textColor, getTypeStyle(attr.data_type).borderColor]"
-                  >
-                    <UIcon
-                      :name="getTypeStyle(attr.data_type).icon"
-                      class="w-3.5 h-3.5"
-                    />
-                    {{ getTypeStyle(attr.data_type).label }}
-                  </span>
-                </td>
+            <div class="flex items-center justify-between gap-3 pl-[52px] sm:justify-start sm:pl-0">
+              <span
+                class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold"
+                :class="[getTypeStyle(attr.data_type).bgColor, getTypeStyle(attr.data_type).textColor, getTypeStyle(attr.data_type).borderColor]"
+              >
+                <UIcon
+                  :name="getTypeStyle(attr.data_type).icon"
+                  class="size-3.5"
+                />
+                {{ getTypeStyle(attr.data_type).label }}
+              </span>
+            </div>
 
-                <!-- Key -->
-                <td class="px-6 py-4">
-                  <code class="text-xs bg-mist-100 dark:bg-mist-700 text-mist-600 dark:text-mist-300 px-2 py-1 rounded font-mono">
-                    {{ attr.key }}
-                  </code>
-                </td>
-
-                <!-- Actions -->
-                <td class="px-6 py-4 text-right">
-                  <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <NuxtLink
-                      :to="`/attributes/${attr.id}/edit`"
-                      class="size-8 rounded flex items-center justify-center text-mist-400 hover:text-attic-500 hover:bg-attic-500/10 transition-colors"
-                      title="Edit"
-                    >
-                      <UIcon
-                        name="i-lucide-edit"
-                        class="w-4 h-4"
-                      />
-                    </NuxtLink>
-                    <button
-                      class="size-8 rounded flex items-center justify-center text-mist-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                      title="Delete"
-                      @click="confirmDelete(attr)"
-                    >
-                      <UIcon
-                        name="i-lucide-trash-2"
-                        class="w-4 h-4"
-                      />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+            <div class="flex items-center justify-end gap-1 border-t border-mist-100 pt-3 dark:border-mist-700 sm:border-0 sm:pt-0">
+              <UButton
+                :to="`/attributes/${attr.id}/edit`"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-pencil"
+              >
+                Edit
+              </UButton>
+              <button
+                type="button"
+                class="flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                :aria-label="`Delete ${attr.name}`"
+                @click="confirmDelete(attr)"
+              >
+                <UIcon
+                  name="i-lucide-trash-2"
+                  class="size-4"
+                />
+              </button>
+            </div>
+          </article>
         </div>
 
         <!-- Footer with Pagination -->
-        <div class="px-6 py-3 border-t border-mist-100 dark:border-mist-700 bg-mist-50/50 dark:bg-mist-700/20 flex items-center justify-between">
-          <p class="text-xs text-mist-500">
-            Showing {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, filteredAttributes.length) }} of {{ filteredAttributes.length }} attributes
+        <div class="flex flex-col gap-3 border-t border-mist-100 bg-mist-50/50 px-4 py-3 dark:border-mist-700 dark:bg-mist-700/20 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <p class="text-xs text-muted">
+            Showing {{ (currentPage - 1) * itemsPerPage + 1 }}–{{ Math.min(currentPage * itemsPerPage, filteredAttributes.length) }} of {{ filteredAttributes.length }} fields
             <span v-if="searchQuery && attributes?.length !== filteredAttributes.length">
               (filtered from {{ attributes?.length || 0 }})
             </span>
@@ -369,7 +407,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
             >
               Prev
             </button>
-            <span class="text-xs text-mist-500 px-2">
+            <span class="text-xs text-muted px-2">
               Page {{ currentPage }} of {{ totalPages }}
             </span>
             <button
@@ -382,12 +420,16 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
           </div>
         </div>
       </template>
-    </div>
+    </section>
 
     <!-- Delete Confirmation Modal -->
-    <UModal v-model:open="deleteModalOpen">
+    <UModal
+      v-model:open="deleteModalOpen"
+      title="Delete field"
+      description="Confirm deletion of this field and review the impact on categories that use it."
+    >
       <template #content>
-        <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl p-6 max-w-md">
+        <div class="max-w-md rounded-[20px] bg-white p-6 shadow-xl dark:bg-mist-800">
           <div class="flex items-start gap-4">
             <div class="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
               <UIcon
@@ -397,10 +439,10 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
             </div>
             <div class="flex-1">
               <h3 class="text-lg font-bold text-mist-950 dark:text-white">
-                Delete Attribute
+                Delete field
               </h3>
-              <p class="text-sm text-mist-500 mt-2">
-                Are you sure you want to delete <strong>{{ attributeToDelete?.name }}</strong>? This may affect categories using this attribute.
+              <p class="text-sm text-muted mt-2">
+                Are you sure you want to delete <strong>{{ attributeToDelete?.name }}</strong>? Categories using this field may be affected.
               </p>
             </div>
           </div>

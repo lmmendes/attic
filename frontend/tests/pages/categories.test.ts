@@ -34,29 +34,30 @@ describe('Categories Index Page', () => {
       expect(totalItems).toBe(40)
     })
 
-    it('calculates average attributes per category', () => {
+    it('counts unique fields across categories', () => {
       const categories = [
-        { id: 'cat-1', attributes: [{ id: 'a1' }, { id: 'a2' }] },
-        { id: 'cat-2', attributes: [{ id: 'a3' }] },
+        { id: 'cat-1', attributes: [{ attribute_id: 'a1' }, { attribute_id: 'a2' }] },
+        { id: 'cat-2', attributes: [{ attribute_id: 'a2' }, { attribute_id: 'a3' }] },
         { id: 'cat-3', attributes: [] }
       ]
 
-      const total = categories.reduce((sum, c) => sum + (c.attributes?.length || 0), 0)
-      const avgAttributes = (total / categories.length).toFixed(1)
+      const fieldIds = new Set(
+        categories.flatMap(category => category.attributes.map(attribute => attribute.attribute_id))
+      )
 
-      expect(avgAttributes).toBe('1.0')
+      expect(fieldIds.size).toBe(3)
     })
 
     it('handles empty categories array', () => {
       const categories: { attributes?: unknown[] }[] = []
 
       const totalCategories = categories.length || 0
-      const avgAttributes = categories.length > 0
-        ? (categories.reduce((sum, c) => sum + (c.attributes?.length || 0), 0) / categories.length).toFixed(1)
-        : 0
+      const uniqueFields = new Set(
+        categories.flatMap(category => category.attributes || [])
+      ).size
 
       expect(totalCategories).toBe(0)
-      expect(avgAttributes).toBe(0)
+      expect(uniqueFields).toBe(0)
     })
   })
 

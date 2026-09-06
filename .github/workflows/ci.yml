@@ -21,7 +21,7 @@ jobs:
           go-version: '1.24'
 
       - name: Install frontend dependencies
-        run: cd frontend && bun install
+        run: cd frontend && bun install --frozen-lockfile
 
       - name: Frontend lint
         run: cd frontend && bun run lint

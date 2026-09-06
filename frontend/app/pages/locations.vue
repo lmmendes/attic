@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { Location, Asset } from '~/types/api'
+import { getIconLabel } from '~/utils/iconLabel'
+import { getLocationNameError } from '~/utils/locationValidation'
 
 definePageMeta({
   middleware: 'auth'
@@ -42,6 +44,7 @@ const form = reactive({
   parent_id: undefined as string | undefined,
   icon: undefined as string | undefined
 })
+const nameError = ref('')
 
 // Delete confirmation modal
 const deleteModalOpen = ref(false)
@@ -79,6 +82,7 @@ function openCreateModal(parentId?: string) {
   form.description = ''
   form.parent_id = parentId
   form.icon = undefined
+  nameError.value = ''
   modalOpen.value = true
 }
 
@@ -88,10 +92,14 @@ function openEditModal(location: Location) {
   form.description = location.description || ''
   form.parent_id = location.parent_id
   form.icon = location.icon
+  nameError.value = ''
   modalOpen.value = true
 }
 
 async function saveLocation() {
+  nameError.value = getLocationNameError(form.name) || ''
+  if (nameError.value) return
+
   try {
     const url = editingLocation.value
       ? `/api/locations/${editingLocation.value.id}`
@@ -99,7 +107,7 @@ async function saveLocation() {
 
     await apiFetch(url, {
       method: editingLocation.value ? 'PUT' : 'POST',
-      body: JSON.stringify(form)
+      body: JSON.stringify({ ...form, name: form.name.trim() })
     })
 
     toast.add({
@@ -289,9 +297,13 @@ function collapseAll() {
 }
 
 // Expand all nodes
-function _expandAll() {
+function expandAll() {
   locations.value?.forEach(l => expandedNodes.value.add(l.id))
 }
+
+watch(searchQuery, (query) => {
+  if (query.trim()) expandAll()
+})
 
 // Check if a node has children
 function hasChildren(locationId: string): boolean {
@@ -335,20 +347,23 @@ function getLocationIcon(location: Location): string {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-5 pb-6">
     <!-- Page Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        <h1 class="text-3xl md:text-4xl font-black tracking-tight text-mist-950 dark:text-white mb-1">
+        <p class="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
+          Storage map
+        </p>
+        <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
           Locations
         </h1>
-        <p class="text-mist-500">
-          Organize where your belongings are stored with a hierarchical structure.
+        <p class="mt-1 text-sm text-muted">
+          Browse {{ locations?.length || 0 }} spaces and see what is stored in each one.
         </p>
       </div>
       <UButton
         icon="i-lucide-plus"
-        class="h-11 px-6 font-bold shadow-lg shadow-attic-500/20"
+        class="rounded-xl font-bold shadow-primary"
         @click="openCreateModal()"
       >
         Add Location
@@ -356,15 +371,28 @@ function getLocationIcon(location: Location): string {
     </div>
 
     <!-- Two Panel Layout -->
-    <div class="flex flex-col lg:flex-row gap-4 min-h-[calc(100vh-14rem)] lg:h-[calc(100vh-14rem)]">
+    <div class="grid min-h-[calc(100vh-11.5rem)] grid-cols-1 gap-4 lg:h-[calc(100vh-11.5rem)] lg:grid-cols-[300px_minmax(0,1fr)]">
       <!-- Left Panel: Location Tree -->
-      <section class="flex flex-col w-full lg:w-[340px] xl:w-[380px] min-h-[400px] lg:min-h-0 bg-white dark:bg-mist-800 rounded-2xl shadow-soft border border-mist-100 dark:border-mist-700 overflow-hidden flex-shrink-0">
+      <section class="attic-panel flex min-h-[360px] flex-col overflow-hidden rounded-[20px] lg:min-h-0">
         <!-- Tree Header -->
-        <div class="p-4 border-b border-mist-100 dark:border-mist-700 flex items-center justify-between bg-white dark:bg-mist-800 sticky top-0 z-10">
-          <h2 class="text-lg font-bold text-mist-950 dark:text-white">
-            Hierarchy
-          </h2>
+        <div class="flex items-center justify-between border-b border-mist-100 px-4 py-3 dark:border-mist-700">
+          <div>
+            <h2 class="text-sm font-extrabold text-mist-950 dark:text-white">
+              Hierarchy
+            </h2>
+            <p class="text-[11px] text-muted">
+              Select a space to inspect it
+            </p>
+          </div>
           <div class="flex gap-1">
+            <UButton
+              variant="ghost"
+              color="neutral"
+              icon="i-lucide-chevrons-up-down"
+              size="sm"
+              title="Expand All"
+              @click="expandAll"
+            />
             <UButton
               variant="ghost"
               color="neutral"
@@ -385,23 +413,23 @@ function getLocationIcon(location: Location): string {
         </div>
 
         <!-- Search Filter -->
-        <div class="px-4 py-2 bg-white dark:bg-mist-800">
+        <div class="border-b border-mist-100 px-3 py-3 dark:border-mist-700">
           <div class="relative">
             <UIcon
               name="i-lucide-search"
-              class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-mist-400"
+              class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"
             />
             <input
               v-model="searchQuery"
               type="text"
               placeholder="Filter locations..."
-              class="w-full bg-mist-50 dark:bg-mist-700 border-none rounded-lg py-2 pl-9 pr-4 text-sm focus:ring-1 focus:ring-attic-500 placeholder-mist-400 text-mist-950 dark:text-white"
+              class="w-full rounded-xl border border-mist-200 bg-mist-50 py-2 pl-9 pr-4 text-sm text-mist-950 placeholder-mist-400 focus:border-attic-500 focus:ring-1 focus:ring-attic-500 dark:border-mist-700 dark:bg-mist-800 dark:text-white"
             >
           </div>
         </div>
 
         <!-- Tree Content -->
-        <div class="flex-1 overflow-y-auto p-2 custom-scrollbar">
+        <div class="custom-scrollbar flex-1 overflow-y-auto p-2.5">
           <!-- Loading State -->
           <div
             v-if="status === 'pending'"
@@ -421,10 +449,10 @@ function getLocationIcon(location: Location): string {
             <div class="size-12 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-3">
               <UIcon
                 name="i-lucide-map-pin"
-                class="w-6 h-6 text-mist-400"
+                class="w-6 h-6 text-muted"
               />
             </div>
-            <p class="text-sm text-mist-500 mb-3">
+            <p class="text-sm text-muted mb-3">
               {{ searchQuery ? 'No locations found' : 'No locations yet' }}
             </p>
             <UButton
@@ -455,22 +483,22 @@ function getLocationIcon(location: Location): string {
       </section>
 
       <!-- Right Panel: Details & Assets -->
-      <section class="flex-1 flex flex-col min-h-[500px] lg:min-h-0 bg-white dark:bg-mist-800 rounded-2xl shadow-soft border border-mist-100 dark:border-mist-700 overflow-hidden">
+      <section class="attic-panel flex min-h-[500px] min-w-0 flex-col overflow-hidden rounded-[20px] lg:min-h-0">
         <!-- No Selection State -->
         <div
           v-if="!selectedLocation"
           class="flex-1 flex flex-col items-center justify-center p-8 text-center"
         >
-          <div class="size-16 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-4">
+          <div class="mb-4 flex size-14 items-center justify-center rounded-2xl bg-attic-50 text-attic-500 dark:bg-attic-500/10">
             <UIcon
               name="i-lucide-map-pin"
-              class="w-8 h-8 text-mist-400"
+              class="size-6"
             />
           </div>
           <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
             Select a Location
           </h3>
-          <p class="text-sm text-mist-500 max-w-sm">
+          <p class="text-sm text-muted max-w-sm">
             Choose a location from the hierarchy to view its details and assets.
           </p>
         </div>
@@ -478,8 +506,8 @@ function getLocationIcon(location: Location): string {
         <!-- Location Details -->
         <template v-else>
           <!-- Breadcrumbs & Actions Header -->
-          <div class="px-6 py-4 border-b border-mist-100 dark:border-mist-700 flex flex-wrap gap-4 items-center justify-between bg-white/80 dark:bg-mist-800/95 backdrop-blur-sm sticky top-0 z-20">
-            <div class="flex items-center gap-2 text-sm text-mist-500 overflow-hidden">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-mist-100 px-4 py-3 dark:border-mist-700 sm:px-5">
+            <div class="flex items-center gap-2 text-sm text-muted overflow-hidden">
               <template
                 v-for="(loc, index) in getLocationPath(selectedLocation)"
                 :key="loc.id"
@@ -504,14 +532,14 @@ function getLocationIcon(location: Location): string {
                 />
               </template>
             </div>
-            <div class="flex gap-3">
+            <div class="flex gap-2">
               <UButton
                 variant="outline"
                 color="neutral"
                 icon="i-lucide-edit"
                 @click="openEditModal(selectedLocation)"
               >
-                <span class="hidden sm:inline">Edit Details</span>
+                <span class="hidden sm:inline">Edit</span>
               </UButton>
               <UButton
                 icon="i-lucide-plus"
@@ -524,44 +552,47 @@ function getLocationIcon(location: Location): string {
 
           <!-- Main Detail Content -->
           <div class="flex-1 overflow-y-auto custom-scrollbar">
-            <div class="p-6 md:p-8 max-w-6xl mx-auto space-y-8">
+            <div class="mx-auto max-w-6xl space-y-6 p-4 sm:p-5 lg:p-6">
               <!-- Location Info Card -->
-              <div class="flex flex-col md:flex-row gap-8 items-start">
-                <div class="flex-1 space-y-4">
-                  <div>
-                    <h1 class="text-3xl font-bold text-mist-950 dark:text-white tracking-tight flex items-center gap-3">
-                      <span class="p-2 bg-attic-500/10 rounded-xl text-attic-500">
-                        <UIcon
-                          :name="getLocationIcon(selectedLocation)"
-                          class="w-8 h-8"
-                        />
-                      </span>
-                      {{ selectedLocation.name }}
-                    </h1>
-                  </div>
-                  <p
-                    v-if="selectedLocation.description"
-                    class="text-mist-500 leading-relaxed max-w-2xl"
-                  >
-                    {{ selectedLocation.description }}
-                  </p>
-                  <p
-                    v-else
-                    class="text-mist-400 italic"
-                  >
-                    No description provided
-                  </p>
-
-                  <!-- Stats Row -->
-                  <div class="flex gap-6 pt-2">
-                    <div class="flex items-baseline gap-2">
-                      <span class="text-2xl font-bold text-mist-950 dark:text-white">{{ locationAssets?.total || 0 }}</span>
-                      <span class="text-sm font-medium text-mist-500 uppercase tracking-wider">Assets</span>
+              <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+                <div class="relative isolate min-h-48 overflow-hidden rounded-[22px] bg-gradient-to-br from-attic-500 via-attic-600 to-[#174AE8] p-5 text-white shadow-primary sm:p-6">
+                  <div class="pointer-events-none absolute -right-14 -top-20 size-52 rounded-full border-[30px] border-white/5" />
+                  <div class="relative space-y-4">
+                    <div>
+                      <h1 class="flex items-center gap-3 text-2xl font-extrabold tracking-[-0.03em] text-white sm:text-3xl">
+                        <span class="rounded-xl border border-white/15 bg-white/10 p-2.5 text-white">
+                          <UIcon
+                            :name="getLocationIcon(selectedLocation)"
+                            class="size-6"
+                          />
+                        </span>
+                        {{ selectedLocation.name }}
+                      </h1>
                     </div>
-                    <div class="w-px h-8 bg-mist-200 dark:bg-mist-600" />
-                    <div class="flex items-baseline gap-2">
-                      <span class="text-2xl font-bold text-mist-950 dark:text-white">{{ formatCurrency(totalValue) }}</span>
-                      <span class="text-sm font-medium text-mist-500 uppercase tracking-wider">Total Value</span>
+                    <p
+                      v-if="selectedLocation.description"
+                      class="max-w-2xl text-sm leading-relaxed text-white/75"
+                    >
+                      {{ selectedLocation.description }}
+                    </p>
+                    <p
+                      v-else
+                      class="text-sm text-white/55"
+                    >
+                      No description provided
+                    </p>
+
+                    <!-- Stats Row -->
+                    <div class="flex gap-5 pt-2">
+                      <div class="flex items-baseline gap-2">
+                        <span class="text-2xl font-black text-white">{{ locationAssets?.total || 0 }}</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-white/60">Assets</span>
+                      </div>
+                      <div class="h-8 w-px bg-white/20" />
+                      <div class="flex items-baseline gap-2">
+                        <span class="text-2xl font-black text-white">{{ formatCurrency(totalValue) }}</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-white/60">Total value</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -569,10 +600,10 @@ function getLocationIcon(location: Location): string {
                 <!-- Sub-locations List -->
                 <div
                   v-if="getChildren(selectedLocation.id).length > 0"
-                  class="w-full md:w-72 bg-mist-50 dark:bg-mist-700/50 rounded-xl p-4 border border-mist-100 dark:border-mist-600 self-stretch flex flex-col"
+                  class="flex min-h-48 w-full flex-col rounded-[20px] border border-mist-200 bg-mist-50 p-4 dark:border-mist-700 dark:bg-mist-800"
                 >
                   <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-xs font-bold uppercase text-mist-500 tracking-wider">
+                    <h3 class="text-xs font-bold uppercase text-muted tracking-wider">
                       Sub-locations
                     </h3>
                     <button
@@ -595,7 +626,7 @@ function getLocationIcon(location: Location): string {
                     >
                       <UIcon
                         :name="getLocationIcon(child)"
-                        class="w-4.5 h-4.5 text-mist-400 group-hover:text-attic-500"
+                        class="w-4.5 h-4.5 text-muted group-hover:text-attic-500"
                       />
                       <span class="text-sm font-medium text-mist-950 dark:text-white flex-1 truncate">
                         {{ child.name }}
@@ -607,13 +638,13 @@ function getLocationIcon(location: Location): string {
                 <!-- No Sub-locations: Add button -->
                 <div
                   v-else
-                  class="w-full md:w-72 bg-mist-50 dark:bg-mist-700/50 rounded-xl p-4 border border-dashed border-mist-200 dark:border-mist-600 flex flex-col items-center justify-center text-center min-h-[120px]"
+                  class="flex min-h-48 w-full flex-col items-center justify-center rounded-[20px] border border-dashed border-mist-200 bg-mist-50 p-4 text-center dark:border-mist-700 dark:bg-mist-800"
                 >
                   <UIcon
                     name="i-lucide-folder-plus"
-                    class="w-6 h-6 text-mist-400 mb-2"
+                    class="w-6 h-6 text-muted mb-2"
                   />
-                  <p class="text-xs text-mist-500 mb-2">
+                  <p class="text-xs text-muted mb-2">
                     No sub-locations yet
                   </p>
                   <UButton
@@ -626,11 +657,9 @@ function getLocationIcon(location: Location): string {
                 </div>
               </div>
 
-              <div class="border-t border-mist-100 dark:border-mist-700" />
-
               <!-- Asset Grid Section -->
               <div>
-                <div class="flex items-center justify-between mb-6">
+                <div class="mb-4 flex items-center justify-between">
                   <h2 class="text-lg font-bold text-mist-950 dark:text-white">
                     Assets in this location
                   </h2>
@@ -646,18 +675,25 @@ function getLocationIcon(location: Location): string {
                 <!-- Assets Grid -->
                 <div
                   v-if="locationAssets?.assets?.length"
-                  class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                  class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
                 >
                   <!-- Asset Cards -->
                   <NuxtLink
                     v-for="asset in locationAssets.assets.slice(0, 7)"
                     :key="asset.id"
                     :to="`/assets/${asset.id}`"
-                    class="group bg-white dark:bg-mist-700 rounded-xl border border-mist-100 dark:border-mist-600 shadow-sm hover:shadow-md hover:border-attic-500/30 transition-all cursor-pointer overflow-hidden flex flex-col"
+                    class="attic-panel attic-panel-interactive group flex cursor-pointer flex-col overflow-hidden rounded-[18px]"
                   >
                     <!-- Asset Image Placeholder -->
-                    <div class="relative h-32 overflow-hidden bg-mist-100 dark:bg-mist-800 flex items-center justify-center">
+                    <div class="relative flex aspect-[2/1] items-center justify-center overflow-hidden bg-gradient-to-br from-attic-50 to-mist-100 dark:from-mist-700 dark:to-mist-800">
+                      <img
+                        v-if="asset.main_attachment_url"
+                        :src="asset.main_attachment_url"
+                        :alt="asset.name"
+                        class="size-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                      >
                       <UIcon
+                        v-else
                         name="i-lucide-package"
                         class="w-10 h-10 text-mist-300 dark:text-mist-500 group-hover:scale-110 transition-transform"
                       />
@@ -682,16 +718,16 @@ function getLocationIcon(location: Location): string {
                       </div>
                       <p
                         v-if="asset.description"
-                        class="text-xs text-mist-500 mb-3 line-clamp-2"
+                        class="text-xs text-muted mb-3 line-clamp-2"
                       >
                         {{ asset.description }}
                       </p>
                       <div class="mt-auto flex items-center gap-2 pt-2 border-t border-mist-50 dark:border-mist-600">
                         <UIcon
                           name="i-lucide-tag"
-                          class="w-4 h-4 text-mist-400"
+                          class="w-4 h-4 text-muted"
                         />
-                        <span class="text-[10px] uppercase font-bold text-mist-500">
+                        <span class="text-[10px] uppercase font-bold text-muted">
                           {{ asset.category?.name || 'Uncategorized' }}
                         </span>
                       </div>
@@ -701,7 +737,7 @@ function getLocationIcon(location: Location): string {
                   <!-- Add Asset Card -->
                   <NuxtLink
                     :to="`/assets/new?location_id=${selectedLocation.id}`"
-                    class="group bg-mist-50 dark:bg-mist-700/50 rounded-xl border-2 border-dashed border-mist-200 dark:border-mist-600 hover:border-attic-500 hover:bg-attic-500/5 transition-all cursor-pointer flex flex-col items-center justify-center min-h-[220px] text-center p-4"
+                    class="group flex min-h-48 cursor-pointer flex-col items-center justify-center rounded-[18px] border border-dashed border-mist-200 bg-mist-50 p-4 text-center transition-all hover:border-attic-500 hover:bg-attic-50 dark:border-mist-600 dark:bg-mist-700/50"
                   >
                     <div class="size-12 rounded-full bg-white dark:bg-mist-700 shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                       <UIcon
@@ -712,7 +748,7 @@ function getLocationIcon(location: Location): string {
                     <h3 class="font-bold text-mist-950 dark:text-white text-sm">
                       Add Item Here
                     </h3>
-                    <p class="text-xs text-mist-500 mt-1">
+                    <p class="text-xs text-muted mt-1">
                       Place a new asset in {{ selectedLocation.name }}
                     </p>
                   </NuxtLink>
@@ -726,13 +762,13 @@ function getLocationIcon(location: Location): string {
                   <div class="size-12 rounded-full bg-white dark:bg-mist-700 shadow-sm flex items-center justify-center mx-auto mb-3">
                     <UIcon
                       name="i-lucide-package"
-                      class="w-6 h-6 text-mist-400"
+                      class="w-6 h-6 text-muted"
                     />
                   </div>
                   <h3 class="font-bold text-mist-950 dark:text-white text-sm mb-1">
                     No assets in this location
                   </h3>
-                  <p class="text-xs text-mist-500 mb-4">
+                  <p class="text-xs text-muted mb-4">
                     Start by adding your first asset to {{ selectedLocation.name }}
                   </p>
                   <UButton
@@ -745,8 +781,8 @@ function getLocationIcon(location: Location): string {
               </div>
 
               <!-- Danger Zone -->
-              <div class="border-t border-mist-100 dark:border-mist-700 pt-8">
-                <div class="bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-800/50 p-4">
+              <div class="border-t border-mist-100 pt-5 dark:border-mist-700">
+                <div class="rounded-xl border border-red-100 bg-red-50/60 p-3 dark:border-red-900/40 dark:bg-red-900/10">
                   <div class="flex items-start gap-3">
                     <div class="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
                       <UIcon
@@ -780,7 +816,11 @@ function getLocationIcon(location: Location): string {
     </div>
 
     <!-- Create/Edit Modal -->
-    <UModal v-model:open="modalOpen">
+    <UModal
+      v-model:open="modalOpen"
+      :title="editingLocation ? 'Edit Location' : 'New Location'"
+      description="Enter the location details and choose how it appears in the location tree."
+    >
       <template #content>
         <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl">
           <div class="p-6 border-b border-mist-100 dark:border-mist-700">
@@ -794,16 +834,29 @@ function getLocationIcon(location: Location): string {
             @submit.prevent="saveLocation"
           >
             <div>
-              <label class="block text-sm font-medium text-mist-700 dark:text-mist-300 mb-1.5">
+              <label
+                for="location-name"
+                class="block text-sm font-medium text-mist-700 dark:text-mist-300 mb-1.5"
+              >
                 Name <span class="text-red-500">*</span>
               </label>
               <input
+                id="location-name"
                 v-model="form.name"
                 type="text"
                 required
                 placeholder="Location name"
+                :aria-invalid="!!nameError"
+                :aria-describedby="nameError ? 'location-name-error' : undefined"
                 class="w-full bg-mist-50 dark:bg-mist-700 border border-mist-200 dark:border-mist-600 rounded-lg px-4 py-2.5 text-sm text-mist-950 dark:text-white placeholder-mist-400 focus:ring-2 focus:ring-attic-500 focus:border-transparent"
               >
+              <p
+                v-if="nameError"
+                id="location-name-error"
+                class="mt-1.5 text-sm text-red-600 dark:text-red-400"
+              >
+                {{ nameError }}
+              </p>
             </div>
 
             <div>
@@ -827,10 +880,13 @@ function getLocationIcon(location: Location): string {
                   v-for="icon in locationIcons"
                   :key="icon"
                   type="button"
+                  :aria-label="`${getIconLabel(icon)} icon`"
+                  :title="`${getIconLabel(icon)} icon`"
+                  :aria-pressed="form.icon === icon"
                   class="h-10 rounded-lg border transition-all flex items-center justify-center"
                   :class="form.icon === icon
                     ? 'bg-attic-500 text-white border-attic-500'
-                    : 'bg-mist-50 dark:bg-mist-700 text-mist-500 dark:text-mist-300 border-mist-200 dark:border-mist-600 hover:border-attic-400 hover:text-attic-500'"
+                    : 'bg-mist-50 dark:bg-mist-700 text-muted dark:text-mist-300 border-mist-200 dark:border-mist-600 hover:border-attic-400 hover:text-attic-500'"
                   @click="form.icon = icon"
                 >
                   <UIcon
@@ -878,7 +934,11 @@ function getLocationIcon(location: Location): string {
     </UModal>
 
     <!-- Delete Confirmation Modal -->
-    <UModal v-model:open="deleteModalOpen">
+    <UModal
+      v-model:open="deleteModalOpen"
+      title="Delete Location"
+      description="Confirm permanent deletion of this location."
+    >
       <template #content>
         <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl p-6">
           <div class="flex items-start gap-4">
@@ -892,7 +952,7 @@ function getLocationIcon(location: Location): string {
               <h3 class="text-lg font-bold text-mist-950 dark:text-white">
                 Delete Location
               </h3>
-              <p class="text-sm text-mist-500 mt-2">
+              <p class="text-sm text-muted mt-2">
                 Are you sure you want to delete <strong>{{ locationToDelete?.name }}</strong>? This action cannot be undone.
               </p>
             </div>

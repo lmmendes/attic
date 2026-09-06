@@ -1,19 +1,20 @@
 # Attic
 
-> Track everything. Lose nothing.
+> Self-hosted home inventory for everything you own.
 
-Attic is an open-source asset management system that lets you track, organize, and manage everything you own — from electronics and books to board games and digital assets.
+Attic is an open-source home inventory application for individuals and households. Catalog everything you own—from appliances and tools to electronics, books, games, and furniture—and keep its location, condition, purchase information, warranty, photos, receipts, and manuals together.
 
-It mirrors the way your real-world spaces are organized with hierarchical locations and categories, supports rich metadata through custom attributes, and integrates with external sources to auto-fill asset details. Whether you're managing a home library or an office inventory.
+Attic mirrors the way a home is organized with nested locations such as rooms, shelves, cupboards, and boxes. Categories and custom fields capture the right details for each kind of belonging, while collections group related items without changing where they are stored. It works for a focused collection or an entire household inventory.
 
 ## Key Features
 
-**Asset Management**
-- Full CRUD with custom attributes per category (strings, long text, numbers, booleans, and dates)
+**Home Inventory**
+- Full CRUD with custom attributes per category (strings, numbers, booleans, dates, dropdowns)
 - Hierarchical categories and locations that mirror real-world spaces
 - Condition tracking (new, used, damaged, or custom states)
 - Warranty expiration monitoring on the dashboard
 - File attachments for invoices, manuals, and photos
+- Shared household collections with names, descriptions, and icons (e.g. PS5 games, books, furniture). Assign assets to any number of collections from the asset form and filter inventory by collection. Deleting a collection preserves its assets.
 - Purchase dates, prices, and notes with dashboard value summaries
 
 **Search & Discovery**
@@ -27,8 +28,7 @@ It mirrors the way your real-world spaces are organized with hierarchical locati
 
 **Self-Hosted & Secure**
 - Docker-based deployment with complete data ownership
-- OIDC/SSO authentication (Keycloak compatible)
-- Local user and role management
+- Local password authentication and OIDC/SSO (Keycloak compatible)
 - REST API with Swagger documentation
 - Local or S3-compatible storage for attachments
 - Dark mode with mobile-responsive UI
@@ -98,8 +98,8 @@ For more details, visit [getattic.dev](https://getattic.dev).
 | Component | Technology |
 |-----------|------------|
 | Backend   | Go 1.24, Chi router, PostgreSQL |
-| Frontend  | Nuxt 3, NuxtUI 4, TailwindCSS |
-| Auth      | Keycloak (OIDC), JWT |
+| Frontend  | Nuxt 4, Nuxt UI 4, Tailwind CSS |
+| Auth      | Local passwords or OIDC/SSO |
 | Storage   | S3-compatible (AWS S3, MinIO, LocalStack) |
 
 

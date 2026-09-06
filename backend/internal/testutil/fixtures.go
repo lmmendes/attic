@@ -123,7 +123,7 @@ func (f *Fixtures) CreateAsset(ctx context.Context, orgID, categoryID uuid.UUID,
 	asset := &domain.Asset{
 		ID:             uuid.New(),
 		OrganizationID: orgID,
-		CategoryID:     categoryID,
+		CategoryID:     &categoryID,
 		Name:           name,
 		Quantity:       1,
 		Attributes:     []byte("{}"),
