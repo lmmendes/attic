@@ -17,28 +17,28 @@ import (
 
 // mockPlugin implements ImportPlugin interface for testing
 type mockPlugin struct {
-	id             string
-	name           string
-	description    string
-	categoryName   string
-	categoryDesc   string
-	searchFields   []domain.SearchField
-	attributes     []domain.PluginAttribute
-	searchResults  []domain.SearchResult
-	searchErr      error
-	fetchData      *domain.ImportData
-	fetchErr       error
+	id            string
+	name          string
+	description   string
+	categoryName  string
+	categoryDesc  string
+	searchFields  []domain.SearchField
+	attributes    []domain.PluginAttribute
+	searchResults []domain.SearchResult
+	searchErr     error
+	fetchData     *domain.ImportData
+	fetchErr      error
 }
 
-func (m *mockPlugin) ID() string                              { return m.id }
-func (m *mockPlugin) Name() string                            { return m.name }
-func (m *mockPlugin) Description() string                     { return m.description }
-func (m *mockPlugin) Enabled() bool                           { return true }
-func (m *mockPlugin) DisabledReason() string                  { return "" }
-func (m *mockPlugin) CategoryName() string                    { return m.categoryName }
-func (m *mockPlugin) CategoryDescription() string             { return m.categoryDesc }
-func (m *mockPlugin) SearchFields() []domain.SearchField      { return m.searchFields }
-func (m *mockPlugin) Attributes() []domain.PluginAttribute    { return m.attributes }
+func (m *mockPlugin) ID() string                           { return m.id }
+func (m *mockPlugin) Name() string                         { return m.name }
+func (m *mockPlugin) Description() string                  { return m.description }
+func (m *mockPlugin) Enabled() bool                        { return true }
+func (m *mockPlugin) DisabledReason() string               { return "" }
+func (m *mockPlugin) CategoryName() string                 { return m.categoryName }
+func (m *mockPlugin) CategoryDescription() string          { return m.categoryDesc }
+func (m *mockPlugin) SearchFields() []domain.SearchField   { return m.searchFields }
+func (m *mockPlugin) Attributes() []domain.PluginAttribute { return m.attributes }
 
 func (m *mockPlugin) Search(ctx context.Context, field, query string, limit int) ([]domain.SearchResult, error) {
 	if m.searchErr != nil {
@@ -85,13 +85,16 @@ func (r *mockPluginRegistry) List() []domain.ImportPlugin {
 // mockCategoryRepoForPlugin extends category repo for plugin tests
 type mockCategoryRepoForPlugin struct {
 	*mockCategoryRepo
-	byPluginID map[string]*domain.Category
+	byPluginID         map[string]*domain.Category
+	assignments        map[uuid.UUID][]domain.CategoryAttributeAssignment
+	setAttributesCalls int
 }
 
 func newMockCategoryRepoForPlugin() *mockCategoryRepoForPlugin {
 	return &mockCategoryRepoForPlugin{
 		mockCategoryRepo: newMockCategoryRepo(),
 		byPluginID:       make(map[string]*domain.Category),
+		assignments:      make(map[uuid.UUID][]domain.CategoryAttributeAssignment),
 	}
 }
 
@@ -99,7 +102,29 @@ func (m *mockCategoryRepoForPlugin) GetByPluginID(ctx context.Context, orgID uui
 	return m.byPluginID[pluginID], nil
 }
 
-func (m *mockCategoryRepoForPlugin) SetAttributes(ctx context.Context, categoryID uuid.UUID, assignments []domain.CategoryAttributeAssignment) error {
+func (m *mockCategoryRepoForPlugin) Create(ctx context.Context, category *domain.Category) error {
+	if err := m.mockCategoryRepo.Create(ctx, category); err != nil {
+		return err
+	}
+	if category.PluginID != nil {
+		m.byPluginID[*category.PluginID] = category
+	}
+	return nil
+}
+
+func (m *mockCategoryRepoForPlugin) SetAttributes(_ context.Context, categoryID uuid.UUID, assignments []domain.CategoryAttributeAssignment) error {
+	m.setAttributesCalls++
+	m.assignments[categoryID] = append([]domain.CategoryAttributeAssignment(nil), assignments...)
+	category := m.categories[categoryID]
+	category.Attributes = make([]domain.CategoryAttribute, 0, len(assignments))
+	for _, assignment := range assignments {
+		category.Attributes = append(category.Attributes, domain.CategoryAttribute{
+			CategoryID:  categoryID,
+			AttributeID: assignment.AttributeID,
+			Required:    assignment.Required,
+			SortOrder:   assignment.SortOrder,
+		})
+	}
 	return nil
 }
 
@@ -332,6 +357,54 @@ func withPluginChiURLParam(r *http.Request, key, value string) *http.Request {
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add(key, value)
 	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+}
+
+func TestEnsurePluginCategoryCreatesCategoryAndAttributesOnce(t *testing.T) {
+	h := newTestPluginHandler()
+	p := &mockPlugin{
+		id:           "google_books",
+		name:         "Google Books",
+		categoryName: "Books",
+		categoryDesc: "Books imported from Google Books",
+		attributes: []domain.PluginAttribute{
+			{Key: "books.isbn", Name: "ISBN", DataType: domain.AttributeTypeString},
+			{Key: "books.author", Name: "Author", DataType: domain.AttributeTypeString},
+		},
+	}
+
+	category, created, err := ensurePluginCategory(t.Context(), h.categoryRepo, h.attrRepo, h.orgID, p)
+	if err != nil {
+		t.Fatalf("initializing plugin category: %v", err)
+	}
+	if !created {
+		t.Fatal("expected category to be created")
+	}
+	if category.Name != "Books" || category.PluginID == nil || *category.PluginID != p.ID() {
+		t.Fatalf("unexpected category: %#v", category)
+	}
+	if len(h.attrRepo.attributes) != 2 {
+		t.Fatalf("expected 2 plugin attributes, got %d", len(h.attrRepo.attributes))
+	}
+	if len(h.categoryRepo.assignments[category.ID]) != 2 {
+		t.Fatalf("expected 2 category assignments, got %d", len(h.categoryRepo.assignments[category.ID]))
+	}
+	if h.categoryRepo.setAttributesCalls != 1 {
+		t.Fatalf("expected attributes to be assigned once, got %d calls", h.categoryRepo.setAttributesCalls)
+	}
+
+	existing, created, err := ensurePluginCategory(t.Context(), h.categoryRepo, h.attrRepo, h.orgID, p)
+	if err != nil {
+		t.Fatalf("reinitializing plugin category: %v", err)
+	}
+	if created {
+		t.Fatal("expected existing category to be reused")
+	}
+	if existing.ID != category.ID {
+		t.Fatalf("expected category %s to be reused, got %s", category.ID, existing.ID)
+	}
+	if h.categoryRepo.setAttributesCalls != 1 {
+		t.Fatalf("expected complete category to remain unchanged, got %d assignment calls", h.categoryRepo.setAttributesCalls)
+	}
 }
 
 // Tests for ListPlugins

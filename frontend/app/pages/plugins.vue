@@ -9,7 +9,7 @@ const { data: pluginsData, status } = useApi<PluginsResponse>('/api/plugins')
 
 const plugins = computed(() => pluginsData.value?.plugins || [])
 const activePlugins = computed(() => plugins.value.filter(plugin => getPluginStatus(plugin) === 'active').length)
-const availablePlugins = computed(() => plugins.value.filter(plugin => getPluginStatus(plugin) === 'available').length)
+const pluginsNeedingSetup = computed(() => plugins.value.filter(plugin => getPluginStatus(plugin) === 'disabled').length)
 const importModalOpen = ref(false)
 const selectedPluginId = ref<string>()
 
@@ -42,11 +42,8 @@ function getPluginIcon(plugin: Plugin): string {
   return 'i-lucide-database-zap'
 }
 
-function getPluginStatus(plugin: Plugin): 'active' | 'available' | 'disabled' {
-  if (!plugin.enabled) {
-    return 'disabled'
-  }
-  return plugin.category_id ? 'active' : 'available'
+function getPluginStatus(plugin: Plugin): 'active' | 'disabled' {
+  return plugin.enabled ? 'active' : 'disabled'
 }
 
 // Get attribute color based on index for visual variety
@@ -79,18 +76,18 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
       <div class="attic-panel flex divide-x divide-mist-100 rounded-xl px-2 py-2 dark:divide-mist-700">
         <div class="px-3">
           <p class="text-[10px] font-bold uppercase text-muted">
-            Available
+            Active
           </p>
           <p class="font-black text-mist-950 dark:text-white">
-            {{ availablePlugins }}
+            {{ activePlugins }}
           </p>
         </div>
         <div class="px-3">
           <p class="text-[10px] font-bold uppercase text-muted">
-            In use
+            Needs setup
           </p>
           <p class="font-black text-mist-950 dark:text-white">
-            {{ activePlugins }}
+            {{ pluginsNeedingSetup }}
           </p>
         </div>
       </div>
@@ -169,11 +166,10 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
             class="px-2.5 py-0.5 rounded-full text-xs font-semibold border"
             :class="{
               'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800/30': getPluginStatus(plugin) === 'active',
-              'bg-mist-100 dark:bg-mist-700 text-mist-600 dark:text-mist-300 border-mist-200 dark:border-mist-600': getPluginStatus(plugin) === 'available',
               'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800/30': getPluginStatus(plugin) === 'disabled'
             }"
           >
-            {{ getPluginStatus(plugin) === 'active' ? 'Active' : getPluginStatus(plugin) === 'available' ? 'Available' : 'Disabled' }}
+            {{ getPluginStatus(plugin) === 'active' ? 'Active' : 'Needs setup' }}
           </span>
         </div>
 
@@ -199,6 +195,12 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
                 class="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase"
               >
                 Created
+              </span>
+              <span
+                v-else
+                class="text-[10px] font-semibold text-muted"
+              >
+                {{ plugin.enabled ? 'Initialization failed' : 'Created when enabled' }}
               </span>
             </div>
             <span class="text-[11px] font-semibold text-muted">

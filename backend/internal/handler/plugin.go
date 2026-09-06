@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -27,6 +28,18 @@ type PluginHandler struct {
 	orgID    uuid.UUID
 }
 
+type pluginCategoryRepository interface {
+	GetByPluginID(context.Context, uuid.UUID, string) (*domain.Category, error)
+	GetByIDWithAttributes(context.Context, uuid.UUID) (*domain.Category, error)
+	Create(context.Context, *domain.Category) error
+	SetAttributes(context.Context, uuid.UUID, []domain.CategoryAttributeAssignment) error
+}
+
+type pluginAttributeRepository interface {
+	GetByKey(context.Context, uuid.UUID, string) (*domain.Attribute, error)
+	Create(context.Context, *domain.Attribute) error
+}
+
 // NewPluginHandler creates a new PluginHandler
 func NewPluginHandler(registry *plugin.Registry, repos *Repositories, storage FileStorage, defaultOrgID uuid.UUID) *PluginHandler {
 	return &PluginHandler{
@@ -35,6 +48,37 @@ func NewPluginHandler(registry *plugin.Registry, repos *Repositories, storage Fi
 		storage:  storage,
 		orgID:    defaultOrgID,
 	}
+}
+
+// InitializeEnabledPluginCategories creates the category schema for every usable
+// import plugin before the server begins accepting requests.
+func (h *PluginHandler) InitializeEnabledPluginCategories(ctx context.Context) error {
+	var initializationErrors []error
+
+	for _, p := range h.registry.List() {
+		if !p.Enabled() {
+			continue
+		}
+
+		category, created, err := h.ensurePluginCategory(ctx, p)
+		if err != nil {
+			slog.Error("failed to initialize plugin category",
+				"plugin_id", p.ID(),
+				"plugin_name", p.Name(),
+				"error", err)
+			initializationErrors = append(initializationErrors, fmt.Errorf("%s: %w", p.ID(), err))
+			continue
+		}
+
+		slog.Info("initialized plugin category",
+			"plugin_id", p.ID(),
+			"plugin_name", p.Name(),
+			"category_id", category.ID,
+			"category_name", category.Name,
+			"created", created)
+	}
+
+	return errors.Join(initializationErrors...)
 }
 
 // PluginListResponse represents the response for listing plugins
@@ -275,7 +319,7 @@ func (h *PluginHandler) Import(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure category exists for this plugin
-	cat, err := h.ensurePluginCategory(r, p)
+	cat, _, err := h.ensurePluginCategory(r.Context(), p)
 	if err != nil {
 		slog.Error("failed to ensure plugin category",
 			"plugin_id", pluginID,
@@ -338,70 +382,108 @@ func (h *PluginHandler) Import(w http.ResponseWriter, r *http.Request) {
 }
 
 // ensurePluginCategory ensures the plugin's category and attributes exist
-func (h *PluginHandler) ensurePluginCategory(r *http.Request, p domain.ImportPlugin) (*domain.Category, error) {
-	ctx := r.Context()
+func (h *PluginHandler) ensurePluginCategory(ctx context.Context, p domain.ImportPlugin) (*domain.Category, bool, error) {
+	return ensurePluginCategory(ctx, h.repos.Categories, h.repos.Attributes, h.orgID, p)
+}
+
+func ensurePluginCategory(
+	ctx context.Context,
+	categories pluginCategoryRepository,
+	attributes pluginAttributeRepository,
+	organizationID uuid.UUID,
+	p domain.ImportPlugin,
+) (*domain.Category, bool, error) {
 	pluginID := p.ID()
 
 	// Check if category already exists
-	cat, err := h.repos.Categories.GetByPluginID(ctx, h.orgID, pluginID)
+	cat, err := categories.GetByPluginID(ctx, organizationID, pluginID)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	if cat != nil {
-		return cat, nil
+	created := cat == nil
+	if created {
+		cat = &domain.Category{
+			OrganizationID: organizationID,
+			PluginID:       &pluginID,
+			Name:           p.CategoryName(),
+			Description:    strPtr(p.CategoryDescription()),
+		}
+
+		if err := categories.Create(ctx, cat); err != nil {
+			return nil, false, err
+		}
 	}
 
-	// Create category
-	cat = &domain.Category{
-		OrganizationID: h.orgID,
-		PluginID:       &pluginID,
-		Name:           p.CategoryName(),
-		Description:    strPtr(p.CategoryDescription()),
+	categoryWithAttributes, err := categories.GetByIDWithAttributes(ctx, cat.ID)
+	if err != nil {
+		return nil, false, err
 	}
-
-	if err := h.repos.Categories.Create(ctx, cat); err != nil {
-		return nil, err
+	if categoryWithAttributes == nil {
+		return nil, false, fmt.Errorf("category %s disappeared during initialization", cat.ID)
 	}
+	cat = categoryWithAttributes
 
-	// Create plugin attributes
+	// Preserve user-defined fields and add any plugin fields that are missing.
 	pluginAttrs := p.Attributes()
-	assignments := make([]domain.CategoryAttributeAssignment, 0, len(pluginAttrs))
+	assignments := make([]domain.CategoryAttributeAssignment, 0, len(cat.Attributes)+len(pluginAttrs))
+	assignedAttributeIDs := make(map[uuid.UUID]struct{}, len(cat.Attributes))
+	maxSortOrder := -1
+	for _, categoryAttribute := range cat.Attributes {
+		assignments = append(assignments, domain.CategoryAttributeAssignment{
+			AttributeID: categoryAttribute.AttributeID,
+			Required:    categoryAttribute.Required,
+			SortOrder:   categoryAttribute.SortOrder,
+		})
+		assignedAttributeIDs[categoryAttribute.AttributeID] = struct{}{}
+		if categoryAttribute.SortOrder > maxSortOrder {
+			maxSortOrder = categoryAttribute.SortOrder
+		}
+	}
+	assignmentsChanged := false
 
-	for i, pa := range pluginAttrs {
+	for _, pa := range pluginAttrs {
 		// Check if attribute already exists
-		attr, err := h.repos.Attributes.GetByKey(ctx, h.orgID, pa.Key)
+		attr, err := attributes.GetByKey(ctx, organizationID, pa.Key)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 
 		if attr == nil {
 			// Create the attribute
 			attr = &domain.Attribute{
-				OrganizationID: h.orgID,
+				OrganizationID: organizationID,
 				PluginID:       &pluginID,
 				Name:           pa.Name,
 				Key:            pa.Key,
 				DataType:       pa.DataType,
 			}
-			if err := h.repos.Attributes.Create(ctx, attr); err != nil {
-				return nil, err
+			if err := attributes.Create(ctx, attr); err != nil {
+				return nil, false, err
 			}
 		}
 
+		if _, assigned := assignedAttributeIDs[attr.ID]; assigned {
+			continue
+		}
+
+		maxSortOrder++
 		assignments = append(assignments, domain.CategoryAttributeAssignment{
 			AttributeID: attr.ID,
 			Required:    pa.Required,
-			SortOrder:   i,
+			SortOrder:   maxSortOrder,
 		})
+		assignedAttributeIDs[attr.ID] = struct{}{}
+		assignmentsChanged = true
 	}
 
-	// Assign attributes to category
-	if err := h.repos.Categories.SetAttributes(ctx, cat.ID, assignments); err != nil {
-		return nil, err
+	if assignmentsChanged {
+		if err := categories.SetAttributes(ctx, cat.ID, assignments); err != nil {
+			return nil, false, err
+		}
 	}
 
-	return cat, nil
+	return cat, created, nil
 }
 
 func strPtr(s string) *string {

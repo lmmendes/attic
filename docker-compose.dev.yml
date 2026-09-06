@@ -1,3 +1,6 @@
+# This file starts development dependencies. The backend runs on the host and
+# reads plugin credentials from its environment, for example:
+#   ATTIC_GOOGLE_BOOKS_API_KEY=... ATTIC_TMDB_API_KEY=... make dev
 services:
   postgres:
     image: postgres:16-alpine
