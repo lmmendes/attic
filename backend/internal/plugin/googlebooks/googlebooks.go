@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -13,10 +14,21 @@ import (
 )
 
 const (
-	PluginID    = "google_books"
-	baseURL     = "https://www.googleapis.com/books/v1/volumes"
-	defaultLimit = 10
+	PluginID                = "google_books"
+	baseURL                 = "https://www.googleapis.com/books/v1/volumes"
+	defaultLimit            = 10
+	googleBooksAPIKeyEnvVar = "ATTIC_GOOGLE_BOOKS_API_KEY"
 )
+
+// APIKey can be set at build time via ldflags. The environment variable takes precedence.
+var APIKey = ""
+
+func getAPIKey() string {
+	if key := os.Getenv(googleBooksAPIKeyEnvVar); key != "" {
+		return key
+	}
+	return APIKey
+}
 
 // Plugin implements the Google Books import plugin
 type Plugin struct {
@@ -114,6 +126,9 @@ func (p *Plugin) Search(ctx context.Context, field, query string, limit int) ([]
 	params.Set("q", q)
 	params.Set("maxResults", fmt.Sprintf("%d", limit))
 	params.Set("printType", "books")
+	if apiKey := getAPIKey(); apiKey != "" {
+		params.Set("key", apiKey)
+	}
 	u.RawQuery = params.Encode()
 
 	// Make request
@@ -177,6 +192,9 @@ func (p *Plugin) Search(ctx context.Context, field, query string, limit int) ([]
 // Fetch retrieves full book data by external ID
 func (p *Plugin) Fetch(ctx context.Context, externalID string) (*domain.ImportData, error) {
 	u := fmt.Sprintf("%s/%s", baseURL, url.PathEscape(externalID))
+	if apiKey := getAPIKey(); apiKey != "" {
+		u += "?key=" + url.QueryEscape(apiKey)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
