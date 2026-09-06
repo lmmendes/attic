@@ -307,7 +307,7 @@ function formatRelativeDate(dateString: string): string {
     <header class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
         <p class="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
-          Organization access
+          Household access
         </p>
         <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
           People
@@ -413,7 +413,7 @@ function formatRelativeDate(dateString: string): string {
           No users yet
         </h3>
         <p class="text-sm text-muted mb-4 max-w-sm">
-          Create your first user to start managing access to your organization.
+          Add the people who share and manage this household inventory.
         </p>
         <UButton @click="openCreateModal">
           Add User
@@ -615,7 +615,7 @@ function formatRelativeDate(dateString: string): string {
     <UModal
       v-model:open="isCreateModalOpen"
       title="Add a person"
-      description="Create their sign-in and choose organization access."
+      description="Create their sign-in and choose household access."
     >
       <template #content>
         <div class="w-full max-w-lg overflow-hidden rounded-[22px] bg-white shadow-xl dark:bg-mist-800">
@@ -634,7 +634,7 @@ function formatRelativeDate(dateString: string): string {
                 Add a person
               </h3>
               <p class="text-xs text-muted">
-                Create their sign-in and choose organization access.
+                Create their sign-in and choose household access.
               </p>
             </div>
           </div>
@@ -704,7 +704,7 @@ function formatRelativeDate(dateString: string): string {
 
             <fieldset class="space-y-2">
               <legend class="text-xs font-bold uppercase tracking-wider text-muted">
-                Organization role
+                Access level
               </legend>
               <div class="grid grid-cols-2 gap-3">
                 <button
@@ -729,7 +729,7 @@ function formatRelativeDate(dateString: string): string {
                     <p class="text-sm font-extrabold text-mist-900 dark:text-white">
                       {{ option.value === 'admin' ? 'Administrator' : 'Member' }}
                     </p><p class="mt-0.5 text-[11px] leading-4 text-muted">
-                      {{ option.value === 'admin' ? 'Full organization access' : 'Standard inventory access' }}
+                      {{ option.value === 'admin' ? 'Full household access' : 'Standard inventory access' }}
                     </p>
                   </div>
                 </button>
@@ -764,7 +764,7 @@ function formatRelativeDate(dateString: string): string {
     <UModal
       v-model:open="isEditModalOpen"
       :title="`Edit ${selectedUser?.name || selectedUser?.email.split('@')[0] || 'person'}`"
-      :description="selectedUser?.email || 'Update account details and organization access.'"
+      :description="selectedUser?.email || 'Update account details and household access.'"
     >
       <template #content>
         <div class="w-full max-w-lg overflow-hidden rounded-[22px] bg-white shadow-xl dark:bg-mist-800">
@@ -821,7 +821,7 @@ function formatRelativeDate(dateString: string): string {
 
             <fieldset class="space-y-2">
               <legend class="text-xs font-bold uppercase tracking-wider text-muted">
-                Organization role
+                Access level
               </legend>
               <div class="grid grid-cols-2 gap-3">
                 <button
@@ -849,7 +849,7 @@ function formatRelativeDate(dateString: string): string {
                       {{ option.value === 'admin' ? 'Administrator' : 'Member' }}
                     </p>
                     <p class="mt-0.5 text-[11px] leading-4 text-muted">
-                      {{ option.value === 'admin' ? 'Full organization access' : 'Standard inventory access' }}
+                      {{ option.value === 'admin' ? 'Full household access' : 'Standard inventory access' }}
                     </p>
                   </div>
                 </button>
@@ -913,7 +913,7 @@ function formatRelativeDate(dateString: string): string {
                   Reset password
                 </h2>
                 <p class="mt-1 text-sm text-white/75">
-                  Set a fresh sign-in password for this team member.
+                  Set a fresh sign-in password for this household member.
                 </p>
               </div>
             </div>

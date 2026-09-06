@@ -158,7 +158,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
           Categories
         </h1>
         <p class="mt-1 max-w-2xl text-sm text-muted">
-          Define how your collection is grouped and which details each asset records.
+          Group your home inventory and choose the details to record for each kind of belonging.
         </p>
       </div>
       <UButton

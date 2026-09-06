@@ -11,8 +11,8 @@ useHead({
   }
 })
 
-const title = 'Attic - Asset Management'
-const description = 'A simple, powerful asset management system for organizations.'
+const title = 'Attic - Home Inventory'
+const description = 'A self-hosted home inventory for your belongings, rooms, warranties, receipts, and collections.'
 
 useSeoMeta({
   title,
@@ -179,7 +179,7 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
                   Attic
                 </h1>
                 <p class="text-muted dark:text-mist-400 text-[11px] font-semibold tracking-wide uppercase mt-1">
-                  Asset manager
+                  Home inventory
                 </p>
               </div>
             </NuxtLink>
@@ -187,7 +187,7 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
             <!-- Navigation -->
             <nav class="space-y-1">
               <p class="px-3 pb-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-muted">
-                Workspace
+                Your home
               </p>
               <NuxtLink
                 v-for="item in navigation"
@@ -311,7 +311,7 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
                     Attic
                   </h1>
                   <p class="text-muted dark:text-gray-400 text-xs font-medium">
-                    Home Management
+                    Home inventory
                   </p>
                 </div>
               </NuxtLink>

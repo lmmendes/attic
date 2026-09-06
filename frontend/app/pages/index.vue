@@ -170,7 +170,7 @@ const quickLinks = computed(() => [
             </div>
             <div>
               <p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/85">
-                Collection overview
+                Inventory overview
               </p>
               <USelectMenu
                 v-model="selectedLocationId"

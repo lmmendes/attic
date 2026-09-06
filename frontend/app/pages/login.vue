@@ -62,7 +62,7 @@ const handleOIDCLogin = () => {
           Attic
         </h1>
         <p class="text-primary-100">
-          Asset Management System
+          Your home inventory
         </p>
       </div>
 
