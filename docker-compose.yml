@@ -30,6 +30,8 @@ services:
       - ATTIC_GOOGLE_BOOKS_API_KEY=${ATTIC_GOOGLE_BOOKS_API_KEY:-}
       - ATTIC_TMDB_API_KEY=${ATTIC_TMDB_API_KEY:-}
       - ATTIC_BGG_API_KEY=${ATTIC_BGG_API_KEY:-}
+      - ATTIC_IGDB_CLIENT_ID=${ATTIC_IGDB_CLIENT_ID:-}
+      - ATTIC_IGDB_CLIENT_SECRET=${ATTIC_IGDB_CLIENT_SECRET:-}
     volumes:
       - attic_uploads:/data/uploads
     depends_on:

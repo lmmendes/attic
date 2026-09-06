@@ -25,6 +25,7 @@ import (
 	"github.com/lmmendes/attic/internal/plugin"
 	"github.com/lmmendes/attic/internal/plugin/bgg"
 	"github.com/lmmendes/attic/internal/plugin/googlebooks"
+	"github.com/lmmendes/attic/internal/plugin/igdb"
 	"github.com/lmmendes/attic/internal/plugin/tmdb"
 	"github.com/lmmendes/attic/internal/repository"
 	"github.com/lmmendes/attic/internal/storage"
@@ -200,6 +201,7 @@ func main() {
 	registerImportPlugin(pluginRegistry, tmdb.NewMoviesPlugin(), "ATTIC_TMDB_API_KEY")
 	registerImportPlugin(pluginRegistry, tmdb.NewSeriesPlugin(), "ATTIC_TMDB_API_KEY")
 	registerImportPlugin(pluginRegistry, bgg.New(), "ATTIC_BGG_API_KEY")
+	registerImportPlugin(pluginRegistry, igdb.New(), "ATTIC_IGDB_CLIENT_ID")
 	slog.Info("registered plugins", "count", len(pluginRegistry.List()))
 
 	// Initialize handlers
