@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/lmmendes/attic/compare/v2.0.0...v2.1.0) (2026-09-06)
+
+
+### Features
+
+* **plugins:** add IGDB video game importer ([#53](https://github.com/lmmendes/attic/issues/53)) ([fe51e51](https://github.com/lmmendes/attic/commit/fe51e516d2618e2b65b36982e16e64dd8f0dcda9))
+
 ## [2.0.0](https://github.com/lmmendes/attic/compare/v1.5.1...v2.0.0) (2026-09-06)
 
 
