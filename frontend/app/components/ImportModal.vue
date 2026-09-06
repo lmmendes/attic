@@ -220,10 +220,11 @@ function close() {
         v-if="step === 'select'"
         class="space-y-3"
       >
-        <div
+        <button
           v-for="plugin in plugins"
           :key="plugin.id"
-          class="cursor-pointer rounded-xl border border-mist-200 p-4 transition-colors hover:border-attic-300 hover:bg-attic-50/40 dark:border-mist-700 dark:hover:bg-attic-500/5"
+          type="button"
+          class="w-full cursor-pointer rounded-xl border border-mist-200 p-4 text-left transition-colors hover:border-attic-300 hover:bg-attic-50/40 dark:border-mist-700 dark:hover:bg-attic-500/5"
           @click="selectPlugin(plugin)"
         >
           <div class="flex items-center justify-between">
@@ -240,7 +241,7 @@ function close() {
               class="w-5 h-5 text-gray-400"
             />
           </div>
-        </div>
+        </button>
 
         <div
           v-if="plugins.length === 0"

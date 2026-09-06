@@ -222,6 +222,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
             v-for="type in dataTypes"
             :key="type.value"
             type="button"
+            :aria-pressed="selectedType === type.value"
             class="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-colors"
             :class="selectedType === type.value
               ? 'bg-attic-500 text-white shadow-sm'

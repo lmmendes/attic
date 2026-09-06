@@ -1,18 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { getDashboardUrls } from '../../app/utils/dashboardUrls'
 
 describe('Dashboard location filter', () => {
-  const getDashboardUrls = (locationId: string) => {
-    const locationQuery = locationId === 'all'
-      ? ''
-      : `location_id=${encodeURIComponent(locationId)}`
-
-    return {
-      assets: `/api/assets?limit=4${locationQuery ? `&${locationQuery}` : ''}`,
-      stats: `/api/assets/stats${locationQuery ? `?${locationQuery}` : ''}`,
-      inventory: `/assets${locationQuery ? `?${locationQuery}` : ''}`
-    }
-  }
-
   it('uses the unfiltered dashboard endpoints for all locations', () => {
     expect(getDashboardUrls('all')).toEqual({
       assets: '/api/assets?limit=4',

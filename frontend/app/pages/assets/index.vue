@@ -32,6 +32,12 @@ const filters = reactive<AssetFilters>({
   offset: 0
 })
 
+watch(
+  () => [filters.category_id, filters.location_id, filters.condition_id],
+  () => { filters.offset = 0 },
+  { flush: 'sync' }
+)
+
 const queryString = computed(() => {
   const params = new URLSearchParams()
   if (filters.collection_id) params.set('collection_id', filters.collection_id)
@@ -137,6 +143,13 @@ const page = computed({
 const totalPages = computed(() =>
   Math.ceil((assetsResponse.value?.total || 0) / (filters.limit ?? 24))
 )
+
+const visiblePages = computed(() => {
+  const start = Math.max(1, Math.min(page.value - 1, totalPages.value - 2))
+  return [...new Set([1, start, start + 1, start + 2, totalPages.value])]
+    .filter(p => p >= 1 && p <= totalPages.value)
+    .sort((a, b) => a - b)
+})
 
 // Generate short ID from asset ID
 function getShortId(asset: Asset): string {
@@ -537,10 +550,17 @@ watch(searchQuery, (val: string) => {
               :disabled="page <= 1"
               @click="page--"
             />
-            <template v-for="p in Math.min(totalPages, 5)">
+            <template
+              v-for="(p, index) in visiblePages"
+              :key="p"
+            >
+              <span
+                v-if="index > 0 && p - visiblePages[index - 1]! > 1"
+                class="px-1 text-muted"
+              >...</span>
               <UButton
-                v-if="p <= 3 || p === totalPages || p === page"
-                :key="p"
+                :aria-label="`Page ${p}`"
+                :aria-current="p === page ? 'page' : undefined"
                 :variant="p === page ? 'solid' : 'outline'"
                 :color="p === page ? 'primary' : 'neutral'"
                 size="sm"
@@ -549,11 +569,6 @@ watch(searchQuery, (val: string) => {
               >
                 {{ p }}
               </UButton>
-              <span
-                v-else-if="p === 4 && totalPages > 5"
-                :key="`ellipsis-${p}`"
-                class="px-1 text-muted"
-              >...</span>
             </template>
             <UButton
               variant="outline"

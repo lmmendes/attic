@@ -9,7 +9,7 @@ const { data: pluginsData, status } = useApi<PluginsResponse>('/api/plugins')
 
 const plugins = computed(() => pluginsData.value?.plugins || [])
 const activePlugins = computed(() => plugins.value.filter(plugin => getPluginStatus(plugin) === 'active').length)
-const availablePlugins = computed(() => plugins.value.filter(plugin => plugin.enabled).length)
+const availablePlugins = computed(() => plugins.value.filter(plugin => getPluginStatus(plugin) === 'available').length)
 const importModalOpen = ref(false)
 const selectedPluginId = ref<string>()
 
@@ -79,7 +79,7 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
       <div class="attic-panel flex divide-x divide-mist-100 rounded-xl px-2 py-2 dark:divide-mist-700">
         <div class="px-3">
           <p class="text-[10px] font-bold uppercase text-muted">
-            Ready
+            Available
           </p>
           <p class="font-black text-mist-950 dark:text-white">
             {{ availablePlugins }}

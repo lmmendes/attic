@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Asset, AssetStats, Category, Collection, Location, Warranty } from '~/types/api'
+import { getDashboardUrls } from '~/utils/dashboardUrls'
 
 definePageMeta({ middleware: 'auth' })
 
@@ -48,20 +49,10 @@ const locationOptions = computed(() => buildLocationOptions(locations.value || [
 const selectedLocation = computed(() =>
   locations.value?.find(location => location.id === selectedLocationId.value)
 )
-const selectedLocationQuery = computed(() =>
-  selectedLocationId.value === 'all' ? '' : `&location_id=${encodeURIComponent(selectedLocationId.value)}`
-)
-const assetsUrl = computed(() => `/api/assets?limit=4${selectedLocationQuery.value}`)
-const assetStatsUrl = computed(() =>
-  selectedLocationId.value === 'all'
-    ? '/api/assets/stats'
-    : `/api/assets/stats?location_id=${encodeURIComponent(selectedLocationId.value)}`
-)
-const assetsPageUrl = computed(() =>
-  selectedLocationId.value === 'all'
-    ? '/assets'
-    : `/assets?location_id=${encodeURIComponent(selectedLocationId.value)}`
-)
+const dashboardUrls = computed(() => getDashboardUrls(selectedLocationId.value))
+const assetsUrl = computed(() => dashboardUrls.value.assets)
+const assetStatsUrl = computed(() => dashboardUrls.value.stats)
+const assetsPageUrl = computed(() => dashboardUrls.value.inventory)
 
 const { data: assets } = useApi<{ assets: Asset[], total: number }>(() => assetsUrl.value)
 const { data: assetStats } = useApi<AssetStats>(() => assetStatsUrl.value)
@@ -242,7 +233,7 @@ const quickLinks = computed(() => [
             Your inventory
           </p>
           <h2 class="text-lg font-extrabold text-mist-950 dark:text-white md:text-xl">
-            Recently added
+            Recently updated
           </h2>
         </div>
         <NuxtLink
@@ -304,7 +295,7 @@ const quickLinks = computed(() => [
                 class="mt-0.5 size-4 shrink-0 text-mist-300 transition group-hover:text-attic-500 dark:text-attic-300"
               />
             </div>
-            <p class="mt-2.5 text-[11px] font-semibold text-muted">{{ formatRelativeTime(asset.created_at) }}</p>
+            <p class="mt-2.5 text-[11px] font-semibold text-muted">{{ formatRelativeTime(asset.updated_at) }}</p>
           </div>
         </NuxtLink>
       </div>

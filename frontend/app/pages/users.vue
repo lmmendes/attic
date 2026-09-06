@@ -161,7 +161,7 @@ const createUser = async () => {
   try {
     await apiFetch('/api/users', {
       method: 'POST',
-      body: JSON.stringify(createForm.value)
+      body: JSON.stringify({ ...createForm.value, email: createForm.value.email.trim() })
     })
     toast.add({ title: 'User created successfully', color: 'success' })
     isCreateModalOpen.value = false
@@ -185,7 +185,7 @@ const updateUser = async () => {
   try {
     await apiFetch(`/api/users/${selectedUser.value.id}`, {
       method: 'PUT',
-      body: JSON.stringify(editForm.value)
+      body: JSON.stringify({ ...editForm.value, email: editForm.value.email.trim() })
     })
     toast.add({ title: 'User updated successfully', color: 'success' })
     isEditModalOpen.value = false

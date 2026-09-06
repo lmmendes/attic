@@ -401,11 +401,15 @@ function cancel() {
                   </div>
                   <div class="flex items-center gap-4 border-l border-mist-100 dark:border-mist-700 pl-4">
                     <div class="flex flex-col items-end">
-                      <span class="text-[10px] font-semibold uppercase tracking-wider text-muted mb-1">
+                      <label
+                        :for="`required-${attr.attribute_id}`"
+                        class="text-[10px] font-semibold uppercase tracking-wider text-muted mb-1"
+                      >
                         Required
-                      </span>
+                      </label>
                       <label class="relative inline-flex items-center cursor-pointer">
                         <input
+                          :id="`required-${attr.attribute_id}`"
                           v-model="attr.required"
                           type="checkbox"
                           class="sr-only peer"
@@ -416,6 +420,7 @@ function cancel() {
                     <button
                       type="button"
                       class="text-muted hover:text-red-500 transition-colors p-1"
+                      :aria-label="`Remove ${getAttribute(attr.attribute_id)?.name || 'attribute'}`"
                       @click="removeAttribute(index)"
                     >
                       <UIcon
