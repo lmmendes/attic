@@ -8,6 +8,8 @@ describe('authenticated app footer', () => {
   it('loads and displays the running backend version', () => {
     expect(source).toContain('useApi<AppInfo>(\'/api/\'')
     expect(source).toContain('Attic version {{ softwareVersion }}')
+    expect(source).toContain(':href="apiDocsUrl"')
+    expect(source).toContain('API')
   })
 
   it('stays at the bottom when page content is short', () => {
