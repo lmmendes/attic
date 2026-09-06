@@ -289,6 +289,27 @@ const quickLinks = computed(() => [
                     class="size-3.5 shrink-0"
                   />{{ asset.location?.name || 'No location' }}
                 </p>
+                <div
+                  class="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] text-muted"
+                  :title="asset.collections?.length ? asset.collections.map(collection => collection.name).join(', ') : 'No collections'"
+                >
+                  <UIcon
+                    name="i-lucide-library"
+                    class="size-3.5 shrink-0"
+                  />
+                  <template v-if="asset.collections?.length">
+                    <span class="truncate rounded-md bg-attic-50 px-1.5 py-0.5 font-semibold text-attic-600 dark:bg-attic-500/10 dark:text-attic-300">
+                      {{ asset.collections[0]?.name }}
+                    </span>
+                    <span
+                      v-if="asset.collections.length > 1"
+                      class="shrink-0 font-bold text-attic-500 dark:text-attic-300"
+                    >
+                      +{{ asset.collections.length - 1 }}
+                    </span>
+                  </template>
+                  <span v-else>No collections</span>
+                </div>
               </div>
               <UIcon
                 name="i-lucide-arrow-up-right"
