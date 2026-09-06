@@ -26,6 +26,10 @@ Attic mirrors the way a home is organized with nested locations such as rooms, s
 - Metadata and cover images populated automatically
 - Plugin system for adding new import sources
 
+Google Books works without credentials, but Google may apply a low shared quota to unauthenticated
+requests. Set `ATTIC_GOOGLE_BOOKS_API_KEY` to a Google Books API key for reliable imports in a
+self-hosted or shared deployment. The key is sent only to Google Books API requests.
+
 **Self-Hosted & Secure**
 - Docker-based deployment with complete data ownership
 - Local password authentication and OIDC/SSO (Keycloak compatible)
