@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.0.0](https://github.com/lmmendes/attic/compare/v1.5.1...v2.0.0) (2026-09-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **docker:** Container images now start as UID/GID 1000:1000 instead of root. Deployments relying on startup ownership changes must add Compose user: "0:0" or Docker --user 0:0 to preserve previous behavior. Non-root deployments must provide writable storage and leave ATTIC_PUID/ATTIC_PGID unset or set both to match the runtime UID/GID.
+
+### Features
+
+* **frontend:** add API Swagger link to authenticated footer ([#50](https://github.com/lmmendes/attic/issues/50)) ([5d8734c](https://github.com/lmmendes/attic/commit/5d8734c0096d06b44f031cb62904aad671daded8))
+* **frontend:** show backend version in authenticated footer ([#49](https://github.com/lmmendes/attic/issues/49)) ([03b0e65](https://github.com/lmmendes/attic/commit/03b0e65600a37f29d2844699fc7da9b2a7b68299))
+* **google-books:** support API keys for reliable imports ([#47](https://github.com/lmmendes/attic/issues/47)) ([85f2543](https://github.com/lmmendes/attic/commit/85f25433acff312c98789c35f80256d5eec3cc8f))
+* **plugins:** report configuration and initialize categories at startup ([#48](https://github.com/lmmendes/attic/issues/48)) ([59f52a4](https://github.com/lmmendes/attic/commit/59f52a49985af76e3fb7566dd38dd3c815ac209b))
+* **ui:** modernize inventory interface and add shared collections ([1bae395](https://github.com/lmmendes/attic/commit/1bae395dedccb32865cb0a3ca27180efc2a53337))
+
+
+### Bug Fixes
+
+* **docker:** run container images as non-root by default ([#45](https://github.com/lmmendes/attic/issues/45)) ([895f43f](https://github.com/lmmendes/attic/commit/895f43f0ae7836e210f02fc8443c75fc23194d46))
+
 ## [1.5.1](https://github.com/lmmendes/attic/compare/v1.5.0...v1.5.1) (2026-09-02)
 
 
