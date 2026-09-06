@@ -196,23 +196,18 @@ func main() {
 
 	// Initialize plugin registry
 	pluginRegistry := plugin.NewRegistry()
-	if err := pluginRegistry.Register(googlebooks.New()); err != nil {
-		slog.Error("failed to register Google Books plugin", "error", err)
-	}
-	if err := pluginRegistry.Register(tmdb.NewMoviesPlugin()); err != nil {
-		slog.Error("failed to register TMDB Movies plugin", "error", err)
-	}
-	if err := pluginRegistry.Register(tmdb.NewSeriesPlugin()); err != nil {
-		slog.Error("failed to register TMDB Series plugin", "error", err)
-	}
-	if err := pluginRegistry.Register(bgg.New()); err != nil {
-		slog.Error("failed to register BGG plugin", "error", err)
-	}
+	registerImportPlugin(pluginRegistry, googlebooks.New(), "ATTIC_GOOGLE_BOOKS_API_KEY")
+	registerImportPlugin(pluginRegistry, tmdb.NewMoviesPlugin(), "ATTIC_TMDB_API_KEY")
+	registerImportPlugin(pluginRegistry, tmdb.NewSeriesPlugin(), "ATTIC_TMDB_API_KEY")
+	registerImportPlugin(pluginRegistry, bgg.New(), "ATTIC_BGG_API_KEY")
 	slog.Info("registered plugins", "count", len(pluginRegistry.List()))
 
 	// Initialize handlers
 	h := handler.New(db, repos, fileStorage, defaultOrgID)
 	pluginHandler := handler.NewPluginHandler(pluginRegistry, repos, fileStorage, defaultOrgID)
+	if err := pluginHandler.InitializeEnabledPluginCategories(ctx); err != nil {
+		slog.Warn("one or more plugin categories could not be initialized", "error", err)
+	}
 	authHandler := handler.NewAuthHandler(userRepo, sessionManager, cfg.PasswordMinLength, cfg.OIDCEnabled, cfg.OIDCAutoRedirect)
 	if oauthHandler != nil {
 		authHandler.SetOAuthHandler(oauthHandler)
@@ -434,6 +429,23 @@ func main() {
 	}
 
 	slog.Info("server stopped")
+}
+
+func registerImportPlugin(registry *plugin.Registry, importPlugin domain.ImportPlugin, apiKeyEnv string) {
+	if err := registry.Register(importPlugin); err != nil {
+		slog.Error("failed to register import plugin",
+			"plugin_id", importPlugin.ID(),
+			"plugin_name", importPlugin.Name(),
+			"error", err)
+		return
+	}
+
+	slog.Info("registered import plugin",
+		"plugin_id", importPlugin.ID(),
+		"plugin_name", importPlugin.Name(),
+		"enabled", importPlugin.Enabled(),
+		"api_key_environment_variable", apiKeyEnv,
+		"api_key_set", strings.TrimSpace(os.Getenv(apiKeyEnv)) != "")
 }
 
 // bootstrapAdmin creates the initial admin user if no users exist

@@ -27,6 +27,9 @@ services:
       - ATTIC_BASE_URL=${ATTIC_BASE_URL:-http://localhost:8080}
       - ATTIC_SESSION_SECRET=${ATTIC_SESSION_SECRET}
       - ATTIC_CORS_ORIGINS=${ATTIC_CORS_ORIGINS:-http://localhost:8080}
+      - ATTIC_GOOGLE_BOOKS_API_KEY=${ATTIC_GOOGLE_BOOKS_API_KEY:-}
+      - ATTIC_TMDB_API_KEY=${ATTIC_TMDB_API_KEY:-}
+      - ATTIC_BGG_API_KEY=${ATTIC_BGG_API_KEY:-}
     volumes:
       - attic_uploads:/data/uploads
     depends_on:

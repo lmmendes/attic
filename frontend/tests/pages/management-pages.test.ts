@@ -46,14 +46,10 @@ describe('management page workflows', () => {
     expect(getStatus(new Date('2026-08-01T12:00:00Z'), now)).toBe('expired')
   })
 
-  it('reports plugin readiness from enabled and category state', () => {
-    const getStatus = (plugin: { enabled: boolean, category_id?: string }) => {
-      if (!plugin.enabled) return 'disabled'
-      return plugin.category_id ? 'active' : 'available'
-    }
+  it('reports plugin readiness independently from category creation', () => {
+    const getStatus = (plugin: { enabled: boolean }) => plugin.enabled ? 'active' : 'disabled'
 
     expect(getStatus({ enabled: false })).toBe('disabled')
-    expect(getStatus({ enabled: true })).toBe('available')
-    expect(getStatus({ enabled: true, category_id: 'books' })).toBe('active')
+    expect(getStatus({ enabled: true })).toBe('active')
   })
 })
