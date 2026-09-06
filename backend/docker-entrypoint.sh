@@ -2,8 +2,16 @@
 set -eu
 
 storage_path=${ATTIC_LOCAL_STORAGE_PATH:-/data/uploads}
-run_uid=$(id -u appuser)
-run_gid=$(id -g appuser)
+current_uid=$(id -u)
+current_gid=$(id -g)
+
+# Honor the runtime identity unless root needs to drop privileges.
+run_uid=$current_uid
+run_gid=$current_gid
+if [ "$current_uid" -eq 0 ]; then
+	run_uid=$(id -u appuser)
+	run_gid=$(id -g appuser)
+fi
 
 if [ -z "${ATTIC_S3_ACCESS_KEY:-}" ] || [ -z "${ATTIC_S3_SECRET_KEY:-}" ]; then
 	if [ -n "${ATTIC_PUID:-}" ] || [ -n "${ATTIC_PGID:-}" ]; then
@@ -24,11 +32,20 @@ if [ -z "${ATTIC_S3_ACCESS_KEY:-}" ] || [ -z "${ATTIC_S3_SECRET_KEY:-}" ]; then
 	fi
 
 	mkdir -p "$storage_path"
-	chown "$run_uid:$run_gid" "$storage_path"
+	if [ "$current_uid" -eq 0 ]; then
+		chown "$run_uid:$run_gid" "$storage_path"
+	elif [ "$run_uid" -ne "$current_uid" ] || [ "$run_gid" -ne "$current_gid" ]; then
+		echo "ATTIC_PUID/ATTIC_PGID must match the container UID/GID when running as non-root (current: ${current_uid}:${current_gid})" >&2
+		exit 1
+	fi
 fi
 
 case "${1:-}" in
 	-*) set -- /app/attic "$@" ;;
 esac
 
-exec su-exec "$run_uid:$run_gid" "$@"
+if [ "$current_uid" -eq 0 ]; then
+	exec su-exec "$run_uid:$run_gid" "$@"
+fi
+
+exec "$@"

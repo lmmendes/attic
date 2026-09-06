@@ -12,13 +12,14 @@ Attic mirrors the way a home is organized with nested locations such as rooms, s
 - Full CRUD with custom attributes per category (strings, numbers, booleans, dates, dropdowns)
 - Hierarchical categories and locations that mirror real-world spaces
 - Condition tracking (new, used, damaged, or custom states)
-- Warranty expiration monitoring with alerts
+- Warranty expiration monitoring on the dashboard
 - File attachments for invoices, manuals, and photos
 - Shared household collections with names, descriptions, and icons (e.g. PS5 games, books, furniture). Assign assets to any number of collections from the asset form and filter inventory by collection. Deleting a collection preserves its assets.
+- Purchase dates, prices, and notes with dashboard value summaries
 
 **Search & Discovery**
-- Full-text search across names, descriptions, tags, and custom fields
-- Filter by category, location, condition, tags, and typed attribute values
+- Full-text search across asset names and descriptions
+- Filter by category, location, and condition
 
 **Smart Integrations**
 - Automated imports from Google Books, TMDB (movies), and BoardGameGeek

@@ -11,10 +11,11 @@ RUN apk add --no-cache ca-certificates su-exec tzdata
 COPY ${TARGETPLATFORM}/attic /app/attic
 COPY --chmod=755 backend/docker-entrypoint.sh /app/docker-entrypoint.sh
 
-# Create non-root user
-RUN adduser -D -g '' appuser \
+# Create the numeric non-root user Kubernetes verifies for runAsNonRoot.
+RUN addgroup -g 1000 appgroup \
+    && adduser -D -u 1000 -G appgroup appuser \
     && mkdir -p /data/uploads \
-    && chown appuser:appuser /data/uploads
+    && chown appuser:appgroup /data/uploads
 
 # Expose port
 EXPOSE 8080
@@ -22,6 +23,9 @@ EXPOSE 8080
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+
+# Use a numeric UID/GID so runtimes can enforce runAsNonRoot before startup.
+USER 1000:1000
 
 # Run the binary
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
