@@ -26,6 +26,7 @@ export interface CategoryAttribute {
   sort_order: number
   created_at: string
   attribute?: Attribute
+  inherited?: boolean
 }
 
 export interface Category {
@@ -39,6 +40,7 @@ export interface Category {
   created_at: string
   updated_at: string
   attributes?: CategoryAttribute[]
+  children?: Category[]
 }
 
 export interface Location {

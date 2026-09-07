@@ -211,6 +211,73 @@ func Test_CategoryRepository_GetByIDWithAttributes(t *testing.T) {
 	}
 }
 
+func Test_CategoryRepository_GetByIDWithInheritedAttributes(t *testing.T) {
+	ctx := context.Background()
+	if err := testDB.TruncateAll(ctx); err != nil {
+		t.Fatalf("failed to truncate: %v", err)
+	}
+
+	fixtures := testutil.NewFixtures(testDB.Pool)
+	org, _ := fixtures.CreateOrganization(ctx, "Test Org")
+	catRepo := NewCategoryRepository(testDB.Pool)
+	attrRepo := NewAttributeRepository(testDB.Pool)
+
+	root := &domain.Category{OrganizationID: org.ID, Name: "Hardware"}
+	if err := catRepo.Create(ctx, root); err != nil {
+		t.Fatal(err)
+	}
+	child := &domain.Category{OrganizationID: org.ID, ParentID: &root.ID, Name: "Displays"}
+	if err := catRepo.Create(ctx, child); err != nil {
+		t.Fatal(err)
+	}
+	leaf := &domain.Category{OrganizationID: org.ID, ParentID: &child.ID, Name: "Monitors"}
+	if err := catRepo.Create(ctx, leaf); err != nil {
+		t.Fatal(err)
+	}
+
+	attributes := []*domain.Attribute{
+		{OrganizationID: org.ID, Name: "Vendor", Key: "vendor", DataType: domain.AttributeTypeString},
+		{OrganizationID: org.ID, Name: "Connection", Key: "connection", DataType: domain.AttributeTypeString},
+		{OrganizationID: org.ID, Name: "Resolution", Key: "resolution", DataType: domain.AttributeTypeString},
+	}
+	for _, attribute := range attributes {
+		if err := attrRepo.Create(ctx, attribute); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := catRepo.SetAttributes(ctx, root.ID, []domain.CategoryAttributeAssignment{{AttributeID: attributes[0].ID, Required: true}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := catRepo.SetAttributes(ctx, child.ID, []domain.CategoryAttributeAssignment{{AttributeID: attributes[1].ID}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := catRepo.SetAttributes(ctx, leaf.ID, []domain.CategoryAttributeAssignment{{AttributeID: attributes[2].ID}}); err != nil {
+		t.Fatal(err)
+	}
+
+	fetched, err := catRepo.GetByIDWithInheritedAttributes(ctx, org.ID, leaf.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fetched.Attributes) != 3 {
+		t.Fatalf("expected 3 effective attributes, got %d", len(fetched.Attributes))
+	}
+	got := []string{
+		fetched.Attributes[0].Attribute.Key,
+		fetched.Attributes[1].Attribute.Key,
+		fetched.Attributes[2].Attribute.Key,
+	}
+	want := []string{"vendor", "connection", "resolution"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("attribute order = %v; want %v", got, want)
+		}
+	}
+	if !fetched.Attributes[0].Inherited || !fetched.Attributes[1].Inherited || fetched.Attributes[2].Inherited {
+		t.Fatalf("unexpected inherited flags: %#v", fetched.Attributes)
+	}
+}
+
 func Test_CategoryRepository_List_ReturnsCategoriesForOrg(t *testing.T) {
 	ctx := context.Background()
 	if err := testDB.TruncateAll(ctx); err != nil {
@@ -306,6 +373,8 @@ func Test_CategoryRepository_ListTree_ReturnsHierarchy(t *testing.T) {
 
 	laptops := &domain.Category{OrganizationID: org.ID, ParentID: &electronics.ID, Name: "Laptops"}
 	repo.Create(ctx, laptops)
+	ultrabooks := &domain.Category{OrganizationID: org.ID, ParentID: &laptops.ID, Name: "Ultrabooks"}
+	repo.Create(ctx, ultrabooks)
 
 	books := &domain.Category{OrganizationID: org.ID, Name: "Books"}
 	repo.Create(ctx, books)
@@ -317,6 +386,42 @@ func Test_CategoryRepository_ListTree_ReturnsHierarchy(t *testing.T) {
 
 	if len(tree) != 2 {
 		t.Errorf("expected 2 root categories, got %d", len(tree))
+	}
+	var electronicsNode *domain.Category
+	for i := range tree {
+		if tree[i].ID == electronics.ID {
+			electronicsNode = &tree[i]
+		}
+	}
+	if electronicsNode == nil || len(electronicsNode.Children) != 2 {
+		t.Fatalf("expected Electronics to have 2 children, got %#v", electronicsNode)
+	}
+	if electronicsNode.Children[0].ID != laptops.ID || len(electronicsNode.Children[0].Children) != 1 || electronicsNode.Children[0].Children[0].ID != ultrabooks.ID {
+		t.Fatalf("expected a complete three-level hierarchy, got %#v", electronicsNode.Children)
+	}
+}
+
+func Test_CategoryRepository_ValidateParentRejectsDescendantAndForeignCategory(t *testing.T) {
+	ctx := context.Background()
+	if err := testDB.TruncateAll(ctx); err != nil {
+		t.Fatalf("failed to truncate: %v", err)
+	}
+	fixtures := testutil.NewFixtures(testDB.Pool)
+	org, _ := fixtures.CreateOrganization(ctx, "Test Org")
+	otherOrg, _ := fixtures.CreateOrganization(ctx, "Other Org")
+	repo := NewCategoryRepository(testDB.Pool)
+	parent, _ := fixtures.CreateCategory(ctx, org.ID, "Parent", nil)
+	child, _ := fixtures.CreateCategory(ctx, org.ID, "Child", &parent.ID)
+	foreign, _ := fixtures.CreateCategory(ctx, otherOrg.ID, "Foreign", nil)
+
+	if valid, err := repo.ValidateParent(ctx, org.ID, child.ID, parent.ID); err != nil || !valid {
+		t.Fatalf("expected ancestor to be valid: valid=%v err=%v", valid, err)
+	}
+	if valid, err := repo.ValidateParent(ctx, org.ID, parent.ID, child.ID); err != nil || valid {
+		t.Fatalf("expected descendant to be invalid: valid=%v err=%v", valid, err)
+	}
+	if valid, err := repo.ValidateParent(ctx, org.ID, parent.ID, foreign.ID); err != nil || valid {
+		t.Fatalf("expected foreign category to be invalid: valid=%v err=%v", valid, err)
 	}
 }
 
@@ -435,11 +540,13 @@ func Test_CategoryRepository_GetAssetCounts(t *testing.T) {
 	org, _ := fixtures.CreateOrganization(ctx, "Test Org")
 	cat1, _ := fixtures.CreateCategory(ctx, org.ID, "Electronics", nil)
 	cat2, _ := fixtures.CreateCategory(ctx, org.ID, "Books", nil)
+	child, _ := fixtures.CreateCategory(ctx, org.ID, "Phones", &cat1.ID)
 
 	// Create assets in categories
 	fixtures.CreateAsset(ctx, org.ID, cat1.ID, "Phone 1")
 	fixtures.CreateAsset(ctx, org.ID, cat1.ID, "Phone 2")
 	fixtures.CreateAsset(ctx, org.ID, cat2.ID, "Book 1")
+	fixtures.CreateAsset(ctx, org.ID, child.ID, "Phone 3")
 
 	repo := NewCategoryRepository(testDB.Pool)
 	counts, err := repo.GetAssetCounts(ctx, org.ID)
@@ -447,10 +554,13 @@ func Test_CategoryRepository_GetAssetCounts(t *testing.T) {
 		t.Fatalf("failed to get asset counts: %v", err)
 	}
 
-	if counts[cat1.ID.String()] != 2 {
-		t.Errorf("expected 2 assets in cat1, got %d", counts[cat1.ID.String()])
+	if counts[cat1.ID.String()] != 3 {
+		t.Errorf("expected 3 assets in cat1 and descendants, got %d", counts[cat1.ID.String()])
 	}
 	if counts[cat2.ID.String()] != 1 {
 		t.Errorf("expected 1 asset in cat2, got %d", counts[cat2.ID.String()])
+	}
+	if counts[child.ID.String()] != 1 {
+		t.Errorf("expected 1 direct asset in child, got %d", counts[child.ID.String()])
 	}
 }

@@ -46,6 +46,10 @@ function getPluginStatus(plugin: Plugin): 'active' | 'disabled' {
   return plugin.enabled ? 'active' : 'disabled'
 }
 
+function isIGDBPlugin(plugin: Plugin): boolean {
+  return plugin.id === 'igdb_games' || plugin.name.toLowerCase() === 'igdb'
+}
+
 // Get attribute color based on index for visual variety
 function getAttributeStyle(index: number): { bg: string, text: string, border: string } {
   const styles = [
@@ -270,6 +274,45 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
               <p class="text-xs text-amber-700 dark:text-amber-300">
                 {{ plugin.disabled_reason }}
               </p>
+            </div>
+          </div>
+
+          <!-- IGDB setup instructions -->
+          <div
+            v-if="isIGDBPlugin(plugin) && !plugin.enabled"
+            class="mb-4 rounded-xl border border-attic-200 bg-attic-50/70 p-4 dark:border-attic-500/30 dark:bg-attic-500/10"
+          >
+            <div class="flex items-start gap-2.5">
+              <UIcon
+                name="i-lucide-key-round"
+                class="mt-0.5 size-4 shrink-0 text-attic-500"
+              />
+              <div class="min-w-0 space-y-2.5">
+                <div>
+                  <h4 class="text-xs font-extrabold text-mist-950 dark:text-white">
+                    Connect IGDB
+                  </h4>
+                  <p class="mt-1 text-xs leading-5 text-muted">
+                    IGDB uses Twitch application credentials. Create a Twitch application to get both values, then add them to your Attic server.
+                  </p>
+                </div>
+                <ol class="list-decimal space-y-1 pl-4 text-xs leading-5 text-muted">
+                  <li>
+                    Open the
+                    <a
+                      href="https://dev.twitch.tv/console/apps"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="font-bold text-attic-600 underline decoration-attic-300 underline-offset-2 hover:text-attic-700 dark:text-attic-300 dark:hover:text-attic-200"
+                    >Twitch Developer Console</a>.
+                  </li>
+                  <li>Register an application and copy its <strong class="font-bold text-mist-700 dark:text-mist-200">Client ID</strong> and <strong class="font-bold text-mist-700 dark:text-mist-200">Client Secret</strong>.</li>
+                  <li>Set <code class="rounded bg-white/80 px-1 py-0.5 font-mono text-[11px] text-mist-700 dark:bg-mist-800 dark:text-mist-200">ATTIC_IGDB_CLIENT_ID</code> and <code class="rounded bg-white/80 px-1 py-0.5 font-mono text-[11px] text-mist-700 dark:bg-mist-800 dark:text-mist-200">ATTIC_IGDB_CLIENT_SECRET</code>, then restart Attic.</li>
+                </ol>
+                <p class="text-[11px] leading-4 text-muted">
+                  Keep the Client Secret private. Attic exchanges it for a short-lived access token and stores that token only in memory.
+                </p>
+              </div>
             </div>
           </div>
 

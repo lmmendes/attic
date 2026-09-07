@@ -144,7 +144,17 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 	if filter.Uncategorized {
 		conditions = append(conditions, "a.category_id IS NULL")
 	} else if filter.CategoryID != nil {
-		conditions = append(conditions, fmt.Sprintf("a.category_id = $%d", argNum))
+		conditions = append(conditions, fmt.Sprintf(`EXISTS (
+			WITH RECURSIVE descendants AS (
+				SELECT id FROM categories
+				WHERE id = $%d AND organization_id = a.organization_id AND deleted_at IS NULL
+				UNION
+				SELECT child.id FROM categories child
+				JOIN descendants parent ON child.parent_id = parent.id
+				WHERE child.organization_id = a.organization_id AND child.deleted_at IS NULL
+			)
+			SELECT 1 FROM descendants WHERE descendants.id = a.category_id
+		)`, argNum))
 		args = append(args, *filter.CategoryID)
 		argNum++
 	}

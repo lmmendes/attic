@@ -70,7 +70,15 @@ func (h *Handler) GetCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cat, err := h.repos.Categories.GetByIDWithAttributes(r.Context(), id)
+	var cat *domain.Category
+	if r.URL.Query().Get("inherited") == "true" {
+		cat, err = h.repos.Categories.GetByIDWithInheritedAttributes(r.Context(), h.orgID, id)
+	} else {
+		cat, err = h.repos.Categories.GetByIDWithAttributes(r.Context(), id)
+		if cat != nil && cat.OrganizationID != h.orgID {
+			cat = nil
+		}
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get category")
 		return
@@ -106,6 +114,15 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 		parentID, err := parseUUIDString(*req.ParentID)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "invalid parent_id")
+			return
+		}
+		valid, err := h.repos.Categories.ValidateParent(r.Context(), h.orgID, uuid.Nil, parentID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to validate parent category")
+			return
+		}
+		if !valid {
+			writeError(w, http.StatusBadRequest, "parent category must belong to this workspace")
 			return
 		}
 		cat.ParentID = &parentID
@@ -157,7 +174,7 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to get category")
 		return
 	}
-	if cat == nil {
+	if cat == nil || cat.OrganizationID != h.orgID {
 		writeError(w, http.StatusNotFound, "category not found")
 		return
 	}
@@ -170,6 +187,15 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 		parentID, err := parseUUIDString(*req.ParentID)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "invalid parent_id")
+			return
+		}
+		valid, err := h.repos.Categories.ValidateParent(r.Context(), h.orgID, cat.ID, parentID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to validate parent category")
+			return
+		}
+		if !valid {
+			writeError(w, http.StatusBadRequest, "parent category cannot be itself, a descendant, or outside this workspace")
 			return
 		}
 		cat.ParentID = &parentID
@@ -216,7 +242,7 @@ func (h *Handler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to get category")
 		return
 	}
-	if cat == nil {
+	if cat == nil || cat.OrganizationID != h.orgID {
 		writeError(w, http.StatusNotFound, "category not found")
 		return
 	}

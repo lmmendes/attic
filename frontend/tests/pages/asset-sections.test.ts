@@ -4,6 +4,7 @@ import { flushPromises } from '@vue/test-utils'
 import { nextTick, ref } from 'vue'
 import EditAsset from '../../app/pages/assets/[id]/edit.vue'
 import NewAsset from '../../app/pages/assets/new.vue'
+import AssetCategoryField from '../../app/components/AssetCategoryField.vue'
 
 const { api, mutate, toast } = vi.hoisted(() => ({ api: vi.fn(), mutate: vi.fn(), toast: vi.fn() }))
 mockNuxtImport('useApi', () => api)
@@ -79,13 +80,31 @@ describe('Asset form sections', () => {
       : undefined)
     const wrapper = await mountSuspended(EditAsset)
     await nextTick()
-    await wrapper.get('input[name="category"]').setValue()
+    wrapper.getComponent(AssetCategoryField).vm.$emit('update:modelValue', undefined)
+    await nextTick()
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     const updateCall = mutate.mock.calls.find(([url]) => url === '/api/assets/asset')!
     const payload = JSON.parse(updateCall[1].body)
     expect(payload).not.toHaveProperty('category_id')
     expect(payload).not.toHaveProperty('attributes')
+    wrapper.unmount()
+  })
+
+  it('loads category fields when categorizing an uncategorized asset while editing', async () => {
+    mutate.mockImplementation(async (url: string) => url === '/api/categories/games?inherited=true'
+      ? {
+          id: 'games',
+          name: 'Games',
+          attributes: [{ attribute_id: 'platform', attribute: { key: 'platform', name: 'Platform', data_type: 'string' } }]
+        }
+      : undefined)
+    const wrapper = await mountSuspended(EditAsset)
+
+    wrapper.getComponent(AssetCategoryField).vm.$emit('update:modelValue', 'games')
+    await flushPromises()
+
+    expect(mutate).toHaveBeenCalledWith('/api/categories/games?inherited=true')
     wrapper.unmount()
   })
 })

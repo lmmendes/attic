@@ -701,6 +701,29 @@ func Test_UpdateAsset_MissingCategoryID_ClearsCategoryAndAttributes(t *testing.T
 	}
 }
 
+func Test_MissingRequiredCategoryAttributes_IncludesInheritedFields(t *testing.T) {
+	category := &domain.Category{Attributes: []domain.CategoryAttribute{
+		{
+			Required:  true,
+			Inherited: true,
+			Attribute: &domain.Attribute{Name: "Vendor", Key: "vendor", DataType: domain.AttributeTypeString},
+		},
+		{
+			Required:  true,
+			Inherited: true,
+			Attribute: &domain.Attribute{Name: "Refurbished", Key: "refurbished", DataType: domain.AttributeTypeBoolean},
+		},
+	}}
+
+	missing, err := missingRequiredCategoryAttributes(category, json.RawMessage(`{"vendor":"  ","refurbished":false}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(missing) != 1 || missing[0] != "Vendor" {
+		t.Fatalf("missing attributes = %v; want [Vendor]", missing)
+	}
+}
+
 func Test_UpdateAsset_NonExistentAsset_ReturnsNotFound(t *testing.T) {
 	h := newTestAssetHandler()
 	nonExistentID := uuid.New()

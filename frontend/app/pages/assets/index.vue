@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Collection, Category, Location, Condition, AssetsResponse, AssetFilters, Asset } from '~/types/api'
+import { buildCategoryOptions } from '~/utils/categoryHierarchy'
 
 const uncategorizedCategoryFilter = 'uncategorized'
 
@@ -78,7 +79,7 @@ const { data: conditions } = useApi<Condition[]>('/api/conditions')
 const categoryOptions = computed(() =>
   [
     { label: 'Uncategorized', value: uncategorizedCategoryFilter },
-    ...(categories.value?.map(c => ({ label: c.name, value: c.id })) || [])
+    ...buildCategoryOptions(categories.value || [])
   ]
 )
 

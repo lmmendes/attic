@@ -36,8 +36,10 @@ type ConditionRepository interface {
 type CategoryRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*Category, error)
 	GetByIDWithAttributes(ctx context.Context, id uuid.UUID) (*Category, error)
+	GetByIDWithInheritedAttributes(ctx context.Context, orgID, id uuid.UUID) (*Category, error)
 	List(ctx context.Context, orgID uuid.UUID) ([]Category, error)
 	ListTree(ctx context.Context, orgID uuid.UUID) ([]Category, error)
+	ValidateParent(ctx context.Context, orgID, categoryID, parentID uuid.UUID) (bool, error)
 	Create(ctx context.Context, cat *Category) error
 	Update(ctx context.Context, cat *Category) error
 	Delete(ctx context.Context, id uuid.UUID) error

@@ -25,6 +25,7 @@ function revealInvalidSection(event: Event) {
 }
 
 const loading = ref(false)
+const categoryLoading = ref(false)
 const selectedCategory = ref<Category | null>(null)
 const form = reactive({
   collection_ids: [] as string[],
@@ -44,7 +45,7 @@ const form = reactive({
 // Initialize form when asset loads
 watch(
   asset,
-  async (newAsset) => {
+  (newAsset) => {
     if (newAsset) {
       form.name = newAsset.name
       form.description = newAsset.description || ''
@@ -71,34 +72,25 @@ watch(
       purchaseOpen.value = Boolean(
         form.purchase_at || form.purchase_price != null || form.purchase_note.trim()
       )
-
-      // Load category with attributes
-      if (newAsset.category_id) {
-        try {
-          selectedCategory.value = await apiFetch<Category>(
-            `/api/categories/${newAsset.category_id}`
-          )
-        } catch {
-          selectedCategory.value = null
-        }
-      }
     }
   },
   { immediate: true }
 )
 
 // Fetch category with attributes when category changes
+let categoryRequestId = 0
 watch(
   () => form.category_id,
-  async (categoryId, oldCategoryId) => {
-    // Skip if this is the initial load (handled by asset watch)
-    if (!oldCategoryId) return
-
+  async (categoryId) => {
+    const requestId = ++categoryRequestId
     if (categoryId) {
+      categoryLoading.value = true
       try {
-        selectedCategory.value = await apiFetch<Category>(
-          `/api/categories/${categoryId}`
+        const category = await apiFetch<Category>(
+          `/api/categories/${categoryId}?inherited=true`
         )
+        if (requestId !== categoryRequestId) return
+        selectedCategory.value = category
         // Initialize attribute values for new category
         const newAttributes: Record<string, string | number | boolean> = {}
         selectedCategory.value?.attributes?.forEach((ca) => {
@@ -111,13 +103,17 @@ watch(
         })
         form.attributes = newAttributes
       } catch {
-        selectedCategory.value = null
+        if (requestId === categoryRequestId) selectedCategory.value = null
+      } finally {
+        if (requestId === categoryRequestId) categoryLoading.value = false
       }
     } else {
+      categoryLoading.value = false
       selectedCategory.value = null
       form.attributes = {}
     }
-  }
+  },
+  { immediate: true }
 )
 
 function getDefaultValue(dataType: string): string | number | boolean {
@@ -416,69 +412,12 @@ async function submitForm() {
               </div>
             </div>
 
-            <!-- Category Grid -->
-            <div class="space-y-3">
-              <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Category <span class="normal-case font-medium text-muted">(optional)</span>
-              </label>
-              <div class="flex flex-wrap gap-2">
-                <label class="group relative min-w-36 cursor-pointer">
-                  <input
-                    v-model="form.category_id"
-                    type="radio"
-                    name="category"
-                    :value="undefined"
-                    class="peer sr-only"
-                  >
-                  <div class="flex h-11 items-center gap-2 rounded-xl border border-mist-200 bg-mist-50/50 px-3 pr-8 transition-all hover:border-attic-300 hover:bg-attic-50/50 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-attic-500 peer-checked:border-attic-500 peer-checked:bg-attic-50 peer-checked:ring-2 peer-checked:ring-attic-500/10 dark:border-mist-700 dark:bg-mist-800 dark:peer-checked:bg-attic-500/10">
-                    <UIcon
-                      name="i-lucide-inbox"
-                      class="size-4 shrink-0 text-muted transition-colors group-hover:text-attic-500"
-                    />
-                    <span class="truncate text-xs font-bold text-mist-600 dark:text-mist-300">No category</span>
-                  </div>
-                  <UIcon
-                    name="i-lucide-check-circle"
-                    class="absolute right-2.5 top-3 size-4 text-attic-500 opacity-0 transition-opacity peer-checked:opacity-100"
-                  />
-                </label>
-                <label
-                  v-for="cat in categories"
-                  :key="cat.id"
-                  class="group relative min-w-36 cursor-pointer"
-                >
-                  <input
-                    v-model="form.category_id"
-                    type="radio"
-                    name="category"
-                    :value="cat.id"
-                    class="peer sr-only"
-                  >
-                  <div class="flex h-11 items-center gap-2 rounded-xl border border-mist-200 bg-mist-50/50 px-3 pr-8 transition-all hover:border-attic-300 hover:bg-attic-50/50 peer-checked:border-attic-500 peer-checked:bg-attic-50 peer-checked:ring-2 peer-checked:ring-attic-500/10 dark:border-mist-700 dark:bg-mist-800 dark:peer-checked:bg-attic-500/10">
-                    <UIcon
-                      name="i-lucide-folder"
-                      class="size-4 shrink-0 text-muted transition-colors group-hover:text-attic-500"
-                    />
-                    <span class="truncate text-xs font-bold text-mist-600 dark:text-mist-300">{{ cat.name }}</span>
-                  </div>
-                  <div class="absolute right-2.5 top-3 text-attic-500 opacity-0 transition-opacity peer-checked:opacity-100">
-                    <UIcon
-                      name="i-lucide-check-circle"
-                      class="w-4 h-4"
-                    />
-                  </div>
-                </label>
-              </div>
-              <p
-                v-if="!categories?.length"
-                class="text-sm text-gray-400"
-              >
-                No categories available. You can keep this asset uncategorized or <NuxtLink
-                  to="/categories"
-                  class="text-attic-500 hover:underline"
-                >create one</NuxtLink>.
-              </p>
-            </div>
+            <AssetCategoryField
+              v-model="form.category_id"
+              :categories="categories || []"
+              :selected-category="selectedCategory"
+              :loading="categoryLoading"
+            />
             <AssetCollectionsField v-model="form.collection_ids" />
           </section>
 
@@ -572,7 +511,10 @@ async function submitForm() {
           <template v-if="selectedCategory?.attributes?.length">
             <hr class="hidden">
 
-            <section class="attic-panel space-y-5 rounded-[20px] p-5 sm:p-6">
+            <section
+              id="category-fields"
+              class="attic-panel scroll-mt-6 space-y-5 rounded-[20px] p-5 sm:p-6"
+            >
               <div class="flex items-start gap-3">
                 <div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-terracotta-50 text-terracotta-500 dark:bg-terracotta-500/10 dark:text-terracotta-300">
                   <UIcon
@@ -582,10 +524,10 @@ async function submitForm() {
                 </div>
                 <div>
                   <h2 class="font-extrabold text-mist-950 dark:text-white">
-                    {{ selectedCategory.name }} attributes
+                    {{ selectedCategory.name }} fields
                   </h2>
                   <p class="text-xs text-muted">
-                    Category-specific information for this asset.
+                    Includes fields inherited through the category hierarchy.
                   </p>
                 </div>
               </div>
@@ -599,6 +541,10 @@ async function submitForm() {
                   <template v-if="ca.attribute">
                     <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       {{ ca.attribute.name }}
+                      <span
+                        v-if="ca.inherited"
+                        class="ml-1 normal-case font-semibold text-attic-500"
+                      >(inherited)</span>
                       <span
                         v-if="ca.required"
                         class="text-amber-500"

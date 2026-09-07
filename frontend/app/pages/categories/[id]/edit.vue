@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { getIconLabel } from '~/utils/iconLabel'
+import { buildCategoryOptions, getCategoryDescendantIds, getInheritedCategoryAttributes } from '~/utils/categoryHierarchy'
 import type { Category, Attribute } from '~/types/api'
 
 definePageMeta({
@@ -18,6 +19,7 @@ const { data: category, status: categoryStatus } = useApi<Category>(
   () => `/api/categories/${categoryId.value}`
 )
 const { data: attributes } = useApi<Attribute[]>('/api/attributes')
+const { data: categories } = useApi<Category[]>('/api/categories')
 
 // Form state
 const form = reactive({
@@ -36,6 +38,16 @@ interface AttributeSelection {
 
 const selectedAttributes = ref<AttributeSelection[]>([])
 const draggedAttributeId = ref<string | null>(null)
+const excludedParentIds = computed(() =>
+  getCategoryDescendantIds(categories.value || [], categoryId.value)
+)
+const parentOptions = computed(() => [
+  { label: 'None (Top Level)', value: undefined },
+  ...buildCategoryOptions(categories.value || [], excludedParentIds.value)
+])
+const inheritedAttributes = computed(() =>
+  getInheritedCategoryAttributes(categories.value || [], form.parent_id)
+)
 
 // Initialize form when category loads
 watch(category, (cat) => {
@@ -126,6 +138,7 @@ const availableAttributes = computed(() => {
   if (!attributes.value) return []
   return attributes.value.filter(
     a => !selectedAttributes.value.some(sa => sa.attribute_id === a.id)
+      && !inheritedAttributes.value.some(ia => ia.attribute_id === a.id)
   )
 })
 
@@ -367,6 +380,27 @@ function cancel() {
                   <span class="text-xs text-muted">{{ descriptionCount }}/140</span>
                 </div>
               </div>
+              <div>
+                <label class="mb-2 block text-xs font-bold uppercase tracking-wider text-muted">
+                  Parent Category
+                </label>
+                <select
+                  :value="form.parent_id ?? ''"
+                  class="w-full rounded-xl border border-mist-200 bg-white px-4 py-3 text-sm font-medium text-mist-950 shadow-sm outline-none transition-all focus:border-attic-500 focus:ring-1 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                  @change="form.parent_id = ($event.target as HTMLSelectElement).value || undefined"
+                >
+                  <option
+                    v-for="option in parentOptions"
+                    :key="option.value ?? 'none'"
+                    :value="option.value ?? ''"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+                <p class="mt-1 text-xs text-muted">
+                  Inherited fields are available to every asset in this category.
+                </p>
+              </div>
             </div>
           </section>
 
@@ -460,6 +494,23 @@ function cancel() {
                     >
                       {{ selectedAttributes.length }} selected
                     </span>
+                  </div>
+
+                  <div
+                    v-if="inheritedAttributes.length"
+                    class="mb-5 space-y-2 rounded-xl border border-attic-200 bg-attic-50/60 p-4 dark:border-attic-800 dark:bg-attic-950/20"
+                  >
+                    <p class="text-xs font-bold uppercase tracking-wider text-attic-600 dark:text-attic-300">
+                      Inherited fields
+                    </p>
+                    <div
+                      v-for="assignment in inheritedAttributes"
+                      :key="assignment.attribute_id"
+                      class="flex items-center justify-between text-sm"
+                    >
+                      <span class="font-semibold text-mist-800 dark:text-mist-100">{{ assignment.attribute?.name || getAttribute(assignment.attribute_id)?.name }}</span>
+                      <span class="text-xs text-muted">{{ assignment.required ? 'Required' : 'Optional' }}</span>
+                    </div>
                   </div>
 
                   <!-- Selected Attributes -->
