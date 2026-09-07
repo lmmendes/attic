@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/lmmendes/attic/compare/v2.1.0...v2.2.0) (2026-09-07)
+
+
+### Features
+
+* **categories:** restore hierarchical inheritance ([#57](https://github.com/lmmendes/attic/issues/57)) ([148bb76](https://github.com/lmmendes/attic/commit/148bb762cb34ea656630db99b678723f8af7d401))
+
 ## [2.1.0](https://github.com/lmmendes/attic/compare/v2.0.0...v2.1.0) (2026-09-06)
 
 
