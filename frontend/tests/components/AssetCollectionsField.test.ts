@@ -26,6 +26,26 @@ describe('AssetCollectionsField', () => {
     wrapper.unmount()
   })
 
+  it('places the concise management link in the field header and opens it in a new tab', async () => {
+    const wrapper = await mountSuspended(AssetCollectionsField, { props: { modelValue: [] } })
+    const link = wrapper.get('a[href="/collections"]')
+
+    expect(link.text()).toBe('Manage collections')
+    expect(link.attributes('target')).toBe('_blank')
+    expect(wrapper.text()).not.toContain('opens in a new tab')
+    wrapper.unmount()
+  })
+
+  it('uses the same large, icon-led picker treatment as the category field', async () => {
+    const wrapper = await mountSuspended(AssetCollectionsField, { props: { modelValue: [] } })
+    const picker = wrapper.getComponent({ name: 'USelectMenu' })
+
+    expect(picker.props('placeholder')).toBe('Search and choose a collection')
+    expect(picker.props('icon')).toBe('i-lucide-library')
+    expect(picker.props('size')).toBe('lg')
+    wrapper.unmount()
+  })
+
   it('preserves selections when loading fails and offers retry', async () => {
     api.mockReturnValue({ data: ref(null), status: ref('error'), error: ref(new Error('offline')), refresh })
     const wrapper = await mountSuspended(AssetCollectionsField, { props: { modelValue: ['games'] } })
