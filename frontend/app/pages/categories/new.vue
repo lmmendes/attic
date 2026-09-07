@@ -1,23 +1,26 @@
 <script setup lang="ts">
 import { getIconLabel } from '~/utils/iconLabel'
-import type { Attribute } from '~/types/api'
+import { buildCategoryOptions, getInheritedCategoryAttributes } from '~/utils/categoryHierarchy'
+import type { Category, Attribute } from '~/types/api'
 
 definePageMeta({
   middleware: 'auth'
 })
 
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
 const apiFetch = useApiFetch()
 
 const { data: attributes } = useApi<Attribute[]>('/api/attributes')
+const { data: categories } = useApi<Category[]>('/api/categories')
 
 // Form state
 const form = reactive({
   name: '',
   description: '',
   icon: 'i-lucide-tag',
-  parent_id: undefined as string | undefined
+  parent_id: typeof route.query.parent_id === 'string' ? route.query.parent_id : undefined
 })
 
 // Attribute selection
@@ -28,6 +31,13 @@ interface AttributeSelection {
 }
 
 const selectedAttributes = ref<AttributeSelection[]>([])
+const parentOptions = computed(() => [
+  { label: 'None (Top Level)', value: undefined },
+  ...buildCategoryOptions(categories.value || [])
+])
+const inheritedAttributes = computed(() =>
+  getInheritedCategoryAttributes(categories.value || [], form.parent_id)
+)
 
 // Search query for attribute library
 const attributeSearch = ref('')
@@ -103,6 +113,7 @@ const availableAttributes = computed(() => {
   if (!attributes.value) return []
   return attributes.value.filter(
     a => !selectedAttributes.value.some(sa => sa.attribute_id === a.id)
+      && !inheritedAttributes.value.some(ia => ia.attribute_id === a.id)
   )
 })
 
@@ -283,6 +294,27 @@ function cancel() {
                 <span class="text-xs text-muted">{{ descriptionCount }}/140</span>
               </div>
             </div>
+            <div>
+              <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-2">
+                Parent Category
+              </label>
+              <select
+                :value="form.parent_id ?? ''"
+                class="w-full rounded-lg border border-mist-200 bg-mist-50 px-4 py-3 text-sm font-medium text-mist-950 outline-none focus:border-attic-500 focus:ring-1 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-900 dark:text-white"
+                @change="form.parent_id = ($event.target as HTMLSelectElement).value || undefined"
+              >
+                <option
+                  v-for="option in parentOptions"
+                  :key="option.value ?? 'none'"
+                  :value="option.value ?? ''"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+              <p class="mt-1 text-xs text-muted">
+                This category inherits all fields from its ancestors.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -368,6 +400,23 @@ function cancel() {
                   >
                     {{ selectedAttributes.length }} selected
                   </span>
+                </div>
+
+                <div
+                  v-if="inheritedAttributes.length"
+                  class="mb-5 space-y-2 rounded-xl border border-attic-200 bg-attic-50/60 p-4 dark:border-attic-800 dark:bg-attic-950/20"
+                >
+                  <p class="text-xs font-bold uppercase tracking-wider text-attic-600 dark:text-attic-300">
+                    Inherited fields
+                  </p>
+                  <div
+                    v-for="assignment in inheritedAttributes"
+                    :key="assignment.attribute_id"
+                    class="flex items-center justify-between text-sm"
+                  >
+                    <span class="font-semibold text-mist-800 dark:text-mist-100">{{ assignment.attribute?.name || getAttribute(assignment.attribute_id)?.name }}</span>
+                    <span class="text-xs text-muted">{{ assignment.required ? 'Required' : 'Optional' }}</span>
+                  </div>
                 </div>
 
                 <!-- Selected Attributes -->

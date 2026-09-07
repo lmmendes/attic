@@ -7,14 +7,28 @@ const options = computed(() => data.value?.map(c => ({ label: c.name, value: c.i
 </script>
 
 <template>
-  <div class="space-y-2">
-    <label
-      for="asset-collections"
-      class="block text-sm font-semibold"
-    >Collections <span class="font-normal text-muted">(optional)</span></label>
-    <p class="text-xs text-muted">
-      Group this asset with others, such as PS5 games or furniture. Choose as many as you like.
-    </p>
+  <div class="space-y-3">
+    <div class="flex flex-wrap items-end justify-between gap-2">
+      <div>
+        <label
+          for="asset-collections"
+          class="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+        >
+          Collections <span class="normal-case font-medium text-muted">(optional)</span>
+        </label>
+        <p class="mt-1 text-xs text-muted">
+          Group this asset with others, such as PS5 games or furniture. Choose as many as you like.
+        </p>
+      </div>
+      <NuxtLink
+        to="/collections"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-xs font-bold text-attic-500 hover:text-attic-600 hover:underline"
+      >
+        Manage collections
+      </NuxtLink>
+    </div>
     <div
       v-if="error"
       role="alert"
@@ -36,16 +50,13 @@ const options = computed(() => data.value?.map(c => ({ label: c.name, value: c.i
       :loading="status === 'pending'"
       :disabled="status === 'pending'"
       value-key="value"
-      placeholder="Choose collections"
+      placeholder="Search and choose a collection"
+      icon="i-lucide-library"
       aria-label="Collections"
       class="w-full"
+      size="lg"
     />
-    <div class="flex items-center justify-between gap-3 text-xs text-muted">
-      <NuxtLink
-        to="/collections"
-        target="_blank"
-        class="underline"
-      >Manage collections (opens in a new tab)</NuxtLink>
+    <div class="flex items-center justify-end gap-3 text-xs text-muted">
       <UButton
         v-if="model.length"
         color="neutral"

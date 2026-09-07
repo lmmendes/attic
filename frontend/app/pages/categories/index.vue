@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Category } from '~/types/api'
+import { buildCategoryTreeRows, getInheritedCategoryAttributes } from '~/utils/categoryHierarchy'
 
 definePageMeta({
   middleware: 'auth'
@@ -24,7 +25,7 @@ const search = ref('')
 
 async function viewAttributes(category: Category) {
   try {
-    const fullCategory = await apiFetch<Category>(`/api/categories/${category.id}`)
+    const fullCategory = await apiFetch<Category>(`/api/categories/${category.id}?inherited=true`)
     viewingCategory.value = fullCategory
     attributesModalOpen.value = true
   } catch {
@@ -56,8 +57,11 @@ async function deleteCategory() {
 // Stats
 const totalCategories = computed(() => categories.value?.length || 0)
 const totalItems = computed(() => {
-  if (!categoryAssetCounts.value) return 0
-  return Object.values(categoryAssetCounts.value).reduce((sum, count) => sum + count, 0)
+  if (!categoryAssetCounts.value || !categories.value) return 0
+  const activeIds = new Set(categories.value.map(category => category.id))
+  return categories.value
+    .filter(category => !category.parent_id || !activeIds.has(category.parent_id))
+    .reduce((sum, category) => sum + (categoryAssetCounts.value?.[category.id] || 0), 0)
 })
 const uniqueFields = computed(() => {
   const fieldIds = new Set(
@@ -68,15 +72,49 @@ const uniqueFields = computed(() => {
   return fieldIds.size
 })
 
-const filteredCategories = computed(() => {
-  const query = search.value.trim().toLowerCase()
-  if (!query) return categories.value || []
+const categoryRows = computed(() => buildCategoryTreeRows(categories.value || []).map((row) => {
+  const directAttributeIds = new Set((row.category.attributes || []).map(attribute => attribute.attribute_id))
+  const inheritedAttributes = getInheritedCategoryAttributes(categories.value || [], row.category.parent_id)
+    .filter(attribute => !directAttributeIds.has(attribute.attribute_id))
+  return {
+    ...row,
+    directFieldCount: directAttributeIds.size,
+    inheritedFieldCount: inheritedAttributes.length,
+    availableFieldCount: directAttributeIds.size + inheritedAttributes.length
+  }
+}))
 
-  return (categories.value || []).filter(category =>
-    category.name.toLowerCase().includes(query)
-    || category.description?.toLowerCase().includes(query)
-  )
+const filteredCategoryRows = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  if (!query) return categoryRows.value
+
+  const matches = new Set(categoryRows.value.filter(row =>
+    row.category.name.toLowerCase().includes(query)
+    || row.category.description?.toLowerCase().includes(query)
+    || [...row.ancestors, row.category].some(category => category.name.toLowerCase().includes(query))
+  ).map(row => row.category.id))
+  const visible = new Set(matches)
+  for (const row of categoryRows.value) {
+    if (matches.has(row.category.id)) {
+      row.ancestors.forEach(ancestor => visible.add(ancestor.id))
+    }
+  }
+  return categoryRows.value.filter(row => visible.has(row.category.id))
 })
+
+const categoryGroups = computed(() => {
+  const groups = new Map<string, typeof filteredCategoryRows.value>()
+  for (const row of filteredCategoryRows.value) {
+    const group = groups.get(row.rootId) || []
+    group.push(row)
+    groups.set(row.rootId, group)
+  }
+  return [...groups.values()]
+})
+
+function getCategoryName(categoryId: string): string {
+  return categories.value?.find(category => category.id === categoryId)?.name || 'ancestor category'
+}
 
 // Get asset count for a category
 function getAssetCount(categoryId: string): number {
@@ -176,9 +214,23 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
         v-model="search"
         title="Category library"
         placeholder="Search categories"
-        :count="filteredCategories.length"
+        :count="filteredCategoryRows.length"
         :total="totalCategories"
       />
+      <div class="flex gap-3 rounded-2xl border border-attic-200 bg-attic-50/70 px-4 py-3 dark:border-attic-800 dark:bg-attic-950/20">
+        <UIcon
+          name="i-lucide-git-branch"
+          class="mt-0.5 size-5 shrink-0 text-attic-500"
+        />
+        <div>
+          <p class="text-sm font-bold text-mist-900 dark:text-white">
+            Fields flow down the category tree
+          </p>
+          <p class="mt-0.5 text-xs leading-5 text-muted">
+            A child receives the fields of every category above it. Fields added directly to the child can refine that inherited setup.
+          </p>
+        </div>
+      </div>
       <!-- Loading State -->
       <div
         v-if="status === 'pending'"
@@ -213,7 +265,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
       </div>
 
       <div
-        v-else-if="!filteredCategories.length"
+        v-else-if="!filteredCategoryRows.length"
         class="px-4 py-14 text-center"
       >
         <UIcon
@@ -234,42 +286,133 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
 
       <div
         v-else
-        class="attic-panel overflow-hidden rounded-[20px]"
+        role="tree"
+        aria-label="Category inheritance tree"
+        class="space-y-4"
       >
-        <div class="hidden grid-cols-[minmax(0,1.05fr)_minmax(0,1.35fr)_auto] gap-4 border-b border-mist-100 bg-mist-50/70 px-5 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted dark:border-mist-700 dark:bg-mist-800/70 sm:grid">
-          <span>Category</span>
-          <span>Details</span>
-          <span class="pr-2 text-right">Actions</span>
-        </div>
-        <div
-          role="list"
-          class="divide-y divide-mist-100 dark:divide-mist-700"
+        <section
+          v-for="group in categoryGroups"
+          :key="group[0]?.rootId"
+          class="attic-panel overflow-hidden rounded-[20px]"
         >
-          <LibraryCard
-            v-for="category in filteredCategories"
-            :key="category.id"
-            :name="category.name"
-            :description="category.description"
-            :icon="getCategoryStyle(category).icon"
-            :icon-class="getCategoryStyle(category).bgColor + ' ' + getCategoryStyle(category).textColor"
-            :asset-count="getAssetCount(category.id)"
-            :assets-to="'/assets?category_id=' + encodeURIComponent(category.id)"
-            :edit-to="'/categories/' + category.id + '/edit'"
-            @delete="confirmDelete(category)"
+          <article
+            v-for="row in group"
+            :key="row.category.id"
+            role="treeitem"
+            :aria-level="row.depth + 1"
+            class="relative border-b border-mist-100 px-4 py-4 last:border-b-0 dark:border-mist-700 sm:px-5"
+            :class="row.depth === 0 ? 'bg-mist-50/60 dark:bg-mist-800/50' : 'bg-white dark:bg-mist-800'"
           >
-            <template #metadata>
-              <UButton
-                icon="i-lucide-list-checks"
-                variant="soft"
-                size="xs"
-                :aria-label="'View fields for ' + category.name"
-                @click="viewAttributes(category)"
-              >
-                {{ category.attributes?.length || 0 }} {{ category.attributes?.length === 1 ? 'field' : 'fields' }}
-              </UButton>
-            </template>
-          </LibraryCard>
-        </div>
+            <div
+              class="grid gap-4 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_auto] sm:items-center"
+              :style="{ marginLeft: `min(${Math.min(row.depth, 6) * 4}vw, ${Math.min(row.depth, 6) * 28}px)` }"
+            >
+              <div class="relative flex min-w-0 items-start gap-3">
+                <span
+                  v-if="row.depth > 0"
+                  aria-hidden="true"
+                  class="absolute right-full top-0 mr-2 h-6 w-5 rounded-bl-xl border-b-2 border-l-2 border-attic-200 dark:border-attic-700"
+                />
+                <div
+                  class="flex size-10 shrink-0 items-center justify-center rounded-xl"
+                  :class="[getCategoryStyle(row.category).bgColor, getCategoryStyle(row.category).textColor]"
+                >
+                  <UIcon
+                    :name="getCategoryStyle(row.category).icon"
+                    class="size-5"
+                  />
+                </div>
+                <div class="min-w-0">
+                  <p
+                    v-if="row.ancestors.length"
+                    class="truncate text-[10px] font-extrabold uppercase tracking-[0.12em] text-attic-500"
+                  >
+                    {{ row.ancestors.map(ancestor => ancestor.name).join(' / ') }}
+                  </p>
+                  <h2 class="truncate font-extrabold text-mist-950 dark:text-white">
+                    {{ row.category.name }}
+                  </h2>
+                  <p
+                    v-if="row.category.description"
+                    class="mt-0.5 line-clamp-2 text-xs text-muted"
+                  >
+                    {{ row.category.description }}
+                  </p>
+                  <p
+                    v-if="row.childCount"
+                    class="mt-1 text-[11px] font-semibold text-muted"
+                  >
+                    {{ row.childCount }} direct {{ row.childCount === 1 ? 'child' : 'children' }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  class="rounded-full bg-mist-100 px-2.5 py-1 text-xs font-bold text-mist-700 transition hover:bg-mist-200 dark:bg-mist-700 dark:text-mist-100 dark:hover:bg-mist-600"
+                  :aria-label="'View available fields for ' + row.category.name"
+                  @click="viewAttributes(row.category)"
+                >
+                  {{ row.directFieldCount }} own
+                </button>
+                <template v-if="row.inheritedFieldCount">
+                  <UIcon
+                    name="i-lucide-plus"
+                    class="size-3 text-muted"
+                  />
+                  <button
+                    type="button"
+                    class="rounded-full bg-attic-100 px-2.5 py-1 text-xs font-bold text-attic-700 transition hover:bg-attic-200 dark:bg-attic-900/40 dark:text-attic-300"
+                    :aria-label="'View inherited fields for ' + row.category.name"
+                    @click="viewAttributes(row.category)"
+                  >
+                    {{ row.inheritedFieldCount }} inherited
+                  </button>
+                  <span class="text-xs font-bold text-mist-700 dark:text-mist-200">
+                    = {{ row.availableFieldCount }} available
+                  </span>
+                </template>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-1 sm:justify-end">
+                <UButton
+                  :to="'/assets?category_id=' + encodeURIComponent(row.category.id)"
+                  icon="i-lucide-box"
+                  variant="ghost"
+                  color="neutral"
+                  size="xs"
+                >
+                  {{ getAssetCount(row.category.id) }}
+                </UButton>
+                <UButton
+                  :to="{ path: '/categories/new', query: { parent_id: row.category.id } }"
+                  icon="i-lucide-git-branch-plus"
+                  variant="ghost"
+                  color="neutral"
+                  size="xs"
+                  :aria-label="'Add child category under ' + row.category.name"
+                />
+                <UButton
+                  :to="'/categories/' + row.category.id + '/edit'"
+                  icon="i-lucide-pencil"
+                  variant="ghost"
+                  color="neutral"
+                  size="xs"
+                  :aria-label="'Edit ' + row.category.name"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  variant="ghost"
+                  color="error"
+                  size="xs"
+                  :aria-label="'Delete ' + row.category.name"
+                  @click="confirmDelete(row.category)"
+                />
+              </div>
+            </div>
+          </article>
+        </section>
       </div>
     </section>
 
@@ -319,8 +462,8 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
     <!-- Attributes View Modal -->
     <UModal
       v-model:open="attributesModalOpen"
-      :title="`${viewingCategory?.name || 'Category'} Attributes`"
-      :description="`${viewingCategory?.attributes?.length || 0} attributes defined`"
+      :title="`${viewingCategory?.name || 'Category'} fields`"
+      :description="`${viewingCategory?.attributes?.length || 0} fields available, including inherited fields`"
     >
       <template #content>
         <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl max-w-md w-full">
@@ -338,10 +481,10 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
               </div>
               <div>
                 <h3 class="text-lg font-bold text-mist-950 dark:text-white">
-                  {{ viewingCategory?.name }} Attributes
+                  {{ viewingCategory?.name }} fields
                 </h3>
                 <p class="text-sm text-muted">
-                  {{ viewingCategory?.attributes?.length || 0 }} attributes defined
+                  {{ viewingCategory?.attributes?.length || 0 }} available on assets in this category
                 </p>
               </div>
             </div>
@@ -357,7 +500,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
                 class="w-10 h-10 text-mist-300 mx-auto mb-3"
               />
               <p class="text-sm text-muted">
-                No attributes defined for this category.
+                No fields are available for this category.
               </p>
             </div>
 
@@ -370,7 +513,7 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
                 :key="attr.id"
                 class="flex items-center justify-between p-3 bg-mist-50 dark:bg-mist-700/50 rounded-lg"
               >
-                <div class="flex items-center gap-3">
+                <div class="flex min-w-0 items-center gap-3">
                   <div
                     class="size-8 rounded flex items-center justify-center"
                     :class="[getAttributeStyle(attr.attribute?.data_type || 'string').bgColor, getAttributeStyle(attr.attribute?.data_type || 'string').textColor]"
@@ -380,9 +523,23 @@ function getAttributeStyle(dataType: string): { icon: string, bgColor: string, t
                       class="w-4 h-4"
                     />
                   </div>
-                  <span class="font-medium text-mist-950 dark:text-white">
-                    {{ attr.attribute?.name || 'Unknown' }}
-                  </span>
+                  <div class="min-w-0">
+                    <p class="truncate font-medium text-mist-950 dark:text-white">
+                      {{ attr.attribute?.name || 'Unknown' }}
+                    </p>
+                    <p
+                      v-if="attr.inherited"
+                      class="truncate text-[11px] font-semibold text-attic-500"
+                    >
+                      Inherited from {{ getCategoryName(attr.category_id) }}
+                    </p>
+                    <p
+                      v-else
+                      class="text-[11px] text-muted"
+                    >
+                      Defined here
+                    </p>
+                  </div>
                 </div>
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-muted bg-mist-200 dark:bg-mist-600 px-2 py-0.5 rounded">

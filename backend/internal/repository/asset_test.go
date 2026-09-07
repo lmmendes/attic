@@ -260,10 +260,12 @@ func Test_AssetRepository_List_FilterByCategory(t *testing.T) {
 	org, _ := fixtures.CreateOrganization(ctx, "Test Org")
 	cat1, _ := fixtures.CreateCategory(ctx, org.ID, "Electronics", nil)
 	cat2, _ := fixtures.CreateCategory(ctx, org.ID, "Books", nil)
+	child, _ := fixtures.CreateCategory(ctx, org.ID, "Phones", &cat1.ID)
 
 	fixtures.CreateAsset(ctx, org.ID, cat1.ID, "Phone")
 	fixtures.CreateAsset(ctx, org.ID, cat1.ID, "Laptop")
 	fixtures.CreateAsset(ctx, org.ID, cat2.ID, "Book")
+	fixtures.CreateAsset(ctx, org.ID, child.ID, "Smartphone")
 
 	repo := NewAssetRepository(testDB.Pool)
 	assets, total, err := repo.List(ctx, org.ID, domain.AssetFilter{CategoryID: &cat1.ID}, domain.Pagination{Limit: 100})
@@ -271,11 +273,11 @@ func Test_AssetRepository_List_FilterByCategory(t *testing.T) {
 		t.Fatalf("failed to list: %v", err)
 	}
 
-	if total != 2 {
-		t.Errorf("expected 2 assets in Electronics, got %d", total)
+	if total != 3 {
+		t.Errorf("expected 3 assets in Electronics and descendants, got %d", total)
 	}
-	if len(assets) != 2 {
-		t.Errorf("expected 2 assets, got %d", len(assets))
+	if len(assets) != 3 {
+		t.Errorf("expected 3 assets, got %d", len(assets))
 	}
 }
 

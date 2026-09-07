@@ -1,10 +1,13 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -185,6 +188,13 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		}
 		categoryID = &id
 	}
+	if message, err := h.validateAssetCategory(r.Context(), categoryID, req.Attributes); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to validate category attributes")
+		return
+	} else if message != "" {
+		writeError(w, http.StatusBadRequest, message)
+		return
+	}
 
 	asset := &domain.Asset{
 		OrganizationID: h.orgID,
@@ -275,6 +285,13 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		}
 		categoryID = &id
 	}
+	if message, err := h.validateAssetCategory(r.Context(), categoryID, req.Attributes); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to validate category attributes")
+		return
+	} else if message != "" {
+		writeError(w, http.StatusBadRequest, message)
+		return
+	}
 
 	asset.CategoryID = categoryID
 	asset.Name = req.Name
@@ -333,6 +350,51 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, asset)
+}
+
+func (h *Handler) validateAssetCategory(ctx context.Context, categoryID *uuid.UUID, rawAttributes json.RawMessage) (string, error) {
+	if categoryID == nil {
+		return "", nil
+	}
+	category, err := h.repos.Categories.GetByIDWithInheritedAttributes(ctx, h.orgID, *categoryID)
+	if err != nil {
+		return "", err
+	}
+	if category == nil {
+		return "category does not exist in this workspace", nil
+	}
+	missing, err := missingRequiredCategoryAttributes(category, rawAttributes)
+	if err != nil {
+		return "attributes must be a JSON object", nil
+	}
+	if len(missing) > 0 {
+		return fmt.Sprintf("required category attributes are missing: %s", strings.Join(missing, ", ")), nil
+	}
+	return "", nil
+}
+
+func missingRequiredCategoryAttributes(category *domain.Category, rawAttributes json.RawMessage) ([]string, error) {
+	values := make(map[string]any)
+	if len(rawAttributes) > 0 && string(rawAttributes) != "null" {
+		if err := json.Unmarshal(rawAttributes, &values); err != nil {
+			return nil, err
+		}
+	}
+	missing := make([]string, 0)
+	for _, assignment := range category.Attributes {
+		if !assignment.Required || assignment.Attribute == nil {
+			continue
+		}
+		value, ok := values[assignment.Attribute.Key]
+		if !ok || value == nil {
+			missing = append(missing, assignment.Attribute.Name)
+			continue
+		}
+		if text, ok := value.(string); ok && strings.TrimSpace(text) == "" {
+			missing = append(missing, assignment.Attribute.Name)
+		}
+	}
+	return missing, nil
 }
 
 func (h *Handler) DeleteAsset(w http.ResponseWriter, r *http.Request) {

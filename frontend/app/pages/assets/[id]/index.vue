@@ -22,7 +22,7 @@ const categoryWithAttrs = ref<Category | null>(null)
 watch(() => asset.value?.category_id, async (categoryId) => {
   if (categoryId) {
     try {
-      categoryWithAttrs.value = await apiFetch<Category>(`/api/categories/${categoryId}`)
+      categoryWithAttrs.value = await apiFetch<Category>(`/api/categories/${categoryId}?inherited=true`)
     } catch {
       categoryWithAttrs.value = null
     }

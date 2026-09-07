@@ -10,7 +10,7 @@ Attic mirrors the way a home is organized with nested locations such as rooms, s
 
 **Home Inventory**
 - Full CRUD with custom attributes per category (strings, numbers, booleans, dates, dropdowns)
-- Hierarchical categories and locations that mirror real-world spaces
+- Hierarchical categories and locations; child categories inherit their ancestors' custom fields
 - Condition tracking (new, used, damaged, or custom states)
 - Warranty expiration monitoring on the dashboard
 - File attachments for invoices, manuals, and photos
@@ -20,6 +20,7 @@ Attic mirrors the way a home is organized with nested locations such as rooms, s
 **Search & Discovery**
 - Full-text search across asset names and descriptions
 - Filter by category, location, and condition
+- Category filters include assets assigned to descendant categories
 
 **Smart Integrations**
 - Automated imports from Google Books, TMDB (movies and TV), BoardGameGeek, and IGDB (video games)

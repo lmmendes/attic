@@ -112,6 +112,7 @@ type CategoryAttribute struct {
 	Required    bool      `json:"required"`
 	SortOrder   int       `json:"sort_order"`
 	CreatedAt   time.Time `json:"created_at"`
+	Inherited   bool      `json:"inherited,omitempty"`
 
 	// Populated by queries
 	Attribute *Attribute `json:"attribute,omitempty"`

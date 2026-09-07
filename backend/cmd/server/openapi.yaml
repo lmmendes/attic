@@ -111,6 +111,12 @@ paths:
         - sessionCookie: []
       parameters:
         - $ref: '#/components/parameters/id'
+        - name: inherited
+          in: query
+          description: Include the effective attribute schema inherited from ancestor categories
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Category details
@@ -423,7 +429,7 @@ paths:
             format: uuid
         - name: category_id
           in: query
-          description: Filter by a category UUID or use `uncategorized` for assets without a category
+          description: Filter by a category UUID (including its descendants) or use `uncategorized` for assets without a category
           schema:
             oneOf:
               - type: string
