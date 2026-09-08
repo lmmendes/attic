@@ -10,7 +10,11 @@ const router = useRouter()
 const toast = useToast()
 const apiFetch = useApiFetch()
 
-const { data: asset, refresh: refreshAsset } = useApi<Asset>(() => `/api/assets/${route.params.id}`)
+const assetUrl = computed(() => `/api/assets/${route.params.id}`)
+const { data: asset, refresh: refreshAsset } = useApi<Asset>(
+  () => assetUrl.value,
+  { key: assetUrl }
+)
 const { data: warranty, refresh: refreshWarranty } = useApi<Warranty>(() => `/api/assets/${route.params.id}/warranty`)
 const { data: attachments, refresh: refreshAttachments } = useApi<Attachment[]>(
   () => `/api/assets/${route.params.id}/attachments`

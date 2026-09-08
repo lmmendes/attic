@@ -11,8 +11,10 @@ const router = useRouter()
 const toast = useToast()
 const apiFetch = useApiFetch()
 
-const { data: asset, status: assetStatus } = useApi<Asset>(
-  () => `/api/assets/${route.params.id}`
+const assetUrl = computed(() => `/api/assets/${route.params.id}`)
+const { data: asset, status: assetStatus, clear: clearAsset } = useApi<Asset>(
+  () => assetUrl.value,
+  { key: assetUrl }
 )
 const { data: categories } = useApi<Category[]>('/api/categories')
 const { data: locations } = useApi<Location[]>('/api/locations')
@@ -227,6 +229,7 @@ async function submitForm() {
       body: JSON.stringify(payload)
     })
 
+    clearAsset()
     toast.add({ title: 'Asset updated successfully', color: 'success' })
     router.push(`/assets/${route.params.id}`)
   } catch (err: unknown) {

@@ -5,13 +5,14 @@ import { ref } from 'vue'
 import NewCategory from '../../app/pages/categories/new.vue'
 import NewAttribute from '../../app/pages/attributes/new.vue'
 
-const { api, mutate, push, replace, resolve, toast, route, draft } = vi.hoisted(() => ({
+const { api, mutate, push, replace, resolve, toast, route, draft, clearCategories } = vi.hoisted(() => ({
   api: vi.fn(),
   mutate: vi.fn(),
   push: vi.fn(),
   replace: vi.fn(),
   resolve: vi.fn((to: string | { path: string }) => ({ href: typeof to === 'string' ? to : to.path })),
   toast: vi.fn(),
+  clearCategories: vi.fn(),
   route: { query: {} as Record<string, string> },
   draft: { value: null as Record<string, unknown> | null }
 }))
@@ -34,7 +35,7 @@ describe('creating an attribute from a category draft', () => {
     attributes.value = []
     api.mockImplementation((url: string) => url === '/api/attributes'
       ? { data: attributes, refresh: refreshAttributes }
-      : { data: ref([]) })
+      : { data: ref([]), clear: clearCategories })
     mutate.mockResolvedValue({ id: 'new-attribute' })
   })
 
@@ -50,6 +51,19 @@ describe('creating an attribute from a category draft', () => {
       selectedAttributes: []
     })
     expect(push).toHaveBeenCalledWith({ path: '/attributes/new', query: { returnTo: 'category' } })
+    wrapper.unmount()
+  })
+
+  it('clears the cached category list after creating a category', async () => {
+    const wrapper = await mountSuspended(NewCategory)
+    await wrapper.get('input[placeholder="e.g. Rare Books"]').setValue('Vintage cameras')
+    const save = wrapper.findAll('button').find(button => button.text().includes('Save Category'))!
+    await save.trigger('click')
+    await flushPromises()
+
+    expect(clearCategories).toHaveBeenCalledOnce()
+    expect(push).toHaveBeenCalledWith('/categories')
+    expect(clearCategories.mock.invocationCallOrder[0]).toBeLessThan(push.mock.invocationCallOrder[0]!)
     wrapper.unmount()
   })
 

@@ -13,7 +13,7 @@ const toast = useToast()
 const apiFetch = useApiFetch()
 
 const { data: attributes, refresh: refreshAttributes } = useApi<Attribute[]>('/api/attributes')
-const { data: categories } = useApi<Category[]>('/api/categories')
+const { data: categories, clear: clearCategories } = useApi<Category[]>('/api/categories')
 
 // Form state
 interface CategoryDraft {
@@ -224,6 +224,7 @@ async function saveCategory() {
       })
     })
 
+    clearCategories()
     toast.add({ title: 'Category created successfully', color: 'success' })
     categoryDraft.value = null
     router.push('/categories')
