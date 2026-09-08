@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.2](https://github.com/lmmendes/attic/compare/v2.2.1...v2.2.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **categories:** preserve draft when creating attributes ([#68](https://github.com/lmmendes/attic/issues/68)) ([2fb0b31](https://github.com/lmmendes/attic/commit/2fb0b3159c2fe9f01f26c47e92aa1d7f002b6fe9))
+* **frontend:** refresh data after category and asset mutations ([#70](https://github.com/lmmendes/attic/issues/70)) ([bb7b059](https://github.com/lmmendes/attic/commit/bb7b059065d3c73caed99d91eb680ef59c17657f))
+
 ## [2.2.1](https://github.com/lmmendes/attic/compare/v2.2.0...v2.2.1) (2026-09-08)
 
 
