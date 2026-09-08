@@ -12,25 +12,41 @@ const route = useRoute()
 const toast = useToast()
 const apiFetch = useApiFetch()
 
-const { data: attributes } = useApi<Attribute[]>('/api/attributes')
+const { data: attributes, refresh: refreshAttributes } = useApi<Attribute[]>('/api/attributes')
 const { data: categories } = useApi<Category[]>('/api/categories')
 
 // Form state
-const form = reactive({
-  name: '',
-  description: '',
-  icon: 'i-lucide-tag',
-  parent_id: typeof route.query.parent_id === 'string' ? route.query.parent_id : undefined
-})
+interface CategoryDraft {
+  form: {
+    name: string
+    description: string
+    icon: string
+    parent_id?: string
+  }
+  selectedAttributes: AttributeSelection[]
+}
 
-// Attribute selection
 interface AttributeSelection {
   attribute_id: string
   required: boolean
   sort_order: number
 }
 
-const selectedAttributes = ref<AttributeSelection[]>([])
+const categoryDraft = useState<CategoryDraft | null>('new-category-draft', () => null)
+const restoreDraft = route.query.resume === 'attribute'
+const restoredDraft = restoreDraft ? categoryDraft.value : null
+
+const form = reactive({
+  name: restoredDraft?.form.name || '',
+  description: restoredDraft?.form.description || '',
+  icon: restoredDraft?.form.icon || 'i-lucide-tag',
+  parent_id: restoredDraft?.form.parent_id
+    || (typeof route.query.parent_id === 'string' ? route.query.parent_id : undefined)
+})
+
+// Attribute selection
+const selectedAttributes = ref<AttributeSelection[]>(restoredDraft?.selectedAttributes.map(attribute => ({ ...attribute })) || [])
+categoryDraft.value = null
 const parentOptions = computed(() => [
   { label: 'None (Top Level)', value: undefined },
   ...buildCategoryOptions(categories.value || [])
@@ -133,11 +149,31 @@ function getAttribute(id: string): Attribute | undefined {
 
 // Add attribute to selection
 function addAttribute(attr: Attribute) {
+  if (selectedAttributes.value.some(selection => selection.attribute_id === attr.id)) return
   selectedAttributes.value.push({
     attribute_id: attr.id,
     required: false,
     sort_order: selectedAttributes.value.length
   })
+}
+
+async function restoreCreatedAttribute() {
+  const attributeID = route.query.attribute_id
+  if (!restoreDraft || typeof attributeID !== 'string') return
+
+  await refreshAttributes()
+  const attribute = getAttribute(attributeID)
+  if (attribute) addAttribute(attribute)
+}
+
+onMounted(restoreCreatedAttribute)
+
+function createAttribute() {
+  categoryDraft.value = {
+    form: { ...form },
+    selectedAttributes: selectedAttributes.value.map(attribute => ({ ...attribute }))
+  }
+  router.push({ path: '/attributes/new', query: { returnTo: 'category' } })
 }
 
 // Remove attribute from selection
@@ -189,6 +225,7 @@ async function saveCategory() {
     })
 
     toast.add({ title: 'Category created successfully', color: 'success' })
+    categoryDraft.value = null
     router.push('/categories')
   } catch {
     toast.add({ title: 'Failed to create category', color: 'error' })
@@ -199,6 +236,7 @@ async function saveCategory() {
 
 // Cancel and go back
 function cancel() {
+  categoryDraft.value = null
   router.push('/categories')
 }
 </script>
@@ -373,16 +411,17 @@ function cancel() {
                 </p>
               </div>
             </div>
-            <NuxtLink
-              to="/attributes"
+            <button
+              type="button"
               class="text-sm font-semibold text-attic-500 hover:text-attic-600 flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-attic-500/5 transition-colors"
+              @click="createAttribute"
             >
               <UIcon
                 name="i-lucide-plus-circle"
                 class="w-4 h-4"
               />
               New Attribute
-            </NuxtLink>
+            </button>
           </div>
 
           <!-- Composer Body: Split View -->
