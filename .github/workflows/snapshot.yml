@@ -3,14 +3,24 @@ name: Snapshot
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, closed]
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: snapshot-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  snapshot:
+  publish:
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -42,8 +52,8 @@ jobs:
             lmmendes/attic
             ghcr.io/lmmendes/attic
           tags: |
-            type=raw,value=snapshot
-            type=sha,prefix=sha-,format=short
+            type=raw,value=snapshot,enable=${{ github.event_name != 'pull_request' }}
+            type=raw,value=snapshot-pr-${{ github.event.pull_request.number }},enable=${{ github.event_name == 'pull_request' }}
 
       - name: Build and push
         uses: docker/build-push-action@v7
@@ -58,3 +68,55 @@ jobs:
             ATTIC_TMDB_API_KEY=${{ secrets.ATTIC_TMDB_API_KEY }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  delete:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      SNAPSHOT_TAG: snapshot-pr-${{ github.event.pull_request.number }}
+    steps:
+      - name: Delete Docker Hub snapshot
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          login_token=$(curl --fail --silent --show-error \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --data "$(jq --null-input \
+              --arg username "$DOCKERHUB_USERNAME" \
+              --arg password "$DOCKERHUB_TOKEN" \
+              '{username: $username, password: $password}')" \
+            https://hub.docker.com/v2/users/login/ | jq --exit-status --raw-output '.token')
+
+          status=$(curl --silent --show-error \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            --request DELETE \
+            --header "Authorization: JWT $login_token" \
+            "https://hub.docker.com/v2/repositories/lmmendes/attic/tags/$SNAPSHOT_TAG/")
+
+          if [[ "$status" != 204 && "$status" != 404 ]]; then
+            echo "Docker Hub returned HTTP $status while deleting $SNAPSHOT_TAG" >&2
+            exit 1
+          fi
+
+      - name: Delete GitHub Container Registry snapshot
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          versions=$(gh api --paginate --slurp \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            /users/lmmendes/packages/container/attic/versions)
+          version_ids=$(jq --arg tag "$SNAPSHOT_TAG" \
+            '[.[][] | select(.metadata.container.tags | index($tag)) | .id] | .[]' \
+            <<< "$versions")
+
+          for version_id in $version_ids; do
+            gh api --method DELETE \
+              --header 'X-GitHub-Api-Version: 2022-11-28' \
+              "/users/lmmendes/packages/container/attic/versions/$version_id"
+          done
