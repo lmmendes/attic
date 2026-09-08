@@ -127,6 +127,7 @@ func main() {
 		Assets:        repository.NewAssetRepository(db.Pool),
 		Warranties:    repository.NewWarrantyRepository(db.Pool),
 		Attachments:   repository.NewAttachmentRepository(db.Pool),
+		AssetEvents:   repository.NewAssetEventRepository(db.Pool),
 		Attributes:    repository.NewAttributeRepository(db.Pool),
 	}
 
@@ -371,6 +372,12 @@ func main() {
 			// Attachments (nested under asset)
 			r.Get("/{id}/attachments", h.ListAttachments)
 			r.Post("/{id}/attachments", h.UploadAttachment)
+
+			// Custom asset history events
+			r.Get("/{id}/events", h.ListAssetEvents)
+			r.Post("/{id}/events", h.CreateAssetEvent)
+			r.Put("/{id}/events/{eventId}", h.UpdateAssetEvent)
+			r.Delete("/{id}/events/{eventId}", h.DeleteAssetEvent)
 
 			// Main image
 			r.Put("/{id}/main-image/{attachmentId}", h.SetMainAttachment)
