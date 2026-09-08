@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.1](https://github.com/lmmendes/attic/compare/v2.2.0...v2.2.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* show API validation details when saving assets ([#64](https://github.com/lmmendes/attic/issues/64)) ([503556c](https://github.com/lmmendes/attic/commit/503556c72377ca1f94ee7973332591a7ec49012b))
+
 ## [2.2.0](https://github.com/lmmendes/attic/compare/v2.1.0...v2.2.0) (2026-09-07)
 
 
