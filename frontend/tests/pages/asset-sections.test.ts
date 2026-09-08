@@ -6,7 +6,9 @@ import EditAsset from '../../app/pages/assets/[id]/edit.vue'
 import NewAsset from '../../app/pages/assets/new.vue'
 import AssetCategoryField from '../../app/components/AssetCategoryField.vue'
 
-const { api, mutate, toast } = vi.hoisted(() => ({ api: vi.fn(), mutate: vi.fn(), toast: vi.fn() }))
+const { api, mutate, toast, clearAsset } = vi.hoisted(() => ({
+  api: vi.fn(), mutate: vi.fn(), toast: vi.fn(), clearAsset: vi.fn()
+}))
 mockNuxtImport('useApi', () => api)
 mockNuxtImport('useApiFetch', () => () => mutate)
 mockNuxtImport('useToast', () => () => ({ add: toast }))
@@ -18,7 +20,10 @@ describe('Asset form sections', () => {
     vi.clearAllMocks()
     asset.value = { id: 'asset', name: 'Desk', quantity: 1 }
     api.mockImplementation((url: unknown) => ({
-      data: typeof url === 'function' ? asset : ref([]), status: ref('success'), error: ref(null)
+      data: typeof url === 'function' ? asset : ref([]),
+      status: ref('success'),
+      error: ref(null),
+      clear: clearAsset
     }))
     mutate.mockResolvedValue({ id: 'new-asset' })
   })
@@ -132,6 +137,7 @@ describe('Asset form sections', () => {
     const payload = JSON.parse(updateCall[1].body)
     expect(payload).not.toHaveProperty('category_id')
     expect(payload).not.toHaveProperty('attributes')
+    expect(clearAsset).toHaveBeenCalledOnce()
     wrapper.unmount()
   })
 
