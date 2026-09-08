@@ -175,8 +175,8 @@ async function submitForm() {
     toast.add({ title: 'Asset created successfully', color: 'success' })
     router.push(`/assets/${response.id}`)
   } catch (err: unknown) {
-    const error = err as { message?: string }
-    toast.add({ title: error?.message || 'Failed to create asset', color: 'error' })
+    const error = err as { data?: { error?: string }, message?: string }
+    toast.add({ title: error?.data?.error || error?.message || 'Failed to create asset', color: 'error' })
   } finally {
     loading.value = false
   }

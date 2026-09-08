@@ -230,9 +230,9 @@ async function submitForm() {
     toast.add({ title: 'Asset updated successfully', color: 'success' })
     router.push(`/assets/${route.params.id}`)
   } catch (err: unknown) {
-    const error = err as { message?: string }
+    const error = err as { data?: { error?: string }, message?: string }
     toast.add({
-      title: error?.message || 'Failed to update asset',
+      title: error?.data?.error || error?.message || 'Failed to update asset',
       color: 'error'
     })
   } finally {

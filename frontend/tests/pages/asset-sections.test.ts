@@ -33,6 +33,50 @@ describe('Asset form sections', () => {
     wrapper.unmount()
   })
 
+  describe.each([
+    ['create', NewAsset, 'Failed to create asset'],
+    ['edit', EditAsset, 'Failed to update asset']
+  ] as const)('%s save errors', (mode, component, fallback) => {
+    it.each([
+      [
+        { data: { error: 'required category attributes are missing: Serial number' }, message: '[PUT] /api/assets/asset: 400 Bad Request' },
+        'required category attributes are missing: Serial number'
+      ],
+      [new Error('Network unavailable'), 'Network unavailable'],
+      [{}, fallback]
+    ])('shows the useful error message for %j', async (error, expected) => {
+      mutate.mockImplementation(async (url: string) => {
+        if (url.startsWith('/api/categories/')) {
+          return {
+            id: 'electronics',
+            name: 'Electronics',
+            attributes: [{
+              attribute_id: 'serial', required: true,
+              attribute: { key: 'serial', name: 'Serial number', data_type: 'string' }
+            }]
+          }
+        }
+        throw error
+      })
+      if (mode === 'edit') asset.value = { ...asset.value, category_id: 'electronics' }
+      const wrapper = await mountSuspended(component)
+      if (mode === 'create') {
+        await wrapper.get('#asset-name').setValue('Desk')
+        wrapper.getComponent(AssetCategoryField).vm.$emit('update:modelValue', 'electronics')
+      }
+      await flushPromises()
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(mutate).toHaveBeenCalledWith(
+        mode === 'create' ? '/api/assets' : '/api/assets/asset',
+        expect.objectContaining({ method: mode === 'create' ? 'POST' : 'PUT' })
+      )
+      expect(toast).toHaveBeenCalledExactlyOnceWith({ title: expected, color: 'error' })
+      wrapper.unmount()
+    })
+  })
+
   it.each([
     [{}, false, false],
     [{ description: '  ', notes: '\n', purchase_note: ' ' }, false, false],
