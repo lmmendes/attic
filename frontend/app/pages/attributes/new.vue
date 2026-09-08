@@ -4,8 +4,24 @@ definePageMeta({
 })
 
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
 const apiFetch = useApiFetch()
+const returnToCategory = route.query.returnTo === 'category'
+
+function returnAfterAttribute(attributeID?: string) {
+  if (returnToCategory) {
+    router.push({
+      path: '/categories/new',
+      query: {
+        resume: 'attribute',
+        ...(attributeID ? { attribute_id: attributeID } : {})
+      }
+    })
+    return
+  }
+  router.push('/attributes')
+}
 
 // Form state
 const form = reactive({
@@ -101,7 +117,7 @@ async function saveAttribute() {
 
   saving.value = true
   try {
-    await apiFetch('/api/attributes', {
+    const attribute = await apiFetch<{ id: string }>('/api/attributes', {
       method: 'POST',
       body: JSON.stringify({
         name: form.name,
@@ -111,7 +127,7 @@ async function saveAttribute() {
     })
 
     toast.add({ title: 'Attribute created successfully', color: 'success' })
-    router.push('/attributes')
+    returnAfterAttribute(attribute.id)
   } catch {
     toast.add({ title: 'Failed to create attribute', color: 'error' })
   } finally {
@@ -121,7 +137,7 @@ async function saveAttribute() {
 
 // Cancel and go back
 function cancel() {
-  router.push('/attributes')
+  returnAfterAttribute()
 }
 </script>
 
