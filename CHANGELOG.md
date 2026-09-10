@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.3.0](https://github.com/lmmendes/attic/compare/v2.2.2...v2.3.0) (2026-09-10)
+
+
+### Features
+
+* add asset history event actions ([#74](https://github.com/lmmendes/attic/issues/74)) ([cf963d9](https://github.com/lmmendes/attic/commit/cf963d92c34fa72bb1a9261c932e2ad83905455e))
+* **ci:** publish snapshot images for pull requests ([#72](https://github.com/lmmendes/attic/issues/72)) ([a0c72b8](https://github.com/lmmendes/attic/commit/a0c72b827ad6ae3158a28c3b8b63a17a64c276d2))
+
+
+### Bug Fixes
+
+* **frontend:** unify category create and edit editors ([#76](https://github.com/lmmendes/attic/issues/76)) ([204609a](https://github.com/lmmendes/attic/commit/204609a0edacb3cadb26b786aba717283a5c5f7c))
+
 ## [2.2.2](https://github.com/lmmendes/attic/compare/v2.2.1...v2.2.2) (2026-09-08)
 
 
