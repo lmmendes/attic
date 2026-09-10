@@ -20,8 +20,8 @@ const modal = {
 
 const event = {
   id: 'event-1', asset_id: 'asset-1', title: 'Repaired', description: 'Changed belt',
-  icon: 'i-lucide-wrench', event_date: '2026-09-07',
-  created_at: '2026-09-08T09:00:00Z', updated_at: '2026-09-08T09:00:00Z'
+  category: 'repair' as const, icon: 'i-lucide-wrench', occurred_at: '2026-09-09T15:30:00Z',
+  created_at: '2026-09-01T09:00:00Z', updated_at: '2026-09-08T09:00:00Z'
 }
 
 async function mountHistory() {
@@ -45,8 +45,9 @@ describe('AssetHistory', () => {
   it('renders custom and generated entries in reverse chronological order', async () => {
     const wrapper = await mountHistory()
     const titles = wrapper.findAll('li p.font-bold').map(node => node.text())
-    expect(titles).toEqual(['Last Updated', 'Repaired', 'Asset Created'])
+    expect(titles).toEqual(['Repaired', 'Last Updated', 'Asset Created'])
     expect(wrapper.text()).toContain('Changed belt')
+    expect(wrapper.text()).toContain('repair')
     expect(wrapper.find('button[aria-label="Actions for Repaired"]').exists()).toBe(true)
     expect(wrapper.get('button[aria-label="No actions available for Asset Created"]').attributes('disabled')).toBeDefined()
     wrapper.unmount()
@@ -57,16 +58,17 @@ describe('AssetHistory', () => {
     await wrapper.findAll('button').find(button => button.text() === 'Add event')!.trigger('click')
     const form = wrapper.get('form')
     await form.find('input[type="text"]').setValue('Inspected')
+    await form.find('select').setValue('maintenance')
     await form.find('textarea').setValue('Everything works')
-    await form.find('input[type="date"]').setValue('2030-01-02')
+    await form.find('input[type="datetime-local"]').setValue('2030-01-02T15:30')
     await form.trigger('submit')
     await flushPromises()
 
     expect(mutate).toHaveBeenCalledWith('/api/assets/asset-1/events', {
       method: 'POST',
       body: JSON.stringify({
-        title: 'Inspected', description: 'Everything works',
-        icon: 'i-lucide-calendar', event_date: '2030-01-02'
+        title: 'Inspected', category: 'maintenance', description: 'Everything works',
+        icon: 'i-lucide-calendar', occurred_at: new Date('2030-01-02T15:30').toISOString()
       })
     })
     expect(refresh).toHaveBeenCalledOnce()
@@ -83,6 +85,8 @@ describe('AssetHistory', () => {
     await flushPromises()
     const form = wrapper.get('form')
     expect((form.find('input[type="text"]').element as HTMLInputElement).value).toBe('Repaired')
+    expect((form.find('select').element as HTMLSelectElement).value).toBe('repair')
+    expect((form.find('textarea').element as HTMLTextAreaElement).value).toBe('Changed belt')
     await form.find('input[type="text"]').setValue('Serviced')
     await form.trigger('submit')
     await flushPromises()
@@ -110,16 +114,28 @@ describe('AssetHistory', () => {
   })
 
   it('preserves values and exposes API errors when saving fails', async () => {
-    mutate.mockRejectedValue({ data: { error: 'event_date must be valid' } })
+    mutate.mockRejectedValue({ data: { error: 'occurred_at must be valid' } })
     const wrapper = await mountHistory()
     await wrapper.findAll('button').find(button => button.text() === 'Add event')!.trigger('click')
     const input = wrapper.get('form input[type="text"]')
     await input.setValue('Inspection')
+    await wrapper.get('form textarea').setValue('Inspected all components')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.get('[role="alert"]').text()).toContain('event_date must be valid')
+    expect(wrapper.get('[role="alert"]').text()).toContain('occurred_at must be valid')
     expect((input.element as HTMLInputElement).value).toBe('Inspection')
+    wrapper.unmount()
+  })
+
+  it('requires a non-empty description before saving', async () => {
+    const wrapper = await mountHistory()
+    await wrapper.findAll('button').find(button => button.text() === 'Add event')!.trigger('click')
+    await wrapper.get('form input[type="text"]').setValue('Inspection')
+    await wrapper.get('form').trigger('submit')
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('Description is required')
+    expect(mutate).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 })

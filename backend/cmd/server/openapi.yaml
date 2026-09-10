@@ -596,7 +596,7 @@ paths:
         - $ref: '#/components/parameters/id'
       responses:
         '200':
-          description: Events ordered by date descending
+          description: Events ordered by occurrence time descending
           content:
             application/json:
               schema:
@@ -1129,7 +1129,7 @@ components:
 
     AssetEvent:
       type: object
-      required: [id, asset_id, title, icon, event_date, created_at, updated_at]
+      required: [id, asset_id, title, category, description, icon, occurred_at, created_at, updated_at]
       properties:
         id:
           type: string
@@ -1140,16 +1140,20 @@ components:
         title:
           type: string
           maxLength: 255
+        category:
+          type: string
+          enum: [repair, maintenance, note, issue]
         description:
           type: string
+          minLength: 1
           maxLength: 2000
         icon:
           type: string
           maxLength: 100
           pattern: '^i-lucide-[a-z0-9]+(?:-[a-z0-9]+)*$'
-        event_date:
+        occurred_at:
           type: string
-          format: date
+          format: date-time
         created_at:
           type: string
           format: date-time
@@ -1159,22 +1163,26 @@ components:
 
     AssetEventInput:
       type: object
-      required: [title, icon, event_date]
+      required: [title, category, description, icon, occurred_at]
       properties:
         title:
           type: string
           minLength: 1
           maxLength: 255
+        category:
+          type: string
+          enum: [repair, maintenance, note, issue]
         description:
           type: string
+          minLength: 1
           maxLength: 2000
         icon:
           type: string
           maxLength: 100
           pattern: '^i-lucide-[a-z0-9]+(?:-[a-z0-9]+)*$'
-        event_date:
+        occurred_at:
           type: string
-          format: date
+          format: date-time
 
     WarrantyInput:
       type: object

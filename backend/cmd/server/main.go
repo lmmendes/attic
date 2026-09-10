@@ -471,6 +471,7 @@ type userByEmailGetter interface {
 	GetByEmail(context.Context, string) (*domain.User, error)
 }
 
+// resolveAuthDisabledUser selects the existing user used by disabled authentication.
 func resolveAuthDisabledUser(ctx context.Context, users userByEmailGetter, email string) (*domain.User, error) {
 	user, err := users.GetByEmail(ctx, email)
 	if err != nil {

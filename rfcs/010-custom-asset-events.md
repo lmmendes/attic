@@ -9,14 +9,14 @@
 
 ## Summary
 
-Add user-managed events to an asset's history. An event records a title, an
-optional description, a Lucide icon, and a calendar date. Users can create,
-edit, and permanently delete events from the asset detail page.
+Add user-managed events to an asset's history. An event records a title, a
+category, a required description, a Lucide icon, and the date and time when it
+occurred. Users can create, edit, and permanently delete events from the asset
+detail page.
 
 Custom events share the existing Asset History timeline with the generated
 "Asset Created" and "Last Updated" entries. The combined timeline gives users
-one place to record repairs, maintenance, issues, notes, and other milestones
-without imposing a fixed event taxonomy.
+one place to record repairs, maintenance, issues, and notes.
 
 ## Motivation
 
@@ -27,23 +27,22 @@ serviced bicycle, or a damaged collectible all require context that does not
 belong in the asset's general notes or current condition.
 
 Custom events make that history explicit while keeping the entry model small.
-An icon provides a visual cue without requiring every organization to adopt
-the same repair, maintenance, note, or issue categories.
+A required category and icon provide consistent visual and semantic cues.
 
 ## Goals
 
-- Let authenticated users add dated events to an existing asset.
+- Let authenticated users add categorized, timestamped events to an existing asset.
 - Let users correct an event after it has been saved.
 - Let users permanently delete an event after confirmation.
 - Present custom events and generated asset lifecycle entries in one timeline.
-- Keep event dates timezone-neutral and allow both historical and future dates.
+- Preserve the event's occurrence time and allow both historical and future timestamps.
 - Scope every event operation to the current workspace and parent asset.
 - Document the event API in the existing OpenAPI specification.
 
 ## Non-goals
 
-- Structured event categories or organization-managed event types.
-- Times, time zones, or duration tracking.
+- Organization-managed event types beyond the fixed categories.
+- Duration tracking.
 - Recurring events and maintenance schedules.
 - Reminders or notifications for future events.
 - Loan, borrower, reservation, or movement tracking.
@@ -56,9 +55,10 @@ the same repair, maintenance, note, or issue categories.
 
 | Term | Meaning |
 |---|---|
-| Custom event | A dated history entry created and managed by a user |
+| Custom event | A timestamped history entry created and managed by a user |
 | Generated entry | The non-editable Asset Created or Last Updated entry derived from the asset |
-| Event date | The user-selected calendar date on which an event occurs |
+| Occurrence time | The user-selected date and time at which an event occurred |
+| Category | One of `repair`, `maintenance`, `note`, or `issue` |
 
 ## User Experience
 
@@ -69,13 +69,12 @@ The asset detail page retains its **Asset History** section and adds an
 
 - **Asset Created**, derived from `asset.created_at` and not editable;
 - **Last Updated**, derived from `asset.updated_at` and not editable; and
-- zero or more custom events, rendered with their selected icon, title,
-  optional description, and localized event date.
+- zero or more custom events, rendered with their category, selected icon,
+  title, required description, and localized occurrence time.
 
-The combined timeline is ordered by calendar date descending. When two entries
-share a date, their timestamps are ordered descending: generated entries use
-their source timestamp and custom events use `created_at`. A stable ID and entry
-type provide the final tie-break so the order does not change between renders.
+The combined timeline is ordered by occurrence timestamp descending. Generated
+entries use their source timestamps. A stable ID and entry type provide the
+final tie-break so the order does not change between renders.
 
 Creating or editing an event does not update the parent asset's `updated_at`.
 The Last Updated entry therefore continues to mean that the asset record itself
@@ -86,12 +85,13 @@ was modified.
 Selecting **Add event** opens a modal containing:
 
 1. A required title.
-2. An optional description.
-3. A required date, defaulted to the user's current calendar date.
-4. An accessible, curated Lucide icon grid, defaulted to
+2. A required category: repair, maintenance, note, or issue.
+3. A required description.
+4. A required date and time, defaulted to the user's current local date and time.
+5. An accessible, curated Lucide icon grid, defaulted to
    `i-lucide-calendar`.
 
-Past, current, and future dates are accepted. A future event is still an event,
+Past, current, and future timestamps are accepted. A future event is still an event,
 not a reminder: this RFC does not add notifications or a separate scheduled
 state.
 
@@ -117,23 +117,24 @@ CREATE TABLE asset_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     asset_id UUID NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL CHECK (length(trim(title)) > 0),
-    description TEXT,
+    category VARCHAR(20) NOT NULL CHECK (category IN ('repair', 'maintenance', 'note', 'issue')),
+    description TEXT NOT NULL CHECK (length(trim(description)) > 0 AND length(description) <= 2000),
     icon VARCHAR(100) NOT NULL,
-    event_date DATE NOT NULL,
+    occurred_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_asset_events_asset_date
-    ON asset_events(asset_id, event_date DESC, created_at DESC);
+CREATE INDEX idx_asset_events_asset_occurred_at
+    ON asset_events(asset_id, occurred_at DESC, created_at DESC);
 
 CREATE TRIGGER update_asset_events_updated_at
     BEFORE UPDATE ON asset_events
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 ```
 
-`DATE` is intentional: the user records a calendar date, not an instant. API
-clients must not apply a timezone conversion to `event_date`.
+`occurred_at` is an instant. API clients send RFC3339 date-times and render the
+stored value in the viewer's local timezone.
 
 Events inherit their workspace ownership through the parent asset. Repository
 queries join the asset and require its `organization_id` to match the current
@@ -146,20 +147,19 @@ The down migration drops the trigger, index, and table in that order.
 
 ```go
 type AssetEvent struct {
-    ID          uuid.UUID `json:"id"`
-    AssetID     uuid.UUID `json:"asset_id"`
-    Title       string    `json:"title"`
-    Description *string   `json:"description,omitempty"`
-    Icon        string    `json:"icon"`
-    EventDate   time.Time `json:"-"`
-    CreatedAt   time.Time `json:"created_at"`
-    UpdatedAt   time.Time `json:"updated_at"`
+    ID          uuid.UUID          `json:"id"`
+    AssetID     uuid.UUID          `json:"asset_id"`
+    Title       string             `json:"title"`
+    Category    AssetEventCategory `json:"category"`
+    Description string             `json:"description"`
+    Icon        string             `json:"icon"`
+    OccurredAt  time.Time          `json:"occurred_at"`
+    CreatedAt   time.Time          `json:"created_at"`
+    UpdatedAt   time.Time          `json:"updated_at"`
 }
 ```
 
-The repository may represent `event_date` as `time.Time`, but the HTTP response
-maps it to a date-only string. The frontend represents dates and timestamps as
-strings.
+The API and frontend represent `occurred_at` as an RFC3339 date-time string.
 
 ## API Design
 
@@ -179,7 +179,7 @@ the wrong asset.
 ### List events
 
 `GET /api/assets/{id}/events` returns `200 OK` and an array ordered by
-`event_date DESC`, `created_at DESC`, and `id DESC`. An asset with no custom
+`occurred_at DESC`, `created_at DESC`, and `id DESC`. An asset with no custom
 events returns `[]`, not `null`. A missing or soft-deleted asset returns
 `404 Not Found`.
 
@@ -190,9 +190,10 @@ events returns `[]`, not `null`. A missing or soft-deleted asset returns
 ```json
 {
   "title": "Replaced drive belt",
+  "category": "repair",
   "description": "Installed the manufacturer's replacement part.",
   "icon": "i-lucide-wrench",
-  "event_date": "2026-09-08"
+  "occurred_at": "2026-09-08T14:30:00Z"
 }
 ```
 
@@ -203,17 +204,17 @@ A successful request returns `201 Created` with the complete event:
   "id": "9ceeca85-306a-49dd-a5ab-94004335d454",
   "asset_id": "0b242c81-76ab-4e67-b07c-ad520237c867",
   "title": "Replaced drive belt",
+  "category": "repair",
   "description": "Installed the manufacturer's replacement part.",
   "icon": "i-lucide-wrench",
-  "event_date": "2026-09-08",
+  "occurred_at": "2026-09-08T14:30:00Z",
   "created_at": "2026-09-08T14:42:00Z",
   "updated_at": "2026-09-08T14:42:00Z"
 }
 ```
 
-The response serializer formats `event_date` explicitly as `YYYY-MM-DD` rather
-than relying on Go's default `time.Time` JSON encoding. Clients treat the value
-as a calendar date and must not convert it through a timestamp or timezone.
+The response serializer emits `occurred_at` as an RFC3339 timestamp. Clients
+display it in the viewer's local timezone.
 
 ### Update an event
 
@@ -234,13 +235,12 @@ The server is authoritative and applies identical validation during creation
 and update:
 
 - Trim the title and require 1 to 255 Unicode characters.
-- Trim the description, store an empty description as `NULL`, and limit it to
-  2,000 Unicode characters.
+- Require category to be `repair`, `maintenance`, `note`, or `issue`.
+- Trim the description and require 1 to 2,000 Unicode characters.
 - Require an icon of at most 100 bytes matching
   `^i-lucide-[a-z0-9]+(?:-[a-z0-9]+)*$`.
-- Require `event_date` in exact `YYYY-MM-DD` form and reject invalid calendar
-  dates or trailing data.
-- Accept dates before, on, or after the current date.
+- Require `occurred_at` to be an RFC3339 date-time with an explicit timezone.
+- Accept timestamps before, at, or after the current time.
 - Reject unknown JSON shapes or malformed request bodies with `400 Bad Request`
   where supported by the shared decoder conventions.
 
@@ -317,8 +317,8 @@ reveal whether an event exists elsewhere.
 ### Frontend
 
 - Render generated and custom entries in one deterministic timeline.
-- Render the selected icon, title, optional description, and localized date.
-- Open the add modal with today's date and the default calendar icon.
+- Render the category, selected icon, title, required description, and localized occurrence time.
+- Open the add modal with the current local date and time, note category, and default calendar icon.
 - Submit create and update payloads and refresh after success.
 - Preserve form state and show an error after a failed save.
 - Pre-fill all fields when editing an event.
@@ -331,8 +331,8 @@ reveal whether an event exists elsewhere.
 
 - An authenticated user can create, edit, and delete custom events from an
   existing asset's detail page.
-- Events contain only title, optional description, icon, and date as editable
-  domain fields.
+- Events contain a title, fixed category, required description, icon, and
+  occurrence timestamp as editable domain fields.
 - Custom and generated entries appear together in reverse-chronological order.
 - Future event dates are accepted without adding reminder semantics.
 - All event operations are scoped to the current workspace and URL asset.

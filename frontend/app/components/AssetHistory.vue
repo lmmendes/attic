@@ -13,8 +13,8 @@ type TimelineEntry = {
   title: string
   description: string
   icon: string
-  date: string
   timestamp: string
+  category?: AssetEvent['category']
   custom?: AssetEvent
 }
 
@@ -30,6 +30,13 @@ const icons = [
   'i-lucide-sparkles', 'i-lucide-star'
 ]
 
+const categories: { label: string, value: AssetEvent['category'] }[] = [
+  { label: 'Repair', value: 'repair' },
+  { label: 'Maintenance', value: 'maintenance' },
+  { label: 'Note', value: 'note' },
+  { label: 'Issue', value: 'issue' }
+]
+
 const modalOpen = ref(false)
 const deleting = ref<AssetEvent | null>(null)
 const deletingOpen = computed({
@@ -41,51 +48,62 @@ const deletingOpen = computed({
 const editing = ref<AssetEvent | null>(null)
 const busy = ref(false)
 const formError = ref('')
-const form = reactive({ title: '', description: '', icon: 'i-lucide-calendar', event_date: today() })
+const form = reactive({
+  title: '',
+  category: 'note' as AssetEvent['category'],
+  description: '',
+  icon: 'i-lucide-calendar',
+  occurred_at: localDateTime(new Date())
+})
 
 const timeline = computed<TimelineEntry[]>(() => {
   const entries: TimelineEntry[] = (events.value || []).map(event => ({
     id: event.id,
     title: event.title,
-    description: event.description || '',
+    description: event.description,
     icon: event.icon,
-    date: event.event_date,
-    timestamp: event.created_at,
+    timestamp: event.occurred_at,
+    category: event.category,
     custom: event
   }))
   entries.push({
     id: 'system-updated', title: 'Last Updated', description: 'Asset details were modified.',
-    icon: 'i-lucide-pencil', date: props.updatedAt.slice(0, 10), timestamp: props.updatedAt
+    icon: 'i-lucide-pencil', timestamp: props.updatedAt
   })
   entries.push({
     id: 'system-created', title: 'Asset Created', description: 'Initial entry created.',
-    icon: 'i-lucide-package-plus', date: props.createdAt.slice(0, 10), timestamp: props.createdAt
+    icon: 'i-lucide-package-plus', timestamp: props.createdAt
   })
-  return entries.sort((a, b) => b.date.localeCompare(a.date)
-    || b.timestamp.localeCompare(a.timestamp)
+  return entries.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)
     || Number(Boolean(b.custom)) - Number(Boolean(a.custom))
     || b.id.localeCompare(a.id))
 })
 
+/** Opens an empty event form with local current date and time. */
 function openCreate() {
   editing.value = null
-  Object.assign(form, { title: '', description: '', icon: 'i-lucide-calendar', event_date: today() })
-  formError.value = ''
-  modalOpen.value = true
-}
-
-function openEdit(event: AssetEvent) {
-  editing.value = event
   Object.assign(form, {
-    title: event.title,
-    description: event.description || '',
-    icon: event.icon,
-    event_date: event.event_date.slice(0, 10)
+    title: '', category: 'note', description: '', icon: 'i-lucide-calendar', occurred_at: localDateTime(new Date())
   })
   formError.value = ''
   modalOpen.value = true
 }
 
+/** Opens the event form populated from an existing event. */
+function openEdit(event: AssetEvent) {
+  editing.value = event
+  Object.assign(form, {
+    title: event.title,
+    category: event.category,
+    description: event.description,
+    icon: event.icon,
+    occurred_at: localDateTime(event.occurred_at)
+  })
+  formError.value = ''
+  modalOpen.value = true
+}
+
+/** Builds the edit and delete actions for a custom event. */
 function eventActions(event: AssetEvent) {
   return [
     {
@@ -102,14 +120,24 @@ function eventActions(event: AssetEvent) {
   ]
 }
 
+/** Validates and persists the current event form. */
 async function save() {
   formError.value = ''
   if (!form.title.trim()) {
     formError.value = 'Title is required.'
     return
   }
-  if (!form.event_date) {
-    formError.value = 'Date is required.'
+  if (!form.description.trim()) {
+    formError.value = 'Description is required.'
+    return
+  }
+  if (!categories.some(category => category.value === form.category)) {
+    formError.value = 'Category is required.'
+    return
+  }
+  const occurredAt = new Date(form.occurred_at)
+  if (!form.occurred_at || Number.isNaN(occurredAt.getTime())) {
+    formError.value = 'Date and time are required.'
     return
   }
   busy.value = true
@@ -119,9 +147,10 @@ async function save() {
       method: editing.value ? 'PUT' : 'POST',
       body: JSON.stringify({
         title: form.title,
-        description: form.description || undefined,
+        category: form.category,
+        description: form.description,
         icon: form.icon,
-        event_date: form.event_date
+        occurred_at: occurredAt.toISOString()
       })
     })
     toast.add({ title: editing.value ? 'Event updated' : 'Event added', color: 'success' })
@@ -134,6 +163,7 @@ async function save() {
   }
 }
 
+/** Permanently deletes the selected custom event. */
 async function deleteEvent() {
   if (!deleting.value) return
   busy.value = true
@@ -149,26 +179,21 @@ async function deleteEvent() {
   }
 }
 
-function formatEventDate(value: string): string {
-  const [year, month, day] = value.slice(0, 10).split('-').map(Number)
-  return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-    .format(new Date(year!, month! - 1, day!))
-}
-
+/** Formats an event instant in the viewer's local timezone. */
 function formatTimestamp(value: string): string {
   return new Intl.DateTimeFormat(undefined, {
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
   }).format(new Date(value))
 }
 
-function today(): string {
-  const value = new Date()
-  const year = value.getFullYear()
-  const month = String(value.getMonth() + 1).padStart(2, '0')
-  const day = String(value.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+/** Converts an instant to a value accepted by a datetime-local input. */
+function localDateTime(value: Date | string): string {
+  const date = value instanceof Date ? value : new Date(value)
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 16)
 }
 
+/** Extracts a useful API error without discarding the fallback message. */
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === 'object') {
     const data = 'data' in error ? error.data : undefined
@@ -213,6 +238,12 @@ function apiErrorMessage(error: unknown, fallback: string): string {
                 {{ entry.title }}
               </p>
               <p
+                v-if="entry.category"
+                class="mt-1 text-[11px] font-semibold uppercase tracking-wide text-attic-600 dark:text-attic-300"
+              >
+                {{ entry.category }}
+              </p>
+              <p
                 v-if="entry.description"
                 class="mt-1 whitespace-pre-wrap text-xs text-gray-500 dark:text-gray-400"
               >
@@ -220,7 +251,7 @@ function apiErrorMessage(error: unknown, fallback: string): string {
               </p>
             </div>
             <span class="pt-1 text-right text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400">
-              {{ entry.custom ? formatEventDate(entry.date) : formatTimestamp(entry.timestamp) }}
+              {{ formatTimestamp(entry.timestamp) }}
             </span>
             <UDropdownMenu
               v-if="entry.custom"
@@ -269,21 +300,44 @@ function apiErrorMessage(error: unknown, fallback: string): string {
               autofocus
             />
           </UFormField>
-          <UFormField label="Description">
+          <UFormField
+            label="Category"
+            required
+          >
+            <select
+              v-model="form.category"
+              aria-label="Category"
+              class="w-full rounded-lg border border-subtle bg-white px-3 py-2 text-sm dark:bg-mist-900"
+              required
+            >
+              <option
+                v-for="category in categories"
+                :key="category.value"
+                :value="category.value"
+              >
+                {{ category.label }}
+              </option>
+            </select>
+          </UFormField>
+          <UFormField
+            label="Description"
+            required
+          >
             <UTextarea
               v-model="form.description"
               maxlength="2000"
               :rows="4"
               class="w-full"
+              required
             />
           </UFormField>
           <UFormField
-            label="Date"
+            label="Date and time"
             required
           >
             <UInput
-              v-model="form.event_date"
-              type="date"
+              v-model="form.occurred_at"
+              type="datetime-local"
               class="w-full"
             />
           </UFormField>

@@ -12,24 +12,29 @@ import (
 	"github.com/lmmendes/attic/internal/domain"
 )
 
+// AssetEventRequest is the editable payload for a custom asset event.
 type AssetEventRequest struct {
-	Title       string  `json:"title"`
-	Description *string `json:"description,omitempty"`
-	Icon        string  `json:"icon"`
-	EventDate   string  `json:"event_date"`
+	Title       string                    `json:"title"`
+	Category    domain.AssetEventCategory `json:"category"`
+	Description string                    `json:"description"`
+	Icon        string                    `json:"icon"`
+	OccurredAt  string                    `json:"occurred_at"`
 }
 
+// AssetEventResponse is the API representation of a custom asset event.
 type AssetEventResponse struct {
-	ID          uuid.UUID `json:"id"`
-	AssetID     uuid.UUID `json:"asset_id"`
-	Title       string    `json:"title"`
-	Description *string   `json:"description,omitempty"`
-	Icon        string    `json:"icon"`
-	EventDate   string    `json:"event_date"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          uuid.UUID                 `json:"id"`
+	AssetID     uuid.UUID                 `json:"asset_id"`
+	Title       string                    `json:"title"`
+	Category    domain.AssetEventCategory `json:"category"`
+	Description string                    `json:"description"`
+	Icon        string                    `json:"icon"`
+	OccurredAt  time.Time                 `json:"occurred_at"`
+	CreatedAt   time.Time                 `json:"created_at"`
+	UpdatedAt   time.Time                 `json:"updated_at"`
 }
 
+// ListAssetEvents returns custom history events for an asset.
 func (h *Handler) ListAssetEvents(w http.ResponseWriter, r *http.Request) {
 	assetID, ok := h.activeAssetID(w, r)
 	if !ok {
@@ -47,18 +52,19 @@ func (h *Handler) ListAssetEvents(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, responses)
 }
 
+// CreateAssetEvent adds a custom history event to an asset.
 func (h *Handler) CreateAssetEvent(w http.ResponseWriter, r *http.Request) {
 	assetID, ok := h.activeAssetID(w, r)
 	if !ok {
 		return
 	}
-	req, eventDate, ok := decodeAssetEventRequest(w, r)
+	req, occurredAt, ok := decodeAssetEventRequest(w, r)
 	if !ok {
 		return
 	}
 	event := &domain.AssetEvent{
-		AssetID: assetID, Title: req.Title, Description: req.Description,
-		Icon: req.Icon, EventDate: eventDate,
+		AssetID: assetID, Title: req.Title, Category: req.Category,
+		Description: req.Description, Icon: req.Icon, OccurredAt: occurredAt,
 	}
 	if err := h.repos.AssetEvents.Create(r.Context(), h.orgID, event); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -71,6 +77,7 @@ func (h *Handler) CreateAssetEvent(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, assetEventResponse(event))
 }
 
+// UpdateAssetEvent replaces an existing custom history event.
 func (h *Handler) UpdateAssetEvent(w http.ResponseWriter, r *http.Request) {
 	assetID, ok := h.activeAssetID(w, r)
 	if !ok {
@@ -81,7 +88,7 @@ func (h *Handler) UpdateAssetEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid event ID")
 		return
 	}
-	req, eventDate, ok := decodeAssetEventRequest(w, r)
+	req, occurredAt, ok := decodeAssetEventRequest(w, r)
 	if !ok {
 		return
 	}
@@ -94,7 +101,8 @@ func (h *Handler) UpdateAssetEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "asset event not found")
 		return
 	}
-	event.Title, event.Description, event.Icon, event.EventDate = req.Title, req.Description, req.Icon, eventDate
+	event.Title, event.Category, event.Description = req.Title, req.Category, req.Description
+	event.Icon, event.OccurredAt = req.Icon, occurredAt
 	if err := h.repos.AssetEvents.Update(r.Context(), h.orgID, event); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "asset event not found")
@@ -106,6 +114,7 @@ func (h *Handler) UpdateAssetEvent(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, assetEventResponse(event))
 }
 
+// DeleteAssetEvent removes a custom history event from an asset.
 func (h *Handler) DeleteAssetEvent(w http.ResponseWriter, r *http.Request) {
 	assetID, ok := h.activeAssetID(w, r)
 	if !ok {
@@ -127,6 +136,7 @@ func (h *Handler) DeleteAssetEvent(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// activeAssetID resolves an active asset in the current organization.
 func (h *Handler) activeAssetID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 	assetID, err := parseUUID(r, "id")
 	if err != nil {
@@ -145,6 +155,7 @@ func (h *Handler) activeAssetID(w http.ResponseWriter, r *http.Request) (uuid.UU
 	return assetID, true
 }
 
+// decodeAssetEventRequest validates and normalizes an event request.
 func decodeAssetEventRequest(w http.ResponseWriter, r *http.Request) (AssetEventRequest, time.Time, bool) {
 	var req AssetEventRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -156,35 +167,33 @@ func decodeAssetEventRequest(w http.ResponseWriter, r *http.Request) (AssetEvent
 		writeError(w, http.StatusBadRequest, "title must contain 1 to 255 characters")
 		return req, time.Time{}, false
 	}
-	if req.Description != nil {
-		description := strings.TrimSpace(*req.Description)
-		if utf8.RuneCountInString(description) > 2000 {
-			writeError(w, http.StatusBadRequest, "description must be at most 2000 characters")
-			return req, time.Time{}, false
-		}
-		if description == "" {
-			req.Description = nil
-		} else {
-			req.Description = &description
-		}
+	if !req.Category.IsValid() {
+		writeError(w, http.StatusBadRequest, "category must be one of repair, maintenance, note, or issue")
+		return req, time.Time{}, false
+	}
+	req.Description = strings.TrimSpace(req.Description)
+	if req.Description == "" || utf8.RuneCountInString(req.Description) > 2000 {
+		writeError(w, http.StatusBadRequest, "description must contain 1 to 2000 characters")
+		return req, time.Time{}, false
 	}
 	if len(req.Icon) > 100 || !collectionIconPattern.MatchString(req.Icon) {
 		writeError(w, http.StatusBadRequest, "icon must be a Lucide icon name")
 		return req, time.Time{}, false
 	}
-	eventDate, err := time.Parse("2006-01-02", req.EventDate)
+	occurredAt, err := time.Parse(time.RFC3339, req.OccurredAt)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "event_date must be a valid date in YYYY-MM-DD format")
+		writeError(w, http.StatusBadRequest, "occurred_at must be a valid RFC3339 date-time")
 		return req, time.Time{}, false
 	}
-	return req, eventDate, true
+	return req, occurredAt, true
 }
 
+// assetEventResponse maps a domain event to its API representation.
 func assetEventResponse(event *domain.AssetEvent) AssetEventResponse {
 	return AssetEventResponse{
 		ID: event.ID, AssetID: event.AssetID, Title: event.Title,
-		Description: event.Description, Icon: event.Icon,
-		EventDate: event.EventDate.Format("2006-01-02"),
-		CreatedAt: event.CreatedAt, UpdatedAt: event.UpdatedAt,
+		Category: event.Category, Description: event.Description, Icon: event.Icon,
+		OccurredAt: event.OccurredAt,
+		CreatedAt:  event.CreatedAt, UpdatedAt: event.UpdatedAt,
 	}
 }

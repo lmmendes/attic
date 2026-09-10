@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -13,17 +14,17 @@ import (
 )
 
 func Test_decodeAssetEventRequest_ValidInput(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/api/assets/id/events", strings.NewReader(`{
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/assets/id/events", strings.NewReader(`{
 		"title":"  Repaired  ","description":"  New belt  ",
-		"icon":"i-lucide-wrench","event_date":"2030-02-14"
+		"category":"repair","icon":"i-lucide-wrench","occurred_at":"2030-02-14T16:30:00+01:00"
 	}`))
 	rec := httptest.NewRecorder()
-	decoded, eventDate, ok := decodeAssetEventRequest(rec, req)
-	if !ok || decoded.Title != "Repaired" || decoded.Description == nil || *decoded.Description != "New belt" {
+	decoded, occurredAt, ok := decodeAssetEventRequest(rec, req)
+	if !ok || decoded.Title != "Repaired" || decoded.Description != "New belt" || decoded.Category != domain.AssetEventCategoryRepair {
 		t.Fatalf("unexpected decoded request: %#v", decoded)
 	}
-	if eventDate.Format("2006-01-02") != "2030-02-14" {
-		t.Fatalf("unexpected event date: %v", eventDate)
+	if occurredAt.Format(time.RFC3339) != "2030-02-14T16:30:00+01:00" {
+		t.Fatalf("unexpected occurrence timestamp: %v", occurredAt)
 	}
 }
 
@@ -33,13 +34,15 @@ func Test_decodeAssetEventRequest_RejectsInvalidFields(t *testing.T) {
 		body string
 		want string
 	}{
-		{"blank title", `{"title":" ","icon":"i-lucide-wrench","event_date":"2026-09-08"}`, "title must contain"},
-		{"bad icon", `{"title":"Repair","icon":"<script>","event_date":"2026-09-08"}`, "icon must be"},
-		{"bad date", `{"title":"Repair","icon":"i-lucide-wrench","event_date":"2026-02-30"}`, "event_date must be"},
+		{"blank title", `{"title":" ","category":"repair","description":"New belt","icon":"i-lucide-wrench","occurred_at":"2026-09-08T10:00:00Z"}`, "title must contain"},
+		{"bad category", `{"title":"Repair","category":"other","description":"New belt","icon":"i-lucide-wrench","occurred_at":"2026-09-08T10:00:00Z"}`, "category must be"},
+		{"blank description", `{"title":"Repair","category":"repair","description":" ","icon":"i-lucide-wrench","occurred_at":"2026-09-08T10:00:00Z"}`, "description must contain"},
+		{"bad icon", `{"title":"Repair","category":"repair","description":"New belt","icon":"<script>","occurred_at":"2026-09-08T10:00:00Z"}`, "icon must be"},
+		{"bad timestamp", `{"title":"Repair","category":"repair","description":"New belt","icon":"i-lucide-wrench","occurred_at":"2026-02-30T10:00:00Z"}`, "occurred_at must be"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/api/assets/id/events", strings.NewReader(test.body))
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/assets/id/events", strings.NewReader(test.body))
 			rec := httptest.NewRecorder()
 			_, _, ok := decodeAssetEventRequest(rec, req)
 			if ok || rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), test.want) {
@@ -49,10 +52,11 @@ func Test_decodeAssetEventRequest_RejectsInvalidFields(t *testing.T) {
 	}
 }
 
-func Test_assetEventResponse_FormatsDateWithoutTimestamp(t *testing.T) {
+func Test_assetEventResponse_IncludesOccurrenceTimestampAndCategory(t *testing.T) {
 	event := &domain.AssetEvent{
-		ID: uuid.New(), AssetID: uuid.New(), Title: "Repair", Icon: "i-lucide-wrench",
-		EventDate: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC), CreatedAt: time.Now(), UpdatedAt: time.Now(),
+		ID: uuid.New(), AssetID: uuid.New(), Title: "Repair", Category: domain.AssetEventCategoryRepair,
+		Description: "Replaced belt", Icon: "i-lucide-wrench",
+		OccurredAt: time.Date(2026, 9, 8, 14, 30, 0, 0, time.UTC), CreatedAt: time.Now(), UpdatedAt: time.Now(),
 	}
 	rec := httptest.NewRecorder()
 	writeJSON(rec, http.StatusOK, assetEventResponse(event))
@@ -60,7 +64,7 @@ func Test_assetEventResponse_FormatsDateWithoutTimestamp(t *testing.T) {
 	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if response["event_date"] != "2026-09-08" {
-		t.Fatalf("expected date-only response, got %v", response["event_date"])
+	if response["occurred_at"] != "2026-09-08T14:30:00Z" || response["category"] != "repair" {
+		t.Fatalf("expected timestamp and category response, got %v", response)
 	}
 }
