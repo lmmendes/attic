@@ -116,10 +116,6 @@ async function save() {
     formError.value = 'Title is required.'
     return
   }
-  if (!form.description.trim()) {
-    formError.value = 'Description is required.'
-    return
-  }
   const occurredAt = new Date(form.occurred_at)
   if (!form.occurred_at || Number.isNaN(occurredAt.getTime())) {
     formError.value = 'Date and time are required.'
@@ -131,8 +127,8 @@ async function save() {
     await apiFetch(url, {
       method: editing.value ? 'PUT' : 'POST',
       body: JSON.stringify({
-        title: form.title,
-        description: form.description,
+        title: form.title.trim(),
+        description: form.description.trim(),
         icon: form.icon,
         occurred_at: occurredAt.toISOString()
       })
@@ -280,14 +276,12 @@ function apiErrorMessage(error: unknown, fallback: string): string {
           </UFormField>
           <UFormField
             label="Description"
-            required
           >
             <UTextarea
               v-model="form.description"
               maxlength="2000"
               :rows="4"
               class="w-full"
-              required
             />
           </UFormField>
           <UFormField

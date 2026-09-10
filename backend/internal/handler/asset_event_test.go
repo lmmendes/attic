@@ -28,6 +28,17 @@ func Test_decodeAssetEventRequest_ValidInput(t *testing.T) {
 	}
 }
 
+func Test_decodeAssetEventRequest_AllowsMissingDescription(t *testing.T) {
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/assets/id/events", strings.NewReader(`{
+		"title":"Inspected","icon":"i-lucide-wrench","occurred_at":"2030-02-14T16:30:00Z"
+	}`))
+	rec := httptest.NewRecorder()
+	decoded, _, ok := decodeAssetEventRequest(rec, req)
+	if !ok || decoded.Description != "" {
+		t.Fatalf("unexpected decoded request: %#v status=%d body=%s", decoded, rec.Code, rec.Body.String())
+	}
+}
+
 func Test_decodeAssetEventRequest_RejectsInvalidFields(t *testing.T) {
 	tests := []struct {
 		name string
@@ -35,7 +46,7 @@ func Test_decodeAssetEventRequest_RejectsInvalidFields(t *testing.T) {
 		want string
 	}{
 		{"blank title", `{"title":" ","description":"New belt","icon":"i-lucide-wrench","occurred_at":"2026-09-08T10:00:00Z"}`, "title must contain"},
-		{"blank description", `{"title":"Repair","description":" ","icon":"i-lucide-wrench","occurred_at":"2026-09-08T10:00:00Z"}`, "description must contain"},
+		{"long description", `{"title":"Repair","description":"` + strings.Repeat("a", 2001) + `","icon":"i-lucide-wrench","occurred_at":"2026-09-08T10:00:00Z"}`, "description must contain at most"},
 		{"bad icon", `{"title":"Repair","description":"New belt","icon":"<script>","occurred_at":"2026-09-08T10:00:00Z"}`, "icon must be"},
 		{"bad timestamp", `{"title":"Repair","description":"New belt","icon":"i-lucide-wrench","occurred_at":"2026-02-30T10:00:00Z"}`, "occurred_at must be"},
 	}

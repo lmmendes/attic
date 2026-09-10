@@ -166,8 +166,8 @@ func decodeAssetEventRequest(w http.ResponseWriter, r *http.Request) (AssetEvent
 		return req, time.Time{}, false
 	}
 	req.Description = strings.TrimSpace(req.Description)
-	if req.Description == "" || utf8.RuneCountInString(req.Description) > 2000 {
-		writeError(w, http.StatusBadRequest, "description must contain 1 to 2000 characters")
+	if utf8.RuneCountInString(req.Description) > 2000 {
+		writeError(w, http.StatusBadRequest, "description must contain at most 2000 characters")
 		return req, time.Time{}, false
 	}
 	if len(req.Icon) > 100 || !collectionIconPattern.MatchString(req.Icon) {

@@ -20,7 +20,7 @@ const modal = {
 
 const event = {
   id: 'event-1', asset_id: 'asset-1', title: 'Repaired', description: 'Changed belt',
-  icon: 'i-lucide-wrench', occurred_at: '2026-09-09T15:30:00Z',
+  icon: 'i-lucide-wrench', occurred_at: '2026-05-09T15:30:00Z',
   created_at: '2026-09-01T09:00:00Z', updated_at: '2026-09-08T09:00:00Z'
 }
 
@@ -45,7 +45,7 @@ describe('AssetHistory', () => {
   it('renders custom and generated entries in reverse chronological order', async () => {
     const wrapper = await mountHistory()
     const titles = wrapper.findAll('li p.font-bold').map(node => node.text())
-    expect(titles).toEqual(['Repaired', 'Last Updated', 'Asset Created'])
+    expect(titles).toEqual(['Last Updated', 'Repaired', 'Asset Created'])
     expect(wrapper.text()).toContain('Changed belt')
     expect(wrapper.find('button[aria-label="Actions for Repaired"]').exists()).toBe(true)
     expect(wrapper.get('button[aria-label="No actions available for Asset Created"]').attributes('disabled')).toBeDefined()
@@ -125,14 +125,18 @@ describe('AssetHistory', () => {
     wrapper.unmount()
   })
 
-  it('requires a non-empty description before saving', async () => {
+  it('creates an event without a description', async () => {
     const wrapper = await mountHistory()
     await wrapper.findAll('button').find(button => button.text() === 'Add event')!.trigger('click')
     await wrapper.get('form input[type="text"]').setValue('Inspection')
     await wrapper.get('form').trigger('submit')
+    await flushPromises()
 
-    expect(wrapper.get('[role="alert"]').text()).toContain('Description is required')
-    expect(mutate).not.toHaveBeenCalled()
+    expect(mutate).toHaveBeenCalledWith('/api/assets/asset-1/events', {
+      method: 'POST',
+      body: expect.stringContaining('"description":""')
+    })
+    expect(refresh).toHaveBeenCalledOnce()
     wrapper.unmount()
   })
 })

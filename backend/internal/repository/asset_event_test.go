@@ -115,7 +115,7 @@ func Test_AssetEventRepository_CreateRejectsUnavailableAsset(t *testing.T) {
 	}
 }
 
-func Test_AssetEventRepository_EnforcesRequiredDescription(t *testing.T) {
+func Test_AssetEventRepository_AllowsEmptyDescription(t *testing.T) {
 	ctx := context.Background()
 	if err := testDB.TruncateAll(ctx); err != nil {
 		t.Fatalf("failed to truncate: %v", err)
@@ -127,11 +127,11 @@ func Test_AssetEventRepository_EnforcesRequiredDescription(t *testing.T) {
 	repo := NewAssetEventRepository(testDB.Pool)
 
 	event := &domain.AssetEvent{
-		AssetID: asset.ID, Title: "Event", Description: "  ",
+		AssetID: asset.ID, Title: "Event", Description: "",
 		Icon: "i-lucide-calendar", OccurredAt: timestamp(2026, 9, 8, 14, 30),
 	}
-	if err := repo.Create(ctx, org.ID, event); err == nil {
-		t.Fatal("expected database constraint error")
+	if err := repo.Create(ctx, org.ID, event); err != nil {
+		t.Fatalf("create event without description: %v", err)
 	}
 }
 

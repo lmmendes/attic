@@ -1142,7 +1142,6 @@ components:
           maxLength: 255
         description:
           type: string
-          minLength: 1
           maxLength: 2000
         icon:
           type: string
@@ -1160,7 +1159,7 @@ components:
 
     AssetEventInput:
       type: object
-      required: [title, description, icon, occurred_at]
+      required: [title, icon, occurred_at]
       properties:
         title:
           type: string
@@ -1168,7 +1167,6 @@ components:
           maxLength: 255
         description:
           type: string
-          minLength: 1
           maxLength: 2000
         icon:
           type: string
