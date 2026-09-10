@@ -1129,7 +1129,7 @@ components:
 
     AssetEvent:
       type: object
-      required: [id, asset_id, title, category, description, icon, occurred_at, created_at, updated_at]
+      required: [id, asset_id, title, description, icon, occurred_at, created_at, updated_at]
       properties:
         id:
           type: string
@@ -1140,9 +1140,6 @@ components:
         title:
           type: string
           maxLength: 255
-        category:
-          type: string
-          enum: [repair, maintenance, note, issue]
         description:
           type: string
           minLength: 1
@@ -1163,15 +1160,12 @@ components:
 
     AssetEventInput:
       type: object
-      required: [title, category, description, icon, occurred_at]
+      required: [title, description, icon, occurred_at]
       properties:
         title:
           type: string
           minLength: 1
           maxLength: 255
-        category:
-          type: string
-          enum: [repair, maintenance, note, issue]
         description:
           type: string
           minLength: 1

@@ -23,12 +23,12 @@ func Test_AssetEventRepository_CRUDAndOrdering(t *testing.T) {
 	repo := NewAssetEventRepository(testDB.Pool)
 
 	older := &domain.AssetEvent{
-		AssetID: asset.ID, Title: "Bought", Category: domain.AssetEventCategoryNote,
-		Description: "Recorded the original purchase", Icon: "i-lucide-shopping-bag", OccurredAt: timestamp(2025, 1, 1, 9, 0),
+		AssetID: asset.ID, Title: "Bought", Description: "Recorded the original purchase",
+		Icon: "i-lucide-shopping-bag", OccurredAt: timestamp(2025, 1, 1, 9, 0),
 	}
 	newer := &domain.AssetEvent{
-		AssetID: asset.ID, Title: "Serviced", Category: domain.AssetEventCategoryMaintenance,
-		Description: "Completed routine service", Icon: "i-lucide-wrench", OccurredAt: timestamp(2026, 9, 8, 14, 30),
+		AssetID: asset.ID, Title: "Serviced", Description: "Completed routine service",
+		Icon: "i-lucide-wrench", OccurredAt: timestamp(2026, 9, 8, 14, 30),
 	}
 	if err := repo.Create(ctx, org.ID, newer); err != nil {
 		t.Fatalf("create newer event: %v", err)
@@ -45,12 +45,12 @@ func Test_AssetEventRepository_CRUDAndOrdering(t *testing.T) {
 		t.Fatal("expected reverse chronological ordering")
 	}
 
-	newer.Title, newer.Category, newer.Description = "Repaired", domain.AssetEventCategoryRepair, "Replaced worn brushes"
+	newer.Title, newer.Description = "Repaired", "Replaced worn brushes"
 	if err := repo.Update(ctx, org.ID, newer); err != nil {
 		t.Fatalf("update event: %v", err)
 	}
 	fetched, err := repo.GetByID(ctx, org.ID, asset.ID, newer.ID)
-	if err != nil || fetched == nil || fetched.Title != "Repaired" || fetched.Category != domain.AssetEventCategoryRepair || fetched.Description != "Replaced worn brushes" {
+	if err != nil || fetched == nil || fetched.Title != "Repaired" || fetched.Description != "Replaced worn brushes" {
 		t.Fatalf("unexpected updated event: %#v err=%v", fetched, err)
 	}
 
@@ -74,8 +74,8 @@ func Test_AssetEventRepository_ScopesEventsAndCascades(t *testing.T) {
 	asset, _ := fixtures.CreateAsset(ctx, org.ID, category.ID, "Drill")
 	repo := NewAssetEventRepository(testDB.Pool)
 	event := &domain.AssetEvent{
-		AssetID: asset.ID, Title: "Serviced", Category: domain.AssetEventCategoryMaintenance,
-		Description: "Completed routine service", Icon: "i-lucide-wrench", OccurredAt: timestamp(2026, 9, 8, 14, 30),
+		AssetID: asset.ID, Title: "Serviced", Description: "Completed routine service",
+		Icon: "i-lucide-wrench", OccurredAt: timestamp(2026, 9, 8, 14, 30),
 	}
 	if err := repo.Create(ctx, org.ID, event); err != nil {
 		t.Fatalf("create event: %v", err)
@@ -107,15 +107,15 @@ func Test_AssetEventRepository_CreateRejectsUnavailableAsset(t *testing.T) {
 	}
 	repo := NewAssetEventRepository(testDB.Pool)
 	event := &domain.AssetEvent{
-		AssetID: uuid.New(), Title: "Missing", Category: domain.AssetEventCategoryNote,
-		Description: "Missing asset", Icon: "i-lucide-calendar", OccurredAt: timestamp(2026, 9, 8, 14, 30),
+		AssetID: uuid.New(), Title: "Missing", Description: "Missing asset",
+		Icon: "i-lucide-calendar", OccurredAt: timestamp(2026, 9, 8, 14, 30),
 	}
 	if err := repo.Create(ctx, uuid.New(), event); err != pgx.ErrNoRows {
 		t.Fatalf("expected no rows, got %v", err)
 	}
 }
 
-func Test_AssetEventRepository_EnforcesRequiredCategoryAndDescription(t *testing.T) {
+func Test_AssetEventRepository_EnforcesRequiredDescription(t *testing.T) {
 	ctx := context.Background()
 	if err := testDB.TruncateAll(ctx); err != nil {
 		t.Fatalf("failed to truncate: %v", err)
@@ -126,24 +126,12 @@ func Test_AssetEventRepository_EnforcesRequiredCategoryAndDescription(t *testing
 	asset, _ := fixtures.CreateAsset(ctx, org.ID, category.ID, "Drill")
 	repo := NewAssetEventRepository(testDB.Pool)
 
-	tests := []struct {
-		name        string
-		category    domain.AssetEventCategory
-		description string
-	}{
-		{name: "invalid category", category: "other", description: "Unknown event"},
-		{name: "blank description", category: domain.AssetEventCategoryNote, description: "  "},
+	event := &domain.AssetEvent{
+		AssetID: asset.ID, Title: "Event", Description: "  ",
+		Icon: "i-lucide-calendar", OccurredAt: timestamp(2026, 9, 8, 14, 30),
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			event := &domain.AssetEvent{
-				AssetID: asset.ID, Title: "Event", Category: test.category,
-				Description: test.description, Icon: "i-lucide-calendar", OccurredAt: timestamp(2026, 9, 8, 14, 30),
-			}
-			if err := repo.Create(ctx, org.ID, event); err == nil {
-				t.Fatal("expected database constraint error")
-			}
-		})
+	if err := repo.Create(ctx, org.ID, event); err == nil {
+		t.Fatal("expected database constraint error")
 	}
 }
 

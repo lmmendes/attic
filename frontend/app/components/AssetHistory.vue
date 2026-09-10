@@ -14,7 +14,6 @@ type TimelineEntry = {
   description: string
   icon: string
   timestamp: string
-  category?: AssetEvent['category']
   custom?: AssetEvent
 }
 
@@ -30,13 +29,6 @@ const icons = [
   'i-lucide-sparkles', 'i-lucide-star'
 ]
 
-const categories: { label: string, value: AssetEvent['category'] }[] = [
-  { label: 'Repair', value: 'repair' },
-  { label: 'Maintenance', value: 'maintenance' },
-  { label: 'Note', value: 'note' },
-  { label: 'Issue', value: 'issue' }
-]
-
 const modalOpen = ref(false)
 const deleting = ref<AssetEvent | null>(null)
 const deletingOpen = computed({
@@ -50,7 +42,6 @@ const busy = ref(false)
 const formError = ref('')
 const form = reactive({
   title: '',
-  category: 'note' as AssetEvent['category'],
   description: '',
   icon: 'i-lucide-calendar',
   occurred_at: localDateTime(new Date())
@@ -63,7 +54,6 @@ const timeline = computed<TimelineEntry[]>(() => {
     description: event.description,
     icon: event.icon,
     timestamp: event.occurred_at,
-    category: event.category,
     custom: event
   }))
   entries.push({
@@ -83,7 +73,7 @@ const timeline = computed<TimelineEntry[]>(() => {
 function openCreate() {
   editing.value = null
   Object.assign(form, {
-    title: '', category: 'note', description: '', icon: 'i-lucide-calendar', occurred_at: localDateTime(new Date())
+    title: '', description: '', icon: 'i-lucide-calendar', occurred_at: localDateTime(new Date())
   })
   formError.value = ''
   modalOpen.value = true
@@ -94,7 +84,6 @@ function openEdit(event: AssetEvent) {
   editing.value = event
   Object.assign(form, {
     title: event.title,
-    category: event.category,
     description: event.description,
     icon: event.icon,
     occurred_at: localDateTime(event.occurred_at)
@@ -131,10 +120,6 @@ async function save() {
     formError.value = 'Description is required.'
     return
   }
-  if (!categories.some(category => category.value === form.category)) {
-    formError.value = 'Category is required.'
-    return
-  }
   const occurredAt = new Date(form.occurred_at)
   if (!form.occurred_at || Number.isNaN(occurredAt.getTime())) {
     formError.value = 'Date and time are required.'
@@ -147,7 +132,6 @@ async function save() {
       method: editing.value ? 'PUT' : 'POST',
       body: JSON.stringify({
         title: form.title,
-        category: form.category,
         description: form.description,
         icon: form.icon,
         occurred_at: occurredAt.toISOString()
@@ -238,12 +222,6 @@ function apiErrorMessage(error: unknown, fallback: string): string {
                 {{ entry.title }}
               </p>
               <p
-                v-if="entry.category"
-                class="mt-1 text-[11px] font-semibold uppercase tracking-wide text-attic-600 dark:text-attic-300"
-              >
-                {{ entry.category }}
-              </p>
-              <p
                 v-if="entry.description"
                 class="mt-1 whitespace-pre-wrap text-xs text-gray-500 dark:text-gray-400"
               >
@@ -299,25 +277,6 @@ function apiErrorMessage(error: unknown, fallback: string): string {
               class="w-full"
               autofocus
             />
-          </UFormField>
-          <UFormField
-            label="Category"
-            required
-          >
-            <select
-              v-model="form.category"
-              aria-label="Category"
-              class="w-full rounded-lg border border-subtle bg-white px-3 py-2 text-sm dark:bg-mist-900"
-              required
-            >
-              <option
-                v-for="category in categories"
-                :key="category.value"
-                :value="category.value"
-              >
-                {{ category.label }}
-              </option>
-            </select>
           </UFormField>
           <UFormField
             label="Description"

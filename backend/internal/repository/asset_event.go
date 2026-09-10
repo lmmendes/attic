@@ -22,7 +22,7 @@ func NewAssetEventRepository(pool *pgxpool.Pool) *AssetEventRepository {
 func (r *AssetEventRepository) GetByID(ctx context.Context, orgID, assetID, eventID uuid.UUID) (*domain.AssetEvent, error) {
 	var event domain.AssetEvent
 	err := scanAssetEvent(r.pool.QueryRow(ctx, `
-		SELECT e.id, e.asset_id, e.title, e.category, e.description, e.icon, e.occurred_at, e.created_at, e.updated_at
+		SELECT e.id, e.asset_id, e.title, e.description, e.icon, e.occurred_at, e.created_at, e.updated_at
 		FROM asset_events e
 		JOIN assets a ON a.id = e.asset_id
 		WHERE e.id = $1 AND e.asset_id = $2 AND a.organization_id = $3 AND a.deleted_at IS NULL
@@ -39,7 +39,7 @@ func (r *AssetEventRepository) GetByID(ctx context.Context, orgID, assetID, even
 // ListByAsset returns an asset's events in reverse occurrence order.
 func (r *AssetEventRepository) ListByAsset(ctx context.Context, orgID, assetID uuid.UUID) ([]domain.AssetEvent, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT e.id, e.asset_id, e.title, e.category, e.description, e.icon, e.occurred_at, e.created_at, e.updated_at
+		SELECT e.id, e.asset_id, e.title, e.description, e.icon, e.occurred_at, e.created_at, e.updated_at
 		FROM asset_events e
 		JOIN assets a ON a.id = e.asset_id
 		WHERE e.asset_id = $1 AND a.organization_id = $2 AND a.deleted_at IS NULL
@@ -67,13 +67,13 @@ func (r *AssetEventRepository) Create(ctx context.Context, orgID uuid.UUID, even
 		event.ID = uuid.New()
 	}
 	return r.pool.QueryRow(ctx, `
-		INSERT INTO asset_events (id, asset_id, title, category, description, icon, occurred_at)
-		SELECT $1, $2, $3, $4, $5, $6, $7
+		INSERT INTO asset_events (id, asset_id, title, description, icon, occurred_at)
+		SELECT $1, $2, $3, $4, $5, $6
 		WHERE EXISTS (
-			SELECT 1 FROM assets WHERE id = $2 AND organization_id = $8 AND deleted_at IS NULL
+			SELECT 1 FROM assets WHERE id = $2 AND organization_id = $7 AND deleted_at IS NULL
 		)
 		RETURNING created_at, updated_at
-	`, event.ID, event.AssetID, event.Title, event.Category, event.Description, event.Icon, event.OccurredAt, orgID).
+	`, event.ID, event.AssetID, event.Title, event.Description, event.Icon, event.OccurredAt, orgID).
 		Scan(&event.CreatedAt, &event.UpdatedAt)
 }
 
@@ -81,12 +81,12 @@ func (r *AssetEventRepository) Create(ctx context.Context, orgID uuid.UUID, even
 func (r *AssetEventRepository) Update(ctx context.Context, orgID uuid.UUID, event *domain.AssetEvent) error {
 	return r.pool.QueryRow(ctx, `
 		UPDATE asset_events e
-		SET title = $4, category = $5, description = $6, icon = $7, occurred_at = $8
+		SET title = $4, description = $5, icon = $6, occurred_at = $7
 		FROM assets a
 		WHERE e.id = $1 AND e.asset_id = $2 AND a.id = e.asset_id
 			AND a.organization_id = $3 AND a.deleted_at IS NULL
 		RETURNING e.updated_at
-	`, event.ID, event.AssetID, orgID, event.Title, event.Category, event.Description, event.Icon, event.OccurredAt).
+	`, event.ID, event.AssetID, orgID, event.Title, event.Description, event.Icon, event.OccurredAt).
 		Scan(&event.UpdatedAt)
 }
 
@@ -107,7 +107,7 @@ func (r *AssetEventRepository) Delete(ctx context.Context, orgID, assetID, event
 // scanAssetEvent reads an event from a PostgreSQL row.
 func scanAssetEvent(row pgx.Row, event *domain.AssetEvent) error {
 	return row.Scan(
-		&event.ID, &event.AssetID, &event.Title, &event.Category, &event.Description,
-		&event.Icon, &event.OccurredAt, &event.CreatedAt, &event.UpdatedAt,
+		&event.ID, &event.AssetID, &event.Title, &event.Description, &event.Icon,
+		&event.OccurredAt, &event.CreatedAt, &event.UpdatedAt,
 	)
 }

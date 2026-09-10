@@ -213,35 +213,14 @@ type Attachment struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 
-// AssetEventCategory identifies the kind of asset lifecycle event.
-type AssetEventCategory string
-
-const (
-	AssetEventCategoryRepair      AssetEventCategory = "repair"
-	AssetEventCategoryMaintenance AssetEventCategory = "maintenance"
-	AssetEventCategoryNote        AssetEventCategory = "note"
-	AssetEventCategoryIssue       AssetEventCategory = "issue"
-)
-
-// IsValid reports whether the category is supported.
-func (c AssetEventCategory) IsValid() bool {
-	switch c {
-	case AssetEventCategoryRepair, AssetEventCategoryMaintenance, AssetEventCategoryNote, AssetEventCategoryIssue:
-		return true
-	default:
-		return false
-	}
-}
-
 // AssetEvent represents a user-managed entry in an asset's history.
 type AssetEvent struct {
-	ID          uuid.UUID          `json:"id"`
-	AssetID     uuid.UUID          `json:"asset_id"`
-	Title       string             `json:"title"`
-	Category    AssetEventCategory `json:"category"`
-	Description string             `json:"description"`
-	Icon        string             `json:"icon"`
-	OccurredAt  time.Time          `json:"occurred_at"`
-	CreatedAt   time.Time          `json:"created_at"`
-	UpdatedAt   time.Time          `json:"updated_at"`
+	ID          uuid.UUID `json:"id"`
+	AssetID     uuid.UUID `json:"asset_id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Icon        string    `json:"icon"`
+	OccurredAt  time.Time `json:"occurred_at"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }

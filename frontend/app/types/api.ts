@@ -138,7 +138,6 @@ export interface AssetEvent {
   id: string
   asset_id: string
   title: string
-  category: 'repair' | 'maintenance' | 'note' | 'issue'
   description: string
   icon: string
   occurred_at: string

@@ -10,9 +10,9 @@
 ## Summary
 
 Add user-managed events to an asset's history. An event records a title, a
-category, a required description, a Lucide icon, and the date and time when it
-occurred. Users can create, edit, and permanently delete events from the asset
-detail page.
+required description, a Lucide icon, and the date and time when it occurred.
+Users can create, edit, and permanently delete events from the asset detail
+page.
 
 Custom events share the existing Asset History timeline with the generated
 "Asset Created" and "Last Updated" entries. The combined timeline gives users
@@ -27,11 +27,12 @@ serviced bicycle, or a damaged collectible all require context that does not
 belong in the asset's general notes or current condition.
 
 Custom events make that history explicit while keeping the entry model small.
-A required category and icon provide consistent visual and semantic cues.
+The title and icon provide visual and semantic cues without imposing an event
+taxonomy.
 
 ## Goals
 
-- Let authenticated users add categorized, timestamped events to an existing asset.
+- Let authenticated users add timestamped events to an existing asset.
 - Let users correct an event after it has been saved.
 - Let users permanently delete an event after confirmation.
 - Present custom events and generated asset lifecycle entries in one timeline.
@@ -41,7 +42,7 @@ A required category and icon provide consistent visual and semantic cues.
 
 ## Non-goals
 
-- Organization-managed event types beyond the fixed categories.
+- Structured event categories or organization-managed event types.
 - Duration tracking.
 - Recurring events and maintenance schedules.
 - Reminders or notifications for future events.
@@ -58,7 +59,6 @@ A required category and icon provide consistent visual and semantic cues.
 | Custom event | A timestamped history entry created and managed by a user |
 | Generated entry | The non-editable Asset Created or Last Updated entry derived from the asset |
 | Occurrence time | The user-selected date and time at which an event occurred |
-| Category | One of `repair`, `maintenance`, `note`, or `issue` |
 
 ## User Experience
 
@@ -69,8 +69,8 @@ The asset detail page retains its **Asset History** section and adds an
 
 - **Asset Created**, derived from `asset.created_at` and not editable;
 - **Last Updated**, derived from `asset.updated_at` and not editable; and
-- zero or more custom events, rendered with their category, selected icon,
-  title, required description, and localized occurrence time.
+- zero or more custom events, rendered with their selected icon, title,
+  required description, and localized occurrence time.
 
 The combined timeline is ordered by occurrence timestamp descending. Generated
 entries use their source timestamps. A stable ID and entry type provide the
@@ -85,10 +85,9 @@ was modified.
 Selecting **Add event** opens a modal containing:
 
 1. A required title.
-2. A required category: repair, maintenance, note, or issue.
-3. A required description.
-4. A required date and time, defaulted to the user's current local date and time.
-5. An accessible, curated Lucide icon grid, defaulted to
+2. A required description.
+3. A required date and time, defaulted to the user's current local date and time.
+4. An accessible, curated Lucide icon grid, defaulted to
    `i-lucide-calendar`.
 
 Past, current, and future timestamps are accepted. A future event is still an event,
@@ -117,7 +116,6 @@ CREATE TABLE asset_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     asset_id UUID NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL CHECK (length(trim(title)) > 0),
-    category VARCHAR(20) NOT NULL CHECK (category IN ('repair', 'maintenance', 'note', 'issue')),
     description TEXT NOT NULL CHECK (length(trim(description)) > 0 AND length(description) <= 2000),
     icon VARCHAR(100) NOT NULL,
     occurred_at TIMESTAMPTZ NOT NULL,
@@ -150,7 +148,6 @@ type AssetEvent struct {
     ID          uuid.UUID          `json:"id"`
     AssetID     uuid.UUID          `json:"asset_id"`
     Title       string             `json:"title"`
-    Category    AssetEventCategory `json:"category"`
     Description string             `json:"description"`
     Icon        string             `json:"icon"`
     OccurredAt  time.Time          `json:"occurred_at"`
@@ -190,7 +187,6 @@ events returns `[]`, not `null`. A missing or soft-deleted asset returns
 ```json
 {
   "title": "Replaced drive belt",
-  "category": "repair",
   "description": "Installed the manufacturer's replacement part.",
   "icon": "i-lucide-wrench",
   "occurred_at": "2026-09-08T14:30:00Z"
@@ -204,7 +200,6 @@ A successful request returns `201 Created` with the complete event:
   "id": "9ceeca85-306a-49dd-a5ab-94004335d454",
   "asset_id": "0b242c81-76ab-4e67-b07c-ad520237c867",
   "title": "Replaced drive belt",
-  "category": "repair",
   "description": "Installed the manufacturer's replacement part.",
   "icon": "i-lucide-wrench",
   "occurred_at": "2026-09-08T14:30:00Z",
@@ -235,7 +230,6 @@ The server is authoritative and applies identical validation during creation
 and update:
 
 - Trim the title and require 1 to 255 Unicode characters.
-- Require category to be `repair`, `maintenance`, `note`, or `issue`.
 - Trim the description and require 1 to 2,000 Unicode characters.
 - Require an icon of at most 100 bytes matching
   `^i-lucide-[a-z0-9]+(?:-[a-z0-9]+)*$`.
@@ -317,8 +311,8 @@ reveal whether an event exists elsewhere.
 ### Frontend
 
 - Render generated and custom entries in one deterministic timeline.
-- Render the category, selected icon, title, required description, and localized occurrence time.
-- Open the add modal with the current local date and time, note category, and default calendar icon.
+- Render the selected icon, title, required description, and localized occurrence time.
+- Open the add modal with the current local date and time and default calendar icon.
 - Submit create and update payloads and refresh after success.
 - Preserve form state and show an error after a failed save.
 - Pre-fill all fields when editing an event.
@@ -331,8 +325,8 @@ reveal whether an event exists elsewhere.
 
 - An authenticated user can create, edit, and delete custom events from an
   existing asset's detail page.
-- Events contain a title, fixed category, required description, icon, and
-  occurrence timestamp as editable domain fields.
+- Events contain a title, required description, icon, and occurrence timestamp
+  as editable domain fields.
 - Custom and generated entries appear together in reverse-chronological order.
 - Future event dates are accepted without adding reminder semantics.
 - All event operations are scoped to the current workspace and URL asset.

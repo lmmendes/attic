@@ -20,7 +20,7 @@ const modal = {
 
 const event = {
   id: 'event-1', asset_id: 'asset-1', title: 'Repaired', description: 'Changed belt',
-  category: 'repair' as const, icon: 'i-lucide-wrench', occurred_at: '2026-09-09T15:30:00Z',
+  icon: 'i-lucide-wrench', occurred_at: '2026-09-09T15:30:00Z',
   created_at: '2026-09-01T09:00:00Z', updated_at: '2026-09-08T09:00:00Z'
 }
 
@@ -47,7 +47,6 @@ describe('AssetHistory', () => {
     const titles = wrapper.findAll('li p.font-bold').map(node => node.text())
     expect(titles).toEqual(['Repaired', 'Last Updated', 'Asset Created'])
     expect(wrapper.text()).toContain('Changed belt')
-    expect(wrapper.text()).toContain('repair')
     expect(wrapper.find('button[aria-label="Actions for Repaired"]').exists()).toBe(true)
     expect(wrapper.get('button[aria-label="No actions available for Asset Created"]').attributes('disabled')).toBeDefined()
     wrapper.unmount()
@@ -58,7 +57,6 @@ describe('AssetHistory', () => {
     await wrapper.findAll('button').find(button => button.text() === 'Add event')!.trigger('click')
     const form = wrapper.get('form')
     await form.find('input[type="text"]').setValue('Inspected')
-    await form.find('select').setValue('maintenance')
     await form.find('textarea').setValue('Everything works')
     await form.find('input[type="datetime-local"]').setValue('2030-01-02T15:30')
     await form.trigger('submit')
@@ -67,7 +65,7 @@ describe('AssetHistory', () => {
     expect(mutate).toHaveBeenCalledWith('/api/assets/asset-1/events', {
       method: 'POST',
       body: JSON.stringify({
-        title: 'Inspected', category: 'maintenance', description: 'Everything works',
+        title: 'Inspected', description: 'Everything works',
         icon: 'i-lucide-calendar', occurred_at: new Date('2030-01-02T15:30').toISOString()
       })
     })
@@ -85,7 +83,6 @@ describe('AssetHistory', () => {
     await flushPromises()
     const form = wrapper.get('form')
     expect((form.find('input[type="text"]').element as HTMLInputElement).value).toBe('Repaired')
-    expect((form.find('select').element as HTMLSelectElement).value).toBe('repair')
     expect((form.find('textarea').element as HTMLTextAreaElement).value).toBe('Changed belt')
     await form.find('input[type="text"]').setValue('Serviced')
     await form.trigger('submit')
