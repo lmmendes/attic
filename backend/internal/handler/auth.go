@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/lmmendes/attic/internal/auth"
+	"github.com/lmmendes/attic/internal/domain"
 	"github.com/lmmendes/attic/internal/repository"
 )
 
@@ -16,17 +17,21 @@ type AuthHandler struct {
 	passwordMinLength int
 	oidcEnabled       bool
 	oidcAutoRedirect  bool
+	authDisabled      bool
+	authDisabledUser  *domain.User
 	oauthHandler      *auth.OAuthHandler
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(userRepo *repository.UserRepository, sessionManager *auth.SessionManager, passwordMinLength int, oidcEnabled, oidcAutoRedirect bool) *AuthHandler {
+func NewAuthHandler(userRepo *repository.UserRepository, sessionManager *auth.SessionManager, passwordMinLength int, oidcEnabled, oidcAutoRedirect, authDisabled bool, authDisabledUser *domain.User) *AuthHandler {
 	return &AuthHandler{
 		userRepo:          userRepo,
 		sessionManager:    sessionManager,
 		passwordMinLength: passwordMinLength,
 		oidcEnabled:       oidcEnabled,
 		oidcAutoRedirect:  oidcEnabled && oidcAutoRedirect,
+		authDisabled:      authDisabled,
+		authDisabledUser:  authDisabledUser,
 	}
 }
 
@@ -108,8 +113,30 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 // GetSession returns current session info
 func (h *AuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
+	if h.authDisabled && h.authDisabledUser != nil {
+		name := ""
+		if h.authDisabledUser.DisplayName != nil {
+			name = *h.authDisabledUser.DisplayName
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"authenticated":      true,
+			"auth_disabled":      true,
+			"oidc_enabled":       false,
+			"oidc_auto_redirect": false,
+			"user": map[string]any{
+				"id":    h.authDisabledUser.ID.String(),
+				"email": h.authDisabledUser.Email,
+				"name":  name,
+				"role":  h.authDisabledUser.Role,
+			},
+		})
+		return
+	}
+
 	if h.oidcEnabled && h.oauthHandler != nil {
 		info := h.oauthHandler.GetSessionInfo(r)
+		info["auth_disabled"] = false
 		info["oidc_auto_redirect"] = h.oidcAutoRedirect
 
 		// Enrich OIDC session with the user's role from the database
@@ -147,6 +174,7 @@ func (h *AuthHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	}
 	info["oidc_enabled"] = h.oidcEnabled
 	info["oidc_auto_redirect"] = h.oidcAutoRedirect
+	info["auth_disabled"] = false
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(info)
 }
@@ -218,6 +246,7 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) GetAuthMode(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
-		"oidc_enabled": h.oidcEnabled,
+		"auth_disabled": h.authDisabled,
+		"oidc_enabled":  h.oidcEnabled && !h.authDisabled,
 	})
 }

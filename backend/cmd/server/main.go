@@ -149,15 +149,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	var authDisabledUser *domain.User
+	if cfg.AuthDisabled {
+		authDisabledUser, err = resolveAuthDisabledUser(ctx, userRepo, cfg.AuthDisabledUserEmail)
+		if err != nil {
+			slog.Error("failed to resolve authentication-disabled user", "error", err)
+			os.Exit(1)
+		}
+	}
+
 	// Session manager for local auth
 	sessionManager := auth.NewSessionManager(cfg.SessionSecret, cfg.SessionDurationHours)
 
 	// Auth middleware
 	authMiddleware, err := auth.NewMiddleware(ctx, auth.Config{
-		IssuerURL:   cfg.OIDCIssuer,
-		ClientID:    cfg.OIDCClientID,
-		Disabled:    cfg.AuthDisabled,
-		OIDCEnabled: cfg.OIDCEnabled,
+		IssuerURL:    cfg.OIDCIssuer,
+		ClientID:     cfg.OIDCClientID,
+		Disabled:     cfg.AuthDisabled,
+		DisabledUser: authDisabledUser,
+		OIDCEnabled:  cfg.OIDCEnabled,
 	})
 	if err != nil {
 		slog.Error("failed to initialize auth", "error", err)
@@ -169,7 +179,7 @@ func main() {
 
 	// OAuth handler for OIDC login flow (only if OIDC enabled)
 	var oauthHandler *auth.OAuthHandler
-	if cfg.OIDCEnabled {
+	if cfg.OIDCEnabled && !cfg.AuthDisabled {
 		oauthHandler, err = auth.NewOAuthHandler(ctx, auth.OAuthConfig{
 			IssuerURL:     cfg.OIDCIssuer,
 			ClientID:      cfg.OIDCClientID,
@@ -211,7 +221,7 @@ func main() {
 	if err := pluginHandler.InitializeEnabledPluginCategories(ctx); err != nil {
 		slog.Warn("one or more plugin categories could not be initialized", "error", err)
 	}
-	authHandler := handler.NewAuthHandler(userRepo, sessionManager, cfg.PasswordMinLength, cfg.OIDCEnabled, cfg.OIDCAutoRedirect)
+	authHandler := handler.NewAuthHandler(userRepo, sessionManager, cfg.PasswordMinLength, cfg.OIDCEnabled, cfg.OIDCAutoRedirect, cfg.AuthDisabled, authDisabledUser)
 	if oauthHandler != nil {
 		authHandler.SetOAuthHandler(oauthHandler)
 	}
@@ -280,7 +290,7 @@ func main() {
 		r.Use(authMiddleware.Authenticate)
 
 		// Only use user provisioner for OIDC mode
-		if cfg.OIDCEnabled {
+		if cfg.OIDCEnabled && !cfg.AuthDisabled {
 			r.Use(userProvisioner.Provision)
 		}
 
@@ -455,6 +465,21 @@ func registerImportPlugin(registry *plugin.Registry, importPlugin domain.ImportP
 		"enabled", importPlugin.Enabled(),
 		"api_key_environment_variable", apiKeyEnv,
 		"api_key_set", strings.TrimSpace(os.Getenv(apiKeyEnv)) != "")
+}
+
+type userByEmailGetter interface {
+	GetByEmail(context.Context, string) (*domain.User, error)
+}
+
+func resolveAuthDisabledUser(ctx context.Context, users userByEmailGetter, email string) (*domain.User, error) {
+	user, err := users.GetByEmail(ctx, email)
+	if err != nil {
+		return nil, fmt.Errorf("looking up user with email %q: %w", email, err)
+	}
+	if user == nil {
+		return nil, fmt.Errorf("user with email %q not found", email)
+	}
+	return user, nil
 }
 
 // bootstrapAdmin creates the initial admin user if no users exist

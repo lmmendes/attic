@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -46,6 +47,7 @@ type oidcVerifiedToken struct {
 type Middleware struct {
 	verifier       TokenVerifier
 	disabled       bool
+	disabledUser   *domain.User
 	oidcEnabled    bool
 	oauth          *OAuthHandler
 	sessionManager *SessionManager
@@ -53,17 +55,21 @@ type Middleware struct {
 
 // Config for auth middleware
 type Config struct {
-	IssuerURL   string
-	ClientID    string
-	Disabled    bool // For development without auth
-	OIDCEnabled bool // Whether OIDC is the auth method
+	IssuerURL    string
+	ClientID     string
+	Disabled     bool // For development without auth
+	DisabledUser *domain.User
+	OIDCEnabled  bool // Whether OIDC is the auth method
 }
 
 // NewMiddleware creates a new auth middleware
 func NewMiddleware(ctx context.Context, cfg Config) (*Middleware, error) {
 	if cfg.Disabled {
-		slog.Warn("authentication is DISABLED - all requests will use a mock user")
-		return &Middleware{disabled: true}, nil
+		if cfg.DisabledUser == nil {
+			return nil, fmt.Errorf("disabled authentication requires a user")
+		}
+		slog.Warn("authentication is DISABLED - all requests will use the configured user", "user_email", cfg.DisabledUser.Email)
+		return &Middleware{disabled: true, disabledUser: cfg.DisabledUser}, nil
 	}
 
 	m := &Middleware{
@@ -100,14 +106,18 @@ func (m *Middleware) SetSessionManager(sm *SessionManager) {
 func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if m.disabled {
-			// Use mock user for development
+			name := ""
+			if m.disabledUser.DisplayName != nil {
+				name = *m.disabledUser.DisplayName
+			}
 			claims := &Claims{
-				Subject:     "dev-user",
-				Email:       "dev@example.com",
-				Name:        "Development User",
-				DisplayName: "devuser",
+				Subject:     m.disabledUser.ID.String(),
+				Email:       m.disabledUser.Email,
+				Name:        name,
+				DisplayName: name,
 			}
 			ctx := context.WithValue(r.Context(), UserContextKey, claims)
+			ctx = context.WithValue(ctx, DomainUserContextKey, m.disabledUser)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}

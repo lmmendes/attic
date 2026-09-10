@@ -5,6 +5,32 @@ import (
 	"testing"
 )
 
+func Test_Load_AuthDisabledUserEmail_DefaultsToAdmin(t *testing.T) {
+	t.Setenv("ATTIC_AUTH_DISABLED_USER_EMAIL", "")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if cfg.AuthDisabledUserEmail != "admin" {
+		t.Errorf("expected disabled auth user email to default to admin, got %q", cfg.AuthDisabledUserEmail)
+	}
+}
+
+func Test_Load_AuthDisabledUserEmail_UsesConfiguredValue(t *testing.T) {
+	t.Setenv("ATTIC_AUTH_DISABLED_USER_EMAIL", "viewer@example.com")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if cfg.AuthDisabledUserEmail != "viewer@example.com" {
+		t.Errorf("expected configured disabled auth user email, got %q", cfg.AuthDisabledUserEmail)
+	}
+}
+
 func Test_Load_PUID_PGID_NotSet(t *testing.T) {
 	// Clear any existing values
 	os.Unsetenv("ATTIC_PUID")

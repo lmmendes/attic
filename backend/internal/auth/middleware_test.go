@@ -21,6 +21,16 @@ type mockVerifiedToken struct {
 	subject string
 }
 
+func disabledTestUser() *domain.User {
+	displayName := "Disabled Auth User"
+	return &domain.User{
+		ID:          uuid.New(),
+		Email:       "admin",
+		DisplayName: &displayName,
+		Role:        domain.UserRoleAdmin,
+	}
+}
+
 func (m *mockTokenVerifier) Verify(ctx context.Context, token string) (VerifiedToken, error) {
 	return m.verifyFn(ctx, token)
 }
@@ -36,7 +46,7 @@ func (t *mockVerifiedToken) Subject() string {
 // Tests for disabled middleware
 
 func Test_Middleware_Disabled_AllowsAllRequests(t *testing.T) {
-	m := &Middleware{disabled: true}
+	m := &Middleware{disabled: true, disabledUser: disabledTestUser()}
 
 	nextCalled := false
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -58,11 +68,14 @@ func Test_Middleware_Disabled_AllowsAllRequests(t *testing.T) {
 }
 
 func Test_Middleware_Disabled_SetsDevUserClaims(t *testing.T) {
-	m := &Middleware{disabled: true}
+	user := disabledTestUser()
+	m := &Middleware{disabled: true, disabledUser: user}
 
 	var claims *Claims
+	var domainUser *domain.User
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims = GetClaims(r.Context())
+		domainUser = GetUser(r.Context())
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -73,11 +86,45 @@ func Test_Middleware_Disabled_SetsDevUserClaims(t *testing.T) {
 	if claims == nil {
 		t.Fatal("expected claims to be set")
 	}
-	if claims.Email != "dev@example.com" {
+	if claims.Email != user.Email {
 		t.Errorf("expected dev email, got %s", claims.Email)
 	}
-	if claims.Subject != "dev-user" {
-		t.Errorf("expected dev-user subject, got %s", claims.Subject)
+	if claims.Subject != user.ID.String() {
+		t.Errorf("expected user ID subject, got %s", claims.Subject)
+	}
+	if domainUser != user {
+		t.Error("expected disabled auth domain user in request context")
+	}
+}
+
+func Test_Middleware_Disabled_PreservesUserRoleForAdminAuthorization(t *testing.T) {
+	tests := []struct {
+		name       string
+		role       domain.UserRole
+		wantStatus int
+	}{
+		{name: "admin allowed", role: domain.UserRoleAdmin, wantStatus: http.StatusOK},
+		{name: "regular user forbidden", role: domain.UserRoleUser, wantStatus: http.StatusForbidden},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			user := disabledTestUser()
+			user.Role = tt.role
+			m := &Middleware{disabled: true, disabledUser: user}
+			sm := NewSessionManager("test-secret-key-32-bytes-long!!", 24)
+			next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			rec := httptest.NewRecorder()
+			m.Authenticate(RequireAdmin(sm)(next)).ServeHTTP(rec, req)
+
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("expected status %d, got %d", tt.wantStatus, rec.Code)
+			}
+		})
 	}
 }
 
@@ -391,7 +438,8 @@ func Test_SetSessionManager_SetsManager(t *testing.T) {
 // Test for NewMiddleware with disabled config
 
 func Test_NewMiddleware_Disabled_ReturnsDisabledMiddleware(t *testing.T) {
-	cfg := Config{Disabled: true}
+	user := disabledTestUser()
+	cfg := Config{Disabled: true, DisabledUser: user}
 
 	m, err := NewMiddleware(context.Background(), cfg)
 
@@ -400,6 +448,16 @@ func Test_NewMiddleware_Disabled_ReturnsDisabledMiddleware(t *testing.T) {
 	}
 	if !m.disabled {
 		t.Error("expected middleware to be disabled")
+	}
+	if m.disabledUser != user {
+		t.Error("expected configured disabled user")
+	}
+}
+
+func Test_NewMiddleware_DisabledWithoutUser_ReturnsError(t *testing.T) {
+	_, err := NewMiddleware(context.Background(), Config{Disabled: true})
+	if err == nil {
+		t.Fatal("expected disabled middleware without a user to fail")
 	}
 }
 
