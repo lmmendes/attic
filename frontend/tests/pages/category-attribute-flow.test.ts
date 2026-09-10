@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mountSuspended, mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
+import CategoryEditor from '../../app/components/CategoryEditor.vue'
 import NewCategory from '../../app/pages/categories/new.vue'
 import NewAttribute from '../../app/pages/attributes/new.vue'
 
@@ -64,6 +65,40 @@ describe('creating an attribute from a category draft', () => {
     expect(clearCategories).toHaveBeenCalledOnce()
     expect(push).toHaveBeenCalledWith('/categories')
     expect(clearCategories.mock.invocationCallOrder[0]).toBeLessThan(push.mock.invocationCallOrder[0]!)
+    wrapper.unmount()
+  })
+
+  it('uses the create-category editor when editing and submits an update', async () => {
+    const category = {
+      id: 'category-1',
+      organization_id: 'organization-1',
+      name: 'Vintage cameras',
+      description: 'Analog photography gear',
+      icon: 'i-lucide-camera',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      attributes: []
+    }
+    const wrapper = await mountSuspended(CategoryEditor, {
+      props: { category }
+    })
+
+    expect(wrapper.text()).toContain('Attribute Schema')
+    expect(wrapper.text()).toContain('Active Attributes')
+    expect(wrapper.text()).not.toContain('Asset fields')
+    expect((wrapper.get('input[placeholder="e.g. Rare Books"]').element as HTMLInputElement).value).toBe('Vintage cameras')
+
+    await wrapper.get('input[placeholder="e.g. Rare Books"]').setValue('Film cameras')
+    const save = wrapper.findAll('button').find(button => button.text().includes('Save Changes'))!
+    await save.trigger('click')
+    await flushPromises()
+
+    expect(mutate).toHaveBeenCalledWith('/api/categories/category-1', expect.objectContaining({
+      method: 'PUT',
+      body: expect.stringContaining('Film cameras')
+    }))
+    expect(clearCategories).toHaveBeenCalledOnce()
+    expect(push).toHaveBeenCalledWith('/categories')
     wrapper.unmount()
   })
 
