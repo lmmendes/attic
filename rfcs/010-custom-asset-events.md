@@ -9,8 +9,8 @@
 
 ## Summary
 
-Add user-managed events to an asset's history. An event records a title, a
-required description, a Lucide icon, and the date and time when it occurred.
+Add user-managed events to an asset's history. An event records a title, an
+optional description, a Lucide icon, and the date and time when it occurred.
 Users can create, edit, and permanently delete events from the asset detail
 page.
 
@@ -70,7 +70,7 @@ The asset detail page retains its **Asset History** section and adds an
 - **Asset Created**, derived from `asset.created_at` and not editable;
 - **Last Updated**, derived from `asset.updated_at` and not editable; and
 - zero or more custom events, rendered with their selected icon, title,
-  required description, and localized occurrence time.
+  optional description, and localized occurrence time.
 
 The combined timeline is ordered by occurrence timestamp descending. Generated
 entries use their source timestamps. A stable ID and entry type provide the
@@ -85,7 +85,7 @@ was modified.
 Selecting **Add event** opens a modal containing:
 
 1. A required title.
-2. A required description.
+2. An optional description.
 3. A required date and time, defaulted to the user's current local date and time.
 4. An accessible, curated Lucide icon grid, defaulted to
    `i-lucide-calendar`.
@@ -116,7 +116,7 @@ CREATE TABLE asset_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     asset_id UUID NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL CHECK (length(trim(title)) > 0),
-    description TEXT NOT NULL CHECK (length(trim(description)) > 0 AND length(description) <= 2000),
+    description TEXT NOT NULL DEFAULT '' CHECK (length(description) <= 2000),
     icon VARCHAR(100) NOT NULL,
     occurred_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -230,7 +230,7 @@ The server is authoritative and applies identical validation during creation
 and update:
 
 - Trim the title and require 1 to 255 Unicode characters.
-- Trim the description and require 1 to 2,000 Unicode characters.
+- Trim the optional description and allow up to 2,000 Unicode characters.
 - Require an icon of at most 100 bytes matching
   `^i-lucide-[a-z0-9]+(?:-[a-z0-9]+)*$`.
 - Require `occurred_at` to be an RFC3339 date-time with an explicit timezone.
@@ -263,7 +263,7 @@ reveal whether an event exists elsewhere.
   `id`; handlers do not rely on a prior unscoped lookup.
 - User text is rendered as text, never injected as HTML.
 - Icon values are constrained to the Lucide naming format before rendering.
-- Database constraints remain a second line of defense for required fields.
+- Database constraints remain a second line of defense for field limits.
 - Cascading deletion prevents orphaned event records after a hard asset delete.
 
 ## Compatibility
@@ -311,7 +311,7 @@ reveal whether an event exists elsewhere.
 ### Frontend
 
 - Render generated and custom entries in one deterministic timeline.
-- Render the selected icon, title, required description, and localized occurrence time.
+- Render the selected icon, title, optional description, and localized occurrence time.
 - Open the add modal with the current local date and time and default calendar icon.
 - Submit create and update payloads and refresh after success.
 - Preserve form state and show an error after a failed save.
@@ -325,7 +325,7 @@ reveal whether an event exists elsewhere.
 
 - An authenticated user can create, edit, and delete custom events from an
   existing asset's detail page.
-- Events contain a title, required description, icon, and occurrence timestamp
+- Events contain a title, optional description, icon, and occurrence timestamp
   as editable domain fields.
 - Custom and generated entries appear together in reverse-chronological order.
 - Future event dates are accepted without adding reminder semantics.

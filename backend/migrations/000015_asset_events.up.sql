@@ -2,7 +2,7 @@ CREATE TABLE asset_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     asset_id UUID NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL CHECK (length(trim(title)) > 0),
-    description TEXT NOT NULL CHECK (length(trim(description)) > 0 AND length(description) <= 2000),
+    description TEXT NOT NULL DEFAULT '' CHECK (length(description) <= 2000),
     icon VARCHAR(100) NOT NULL,
     occurred_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
