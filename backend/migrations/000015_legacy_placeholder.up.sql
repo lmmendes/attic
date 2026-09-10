@@ -1,0 +1,2 @@
+-- Compatibility placeholder for databases that already recorded migration 15.
+-- Feature configuration is introduced by migration 16.

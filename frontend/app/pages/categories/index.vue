@@ -8,8 +8,12 @@ definePageMeta({
 
 const toast = useToast()
 const apiFetch = useApiFetch()
+const { configuration } = useConfiguration()
 
 const { data: categories, refresh, status } = useApi<Category[]>('/api/categories')
+const visibleCategories = computed(() => (categories.value || []).filter(category =>
+  configuration.value.plugins_enabled || !category.plugin_id
+))
 
 // Fetch asset counts per category (endpoint may not exist yet, so we handle gracefully)
 const { data: categoryAssetCounts } = useApi<Record<string, number>>('/api/categories/asset-counts')
@@ -55,26 +59,26 @@ async function deleteCategory() {
 }
 
 // Stats
-const totalCategories = computed(() => categories.value?.length || 0)
+const totalCategories = computed(() => visibleCategories.value.length)
 const totalItems = computed(() => {
-  if (!categoryAssetCounts.value || !categories.value) return 0
-  const activeIds = new Set(categories.value.map(category => category.id))
-  return categories.value
+  if (!categoryAssetCounts.value) return 0
+  const activeIds = new Set(visibleCategories.value.map(category => category.id))
+  return visibleCategories.value
     .filter(category => !category.parent_id || !activeIds.has(category.parent_id))
     .reduce((sum, category) => sum + (categoryAssetCounts.value?.[category.id] || 0), 0)
 })
 const uniqueFields = computed(() => {
   const fieldIds = new Set(
-    (categories.value || []).flatMap(category =>
+    visibleCategories.value.flatMap(category =>
       (category.attributes || []).map(attribute => attribute.attribute_id)
     )
   )
   return fieldIds.size
 })
 
-const categoryRows = computed(() => buildCategoryTreeRows(categories.value || []).map((row) => {
+const categoryRows = computed(() => buildCategoryTreeRows(visibleCategories.value).map((row) => {
   const directAttributeIds = new Set((row.category.attributes || []).map(attribute => attribute.attribute_id))
-  const inheritedAttributes = getInheritedCategoryAttributes(categories.value || [], row.category.parent_id)
+  const inheritedAttributes = getInheritedCategoryAttributes(visibleCategories.value, row.category.parent_id)
     .filter(attribute => !directAttributeIds.has(attribute.attribute_id))
   return {
     ...row,

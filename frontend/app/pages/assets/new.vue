@@ -10,10 +10,14 @@ const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 const apiFetch = useApiFetch()
+const { configuration } = useConfiguration()
 
 const { data: categories } = useApi<Category[]>('/api/categories')
 const { data: locations } = useApi<Location[]>('/api/locations')
 const { data: conditions } = useApi<Condition[]>('/api/conditions')
+const visibleCategories = computed(() => (categories.value || []).filter(category =>
+  configuration.value.plugins_enabled || !category.plugin_id
+))
 
 const loading = ref(false)
 const categoryLoading = ref(false)
@@ -152,13 +156,10 @@ async function submitForm() {
 
   loading.value = true
   try {
-    const payload = {
+    const payload: Record<string, unknown> = {
       name: form.name.trim(),
       description: form.description || undefined,
       category_id: form.category_id,
-      location_id: form.location_id || undefined,
-      collection_ids: form.collection_ids,
-      condition_id: form.condition_id || undefined,
       quantity: form.quantity,
       attributes: Object.keys(form.attributes).length > 0 ? form.attributes : undefined,
       purchase_at: form.purchase_at || undefined,
@@ -166,6 +167,9 @@ async function submitForm() {
       purchase_note: form.purchase_note || undefined,
       notes: form.notes || undefined
     }
+    if (configuration.value.locations_enabled) payload.location_id = form.location_id || undefined
+    if (configuration.value.collections_enabled) payload.collection_ids = form.collection_ids
+    if (configuration.value.conditions_enabled) payload.condition_id = form.condition_id || undefined
 
     const response = await apiFetch<{ id: string }>(`/api/assets`, {
       method: 'POST',
@@ -310,7 +314,10 @@ async function submitForm() {
             </div>
 
             <!-- Location -->
-            <div class="md:col-span-4 space-y-2">
+            <div
+              v-if="configuration.locations_enabled"
+              class="md:col-span-4 space-y-2"
+            >
               <label
                 for="location"
                 class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
@@ -332,11 +339,14 @@ async function submitForm() {
 
           <AssetCategoryField
             v-model="form.category_id"
-            :categories="categories || []"
+            :categories="visibleCategories"
             :selected-category="selectedCategory"
             :loading="categoryLoading"
           />
-          <AssetCollectionsField v-model="form.collection_ids" />
+          <AssetCollectionsField
+            v-if="configuration.collections_enabled"
+            v-model="form.collection_ids"
+          />
         </section>
 
         <hr class="hidden">
@@ -364,7 +374,10 @@ async function submitForm() {
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Condition -->
-            <div class="space-y-2">
+            <div
+              v-if="configuration.conditions_enabled"
+              class="space-y-2"
+            >
               <label
                 for="asset-condition"
                 class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"

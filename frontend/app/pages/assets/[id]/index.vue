@@ -9,19 +9,26 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const apiFetch = useApiFetch()
+const { configuration } = useConfiguration()
+const warrantiesEnabled = computed(() => configuration.value.warranties_enabled)
 
 const assetUrl = computed(() => `/api/assets/${route.params.id}`)
 const { data: asset, refresh: refreshAsset } = useApi<Asset>(
   () => assetUrl.value,
   { key: assetUrl }
 )
-const { data: warranty, refresh: refreshWarranty } = useApi<Warranty>(() => `/api/assets/${route.params.id}/warranty`)
+const { data: warranty, refresh: refreshWarranty } = useApi<Warranty>(() => `/api/assets/${route.params.id}/warranty`, { immediate: false })
 const { data: attachments, refresh: refreshAttachments } = useApi<Attachment[]>(
   () => `/api/assets/${route.params.id}/attachments`
 )
 
+watch([() => asset.value?.id, warrantiesEnabled], ([assetId, enabled]) => {
+  if (assetId && enabled) void refreshWarranty()
+}, { immediate: true })
+
 // Fetch category with attribute definitions when asset loads
 const categoryWithAttrs = ref<Category | null>(null)
+const showCategoryDetails = computed(() => configuration.value.plugins_enabled || !categoryWithAttrs.value?.plugin_id)
 
 watch(() => asset.value?.category_id, async (categoryId) => {
   if (categoryId) {
@@ -428,18 +435,24 @@ function getShortId(): string {
         <div class="flex flex-col items-start justify-between gap-4 md:flex-row">
           <div class="space-y-1">
             <div class="mb-2 flex items-center gap-2">
-              <span class="rounded-full bg-attic-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-attic-600 ring-1 ring-attic-100 dark:bg-attic-500/10 dark:text-attic-300 dark:ring-attic-500/20">
+              <span
+                v-if="showCategoryDetails"
+                class="rounded-full bg-attic-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-attic-600 ring-1 ring-attic-100 dark:bg-attic-500/10 dark:text-attic-300 dark:ring-attic-500/20"
+              >
                 {{ asset.category?.name || 'Uncategorized' }}
               </span>
               <span
-                v-if="asset.condition?.label"
+                v-if="configuration.conditions_enabled && asset.condition?.label"
                 class="text-xs font-semibold text-muted"
               >{{ asset.condition.label }}</span>
             </div>
             <h1 class="text-3xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-4xl">
               {{ asset.name }}
             </h1>
-            <p class="mt-2 flex items-center gap-1.5 text-sm font-medium text-muted">
+            <p
+              v-if="configuration.locations_enabled"
+              class="mt-2 flex items-center gap-1.5 text-sm font-medium text-muted"
+            >
               <UIcon
                 name="i-lucide-map-pin"
                 class="size-4"
@@ -468,7 +481,7 @@ function getShortId(): string {
         </div>
 
         <div
-          v-if="asset.collections?.length"
+          v-if="configuration.collections_enabled && asset.collections?.length"
           class="flex flex-wrap gap-2"
           aria-label="Collections"
         >
@@ -529,7 +542,10 @@ function getShortId(): string {
         </section>
 
         <!-- Structured Attributes List -->
-        <section class="attic-panel overflow-hidden rounded-[20px]">
+        <section
+          v-if="showCategoryDetails"
+          class="attic-panel overflow-hidden rounded-[20px]"
+        >
           <div class="flex items-center justify-between border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
             <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
               <UIcon
@@ -541,11 +557,17 @@ function getShortId(): string {
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 divide-y divide-x-0 md:divide-x md:divide-y-0 divide-gray-100 dark:divide-gray-700">
             <div class="divide-y divide-gray-100 dark:divide-gray-700">
-              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
+              <div
+                v-if="configuration.locations_enabled"
+                class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50"
+              >
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Location</span>
                 <span class="text-sm font-bold text-mist-950 dark:text-white">{{ asset.location?.name || '-' }}</span>
               </div>
-              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
+              <div
+                v-if="configuration.conditions_enabled"
+                class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50"
+              >
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Condition</span>
                 <span class="text-sm font-bold text-mist-950 dark:text-white">{{ asset.condition?.label || '-' }}</span>
               </div>
@@ -613,7 +635,7 @@ function getShortId(): string {
         </section>
 
         <!-- Warranty Section -->
-        <section class="attic-panel overflow-hidden rounded-[20px]">
+        <section v-if="warrantiesEnabled" class="attic-panel overflow-hidden rounded-[20px]">
           <div class="flex items-center justify-between border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
             <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
               <UIcon

@@ -53,6 +53,14 @@ func NewPluginHandler(registry *plugin.Registry, repos *Repositories, storage Fi
 // InitializeEnabledPluginCategories creates the category schema for every usable
 // import plugin before the server begins accepting requests.
 func (h *PluginHandler) InitializeEnabledPluginCategories(ctx context.Context) error {
+	configuration, err := h.repos.Configurations.Get(ctx, h.orgID)
+	if err != nil {
+		return fmt.Errorf("load feature configuration: %w", err)
+	}
+	if !configuration.PluginsEnabled {
+		return nil
+	}
+
 	var initializationErrors []error
 
 	for _, p := range h.registry.List() {

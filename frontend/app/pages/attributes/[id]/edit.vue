@@ -9,6 +9,7 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const apiFetch = useApiFetch()
+const { configuration } = useConfiguration()
 
 const attributeId = computed(() => route.params.id as string)
 
@@ -25,6 +26,10 @@ const form = reactive({
 // Populate form when attribute loads
 watch(attribute, (attr) => {
   if (attr) {
+    if (!configuration.value.plugins_enabled && attr.plugin_id) {
+      void navigateTo('/attributes')
+      return
+    }
     form.name = attr.name
     form.key = attr.key
     form.data_type = attr.data_type

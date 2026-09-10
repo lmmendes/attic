@@ -1,0 +1,1 @@
+-- Compatibility placeholder. Migration 15 belongs to an earlier schema history.

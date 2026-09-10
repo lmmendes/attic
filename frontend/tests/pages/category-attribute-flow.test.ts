@@ -23,6 +23,14 @@ mockNuxtImport('useRouter', () => () => ({ push, replace, resolve }))
 mockNuxtImport('useRoute', () => () => route)
 mockNuxtImport('useToast', () => () => ({ add: toast }))
 mockNuxtImport('useState', () => () => draft)
+mockNuxtImport('useConfiguration', () => () => ({
+  configuration: ref({
+    collections_enabled: true,
+    plugins_enabled: true,
+    conditions_enabled: true,
+    locations_enabled: true
+  })
+}))
 
 describe('creating an attribute from a category draft', () => {
   const attributes = ref<Record<string, unknown>[]>([])

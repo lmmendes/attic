@@ -7,8 +7,12 @@ definePageMeta({
 
 const toast = useToast()
 const apiFetch = useApiFetch()
+const { configuration } = useConfiguration()
 
 const { data: attributes, refresh, status } = useApi<Attribute[]>('/api/attributes')
+const visibleAttributes = computed(() => (attributes.value || []).filter(attribute =>
+  configuration.value.plugins_enabled || !attribute.plugin_id
+))
 
 // Search
 const searchQuery = ref('')
@@ -29,10 +33,9 @@ const itemsPerPage = ref(10)
 
 // Filtered attributes
 const filteredAttributes = computed(() => {
-  if (!attributes.value) return []
   const query = searchQuery.value.trim().toLowerCase()
 
-  return attributes.value.filter((attribute) => {
+  return visibleAttributes.value.filter((attribute) => {
     const matchesSearch = !query
       || attribute.name.toLowerCase().includes(query)
       || attribute.key.toLowerCase().includes(query)
@@ -42,8 +45,8 @@ const filteredAttributes = computed(() => {
 })
 
 function getTypeCount(type: string): number {
-  if (type === 'all') return attributes.value?.length || 0
-  return attributes.value?.filter(attribute => attribute.data_type === type).length || 0
+  if (type === 'all') return visibleAttributes.value.length
+  return visibleAttributes.value.filter(attribute => attribute.data_type === type).length
 }
 
 // Paginated attributes

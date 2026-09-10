@@ -118,16 +118,17 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db.Pool)
 	repos := &handler.Repositories{
-		Organizations: repository.NewOrganizationRepository(db.Pool),
-		Users:         userRepo,
-		Categories:    repository.NewCategoryRepository(db.Pool),
-		Collections:   repository.NewCollectionRepository(db.Pool),
-		Locations:     repository.NewLocationRepository(db.Pool),
-		Conditions:    repository.NewConditionRepository(db.Pool),
-		Assets:        repository.NewAssetRepository(db.Pool),
-		Warranties:    repository.NewWarrantyRepository(db.Pool),
-		Attachments:   repository.NewAttachmentRepository(db.Pool),
-		Attributes:    repository.NewAttributeRepository(db.Pool),
+		Organizations:  repository.NewOrganizationRepository(db.Pool),
+		Configurations: repository.NewConfigurationRepository(db.Pool),
+		Users:          userRepo,
+		Categories:     repository.NewCategoryRepository(db.Pool),
+		Collections:    repository.NewCollectionRepository(db.Pool),
+		Locations:      repository.NewLocationRepository(db.Pool),
+		Conditions:     repository.NewConditionRepository(db.Pool),
+		Assets:         repository.NewAssetRepository(db.Pool),
+		Warranties:     repository.NewWarrantyRepository(db.Pool),
+		Attachments:    repository.NewAttachmentRepository(db.Pool),
+		Attributes:     repository.NewAttributeRepository(db.Pool),
 	}
 
 	// Resolve default organization from database
@@ -228,7 +229,7 @@ func main() {
 	// CORS middleware
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   strings.Split(cfg.CORSOrigins, ","),
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
@@ -296,6 +297,13 @@ func main() {
 		// Current user info
 		r.Get("/me", h.GetCurrentUser)
 
+		// Organization feature configuration. All members need the read endpoint
+		// so the client can hide disabled capabilities; only admins may change it.
+		r.Route("/configuration", func(r chi.Router) {
+			r.Get("/", h.GetConfiguration)
+			r.With(auth.RequireAdmin(sessionManager)).Patch("/", h.UpdateConfiguration)
+		})
+
 		// User management (admin only)
 		r.Route("/users", func(r chi.Router) {
 			r.Use(auth.RequireAdmin(sessionManager))
@@ -310,10 +318,10 @@ func main() {
 		// Collections are shared by authenticated users in the workspace.
 		r.Route("/collections", func(r chi.Router) {
 			r.Get("/", h.ListCollections)
-			r.Post("/", h.CreateCollection)
+			r.With(h.RequireFeature("collections")).Post("/", h.CreateCollection)
 			r.Get("/{id}", h.GetCollection)
-			r.Put("/{id}", h.UpdateCollection)
-			r.Delete("/{id}", h.DeleteCollection)
+			r.With(h.RequireFeature("collections")).Put("/{id}", h.UpdateCollection)
+			r.With(h.RequireFeature("collections")).Delete("/{id}", h.DeleteCollection)
 		})
 
 		// Categories
@@ -338,19 +346,19 @@ func main() {
 		// Locations
 		r.Route("/locations", func(r chi.Router) {
 			r.Get("/", h.ListLocations)
-			r.Post("/", h.CreateLocation)
+			r.With(h.RequireFeature("locations")).Post("/", h.CreateLocation)
 			r.Get("/{id}", h.GetLocation)
-			r.Put("/{id}", h.UpdateLocation)
-			r.Delete("/{id}", h.DeleteLocation)
+			r.With(h.RequireFeature("locations")).Put("/{id}", h.UpdateLocation)
+			r.With(h.RequireFeature("locations")).Delete("/{id}", h.DeleteLocation)
 		})
 
 		// Conditions
 		r.Route("/conditions", func(r chi.Router) {
 			r.Get("/", h.ListConditions)
-			r.Post("/", h.CreateCondition)
+			r.With(h.RequireFeature("conditions")).Post("/", h.CreateCondition)
 			r.Get("/{id}", h.GetCondition)
-			r.Put("/{id}", h.UpdateCondition)
-			r.Delete("/{id}", h.DeleteCondition)
+			r.With(h.RequireFeature("conditions")).Put("/{id}", h.UpdateCondition)
+			r.With(h.RequireFeature("conditions")).Delete("/{id}", h.DeleteCondition)
 		})
 
 		// Assets
@@ -364,9 +372,9 @@ func main() {
 
 			// Warranty (nested under asset)
 			r.Get("/{id}/warranty", h.GetWarranty)
-			r.Post("/{id}/warranty", h.CreateWarranty)
-			r.Put("/{id}/warranty", h.UpdateWarranty)
-			r.Delete("/{id}/warranty", h.DeleteWarranty)
+			r.With(h.RequireFeature("warranties")).Post("/{id}/warranty", h.CreateWarranty)
+			r.With(h.RequireFeature("warranties")).Put("/{id}/warranty", h.UpdateWarranty)
+			r.With(h.RequireFeature("warranties")).Delete("/{id}/warranty", h.DeleteWarranty)
 
 			// Attachments (nested under asset)
 			r.Get("/{id}/attachments", h.ListAttachments)
@@ -384,15 +392,15 @@ func main() {
 		})
 
 		// Warranties overview
-		r.Get("/warranties", h.ListWarranties)
-		r.Get("/warranties/expiring", h.ListExpiringWarranties)
+		r.With(h.RequireFeature("warranties")).Get("/warranties", h.ListWarranties)
+		r.With(h.RequireFeature("warranties")).Get("/warranties/expiring", h.ListExpiringWarranties)
 
 		// Import Plugins
 		r.Route("/plugins", func(r chi.Router) {
 			r.Get("/", pluginHandler.ListPlugins)
 			r.Get("/{pluginId}", pluginHandler.GetPlugin)
-			r.Get("/{pluginId}/search", pluginHandler.Search)
-			r.Post("/{pluginId}/import", pluginHandler.Import)
+			r.With(h.RequireFeature("plugins")).Get("/{pluginId}/search", pluginHandler.Search)
+			r.With(h.RequireFeature("plugins")).Post("/{pluginId}/import", pluginHandler.Import)
 		})
 	})
 

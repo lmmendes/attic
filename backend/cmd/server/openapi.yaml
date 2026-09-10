@@ -13,6 +13,8 @@ tags:
     description: Health check endpoints
   - name: Auth
     description: Authentication endpoints
+  - name: Configuration
+    description: Organization feature configuration
   - name: Categories
     description: Asset category management
   - name: Locations
@@ -68,6 +70,45 @@ paths:
                 $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /api/configuration:
+    get:
+      tags: [Configuration]
+      summary: Get organization feature configuration
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Current feature configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureConfiguration'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [Configuration]
+      summary: Update organization feature configuration
+      description: Administrator access required. Omitted properties retain their current values.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeatureConfigurationUpdate'
+      responses:
+        '200':
+          description: Updated feature configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureConfiguration'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Administrator access required
 
   /api/categories:
     get:
@@ -723,6 +764,38 @@ components:
                 type: string
 
   schemas:
+    FeatureConfiguration:
+      type: object
+      required: [collections_enabled, plugins_enabled, conditions_enabled, locations_enabled, warranties_enabled]
+      properties:
+        collections_enabled:
+          type: boolean
+        plugins_enabled:
+          type: boolean
+        conditions_enabled:
+          type: boolean
+        locations_enabled:
+          type: boolean
+        warranties_enabled:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+
+    FeatureConfigurationUpdate:
+      type: object
+      properties:
+        collections_enabled:
+          type: boolean
+        plugins_enabled:
+          type: boolean
+        conditions_enabled:
+          type: boolean
+        locations_enabled:
+          type: boolean
+        warranties_enabled:
+          type: boolean
+
     User:
       type: object
       properties:
@@ -747,6 +820,9 @@ components:
         parent_id:
           type: string
           format: uuid
+          nullable: true
+        plugin_id:
+          type: string
           nullable: true
         name:
           type: string

@@ -10,6 +10,7 @@ definePageMeta({
 
 const router = useRouter()
 const route = useRoute()
+const { configuration } = useConfiguration()
 const importModalOpen = ref(false)
 const searchContainer = ref<HTMLElement | null>(null)
 
@@ -47,11 +48,11 @@ watch(() => route.query.category_id, (id) => {
 
 const queryString = computed(() => {
   const params = new URLSearchParams()
-  if (filters.collection_id) params.set('collection_id', filters.collection_id)
+  if (configuration.value.collections_enabled && filters.collection_id) params.set('collection_id', filters.collection_id)
   if (filters.q) params.set('q', filters.q)
   if (filters.category_id) params.set('category_id', filters.category_id)
-  if (filters.location_id) params.set('location_id', filters.location_id)
-  if (filters.condition_id) params.set('condition_id', filters.condition_id)
+  if (configuration.value.locations_enabled && filters.location_id) params.set('location_id', filters.location_id)
+  if (configuration.value.conditions_enabled && filters.condition_id) params.set('condition_id', filters.condition_id)
   params.set('limit', String(filters.limit))
   params.set('offset', String(filters.offset))
   return params.toString()
@@ -79,7 +80,9 @@ const { data: conditions } = useApi<Condition[]>('/api/conditions')
 const categoryOptions = computed(() =>
   [
     { label: 'Uncategorized', value: uncategorizedCategoryFilter },
-    ...buildCategoryOptions(categories.value || [])
+    ...buildCategoryOptions((categories.value || []).filter(category =>
+      configuration.value.plugins_enabled || !category.plugin_id
+    ))
   ]
 )
 
@@ -130,8 +133,18 @@ const conditionOptions = computed(() =>
 )
 
 const hasActiveFilters = computed(() => Boolean(
-  filters.collection_id || filters.q || filters.category_id || filters.location_id || filters.condition_id
+  (configuration.value.collections_enabled && filters.collection_id)
+  || filters.q
+  || filters.category_id
+  || (configuration.value.locations_enabled && filters.location_id)
+  || (configuration.value.conditions_enabled && filters.condition_id)
 ))
+
+watch(configuration, (current) => {
+  if (!current.collections_enabled) filters.collection_id = undefined
+  if (!current.locations_enabled) filters.location_id = undefined
+  if (!current.conditions_enabled) filters.condition_id = undefined
+}, { deep: true, immediate: true })
 
 function clearFilters() {
   searchQuery.value = ''
@@ -164,6 +177,10 @@ const visiblePages = computed(() => {
 // Generate short ID from asset ID
 function getShortId(asset: Asset): string {
   return `ATC-${asset.id.slice(0, 4).toUpperCase()}`
+}
+
+function showAssetCategory(asset: Asset) {
+  return configuration.value.plugins_enabled || !asset.category?.plugin_id
 }
 
 // Get location breadcrumb
@@ -201,6 +218,7 @@ watch(searchQuery, (val: string) => {
       </div>
       <div class="flex items-center gap-2">
         <UButton
+          v-if="configuration.plugins_enabled"
           variant="outline"
           color="neutral"
           class="rounded-xl font-bold"
@@ -236,6 +254,7 @@ watch(searchQuery, (val: string) => {
         </div>
         <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center 2xl:justify-end">
           <USelectMenu
+            v-if="configuration.collections_enabled"
             v-model="filters.collection_id"
             :items="collectionOptions"
             value-key="value"
@@ -252,6 +271,7 @@ watch(searchQuery, (val: string) => {
             icon="i-lucide-folder"
           />
           <USelectMenu
+            v-if="configuration.locations_enabled"
             v-model="filters.location_id"
             :items="locationOptions"
             placeholder="Location"
@@ -260,6 +280,7 @@ watch(searchQuery, (val: string) => {
             icon="i-lucide-map-pin"
           />
           <USelectMenu
+            v-if="configuration.conditions_enabled"
             v-model="filters.condition_id"
             :items="conditionOptions"
             placeholder="Condition"
@@ -306,13 +327,19 @@ watch(searchQuery, (val: string) => {
                 <th class="p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
                   Asset
                 </th>
-                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted md:table-cell">
+                <th
+                  v-if="configuration.collections_enabled"
+                  class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted md:table-cell"
+                >
                   Category
                 </th>
                 <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted md:table-cell">
                   Collections
                 </th>
-                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted lg:table-cell">
+                <th
+                  v-if="configuration.locations_enabled"
+                  class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted lg:table-cell"
+                >
                   Location
                 </th>
                 <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted xl:table-cell">
@@ -432,14 +459,17 @@ watch(searchQuery, (val: string) => {
                     {{ asset.description || `${asset.quantity} ${asset.quantity === 1 ? 'item' : 'items'} in inventory` }}
                   </p>
                   <div class="mt-1.5 flex items-center gap-1.5 md:hidden">
-                    <span class="text-[10px] font-bold text-attic-500">{{ asset.category?.name || 'Uncategorized' }}</span>
                     <span
-                      v-if="asset.location?.name"
+                      v-if="showAssetCategory(asset)"
+                      class="text-[10px] font-bold text-attic-500"
+                    >{{ asset.category?.name || 'Uncategorized' }}</span>
+                    <span
+                      v-if="configuration.locations_enabled && asset.location?.name"
                       class="text-[10px] text-muted"
                     >· {{ asset.location.name }}</span>
                   </div>
                   <div
-                    v-if="asset.collections?.length"
+                    v-if="configuration.collections_enabled && asset.collections?.length"
                     class="mt-2 flex flex-wrap gap-1.5 md:hidden"
                     aria-label="Collections"
                   >
@@ -452,11 +482,21 @@ watch(searchQuery, (val: string) => {
                   </div>
                 </td>
                 <td class="hidden p-3 md:table-cell">
-                  <span class="inline-flex rounded-full bg-attic-50 px-2.5 py-1 text-[10px] font-extrabold text-attic-600 ring-1 ring-attic-100 dark:bg-attic-500/10 dark:text-attic-300 dark:ring-attic-500/20">
+                  <span
+                    v-if="showAssetCategory(asset)"
+                    class="inline-flex rounded-full bg-attic-50 px-2.5 py-1 text-[10px] font-extrabold text-attic-600 ring-1 ring-attic-100 dark:bg-attic-500/10 dark:text-attic-300 dark:ring-attic-500/20"
+                  >
                     {{ asset.category?.name || 'Uncategorized' }}
                   </span>
+                  <span
+                    v-else
+                    class="text-xs text-muted"
+                  >—</span>
                 </td>
-                <td class="hidden max-w-64 p-3 md:table-cell">
+                <td
+                  v-if="configuration.collections_enabled"
+                  class="hidden max-w-64 p-3 md:table-cell"
+                >
                   <div
                     v-if="asset.collections?.length"
                     class="flex flex-wrap gap-1.5"
@@ -480,7 +520,10 @@ watch(searchQuery, (val: string) => {
                     aria-label="No collections"
                   >—</span>
                 </td>
-                <td class="hidden p-3 lg:table-cell">
+                <td
+                  v-if="configuration.locations_enabled"
+                  class="hidden p-3 lg:table-cell"
+                >
                   <div
                     v-if="asset.location?.name"
                     class="flex items-center gap-1.5 text-muted"

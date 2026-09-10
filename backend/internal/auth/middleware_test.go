@@ -81,6 +81,28 @@ func Test_Middleware_Disabled_SetsDevUserClaims(t *testing.T) {
 	}
 }
 
+func Test_RequireAdmin_DisabledAuth_AllowsRequest(t *testing.T) {
+	m := &Middleware{disabled: true}
+	sm := NewSessionManager("test-secret-key-32-bytes-long!!", 24)
+
+	nextCalled := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodPatch, "/admin", nil)
+	rec := httptest.NewRecorder()
+	m.Authenticate(RequireAdmin(sm)(next)).ServeHTTP(rec, req)
+
+	if !nextCalled {
+		t.Error("expected disabled-auth development user to access admin endpoint")
+	}
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rec.Code)
+	}
+}
+
 // Tests for local authentication
 
 func Test_Middleware_Local_ValidSession_AllowsRequest(t *testing.T) {

@@ -11,6 +11,7 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const apiFetch = useApiFetch()
+const { configuration } = useConfiguration()
 
 const categoryId = computed(() => route.params.id as string)
 
@@ -20,6 +21,12 @@ const { data: category, status: categoryStatus } = useApi<Category>(
 )
 const { data: attributes } = useApi<Attribute[]>('/api/attributes')
 const { data: categories } = useApi<Category[]>('/api/categories')
+const visibleAttributes = computed(() => (attributes.value || []).filter(attribute =>
+  configuration.value.plugins_enabled || !attribute.plugin_id
+))
+const visibleCategories = computed(() => (categories.value || []).filter(item =>
+  configuration.value.plugins_enabled || !item.plugin_id
+))
 
 // Form state
 const form = reactive({
@@ -39,19 +46,23 @@ interface AttributeSelection {
 const selectedAttributes = ref<AttributeSelection[]>([])
 const draggedAttributeId = ref<string | null>(null)
 const excludedParentIds = computed(() =>
-  getCategoryDescendantIds(categories.value || [], categoryId.value)
+  getCategoryDescendantIds(visibleCategories.value, categoryId.value)
 )
 const parentOptions = computed(() => [
   { label: 'None (Top Level)', value: undefined },
-  ...buildCategoryOptions(categories.value || [], excludedParentIds.value)
+  ...buildCategoryOptions(visibleCategories.value, excludedParentIds.value)
 ])
 const inheritedAttributes = computed(() =>
-  getInheritedCategoryAttributes(categories.value || [], form.parent_id)
+  getInheritedCategoryAttributes(visibleCategories.value, form.parent_id)
 )
 
 // Initialize form when category loads
 watch(category, (cat) => {
   if (cat) {
+    if (!configuration.value.plugins_enabled && cat.plugin_id) {
+      void navigateTo('/categories')
+      return
+    }
     form.name = cat.name
     form.description = cat.description || ''
     form.icon = cat.icon || 'i-lucide-tag'
@@ -135,8 +146,7 @@ const descriptionCount = computed(() => form.description.length)
 
 // Filter available attributes (not already selected)
 const availableAttributes = computed(() => {
-  if (!attributes.value) return []
-  return attributes.value.filter(
+  return visibleAttributes.value.filter(
     a => !selectedAttributes.value.some(sa => sa.attribute_id === a.id)
       && !inheritedAttributes.value.some(ia => ia.attribute_id === a.id)
   )
@@ -153,7 +163,7 @@ const filteredAttributes = computed(() => {
 
 // Get attribute by ID
 function getAttribute(id: string): Attribute | undefined {
-  return attributes.value?.find(a => a.id === id)
+  return visibleAttributes.value.find(a => a.id === id)
 }
 
 // Add attribute to selection
@@ -624,7 +634,7 @@ function cancel() {
 
                   <!-- No attributes message -->
                   <div
-                    v-if="!attributes?.length"
+                    v-if="!visibleAttributes.length"
                     class="text-center py-6"
                   >
                     <UIcon

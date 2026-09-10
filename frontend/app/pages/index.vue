@@ -5,6 +5,7 @@ import { getDashboardUrls } from '~/utils/dashboardUrls'
 definePageMeta({ middleware: 'auth' })
 
 const { user } = useAuth()
+const { configuration } = useConfiguration()
 const { data: categories } = useApi<Category[]>('/api/categories')
 const { data: locations } = useApi<Location[]>('/api/locations')
 const { data: collections, error: collectionsError } = useApi<Collection[]>('/api/collections')
@@ -49,7 +50,9 @@ const locationOptions = computed(() => buildLocationOptions(locations.value || [
 const selectedLocation = computed(() =>
   locations.value?.find(location => location.id === selectedLocationId.value)
 )
-const dashboardUrls = computed(() => getDashboardUrls(selectedLocationId.value))
+const dashboardUrls = computed(() => getDashboardUrls(
+  configuration.value.locations_enabled ? selectedLocationId.value : 'all'
+))
 const assetsUrl = computed(() => dashboardUrls.value.assets)
 const assetStatsUrl = computed(() => dashboardUrls.value.stats)
 const assetsPageUrl = computed(() => dashboardUrls.value.inventory)
@@ -90,7 +93,8 @@ const overviewMetrics = computed(() => [
   { label: 'Assets', value: assets.value?.total || 0, icon: 'i-lucide-package', to: assetsPageUrl.value },
   { label: 'Locations', value: locations.value?.length || 0, icon: 'i-lucide-map-pin', to: '/locations' },
   { label: 'Expiring', value: expiringWarranties.value?.length || 0, icon: 'i-lucide-shield-alert', to: '/warranties' }
-])
+].filter(metric => (metric.label !== 'Locations' || configuration.value.locations_enabled)
+  && (metric.label !== 'Expiring' || configuration.value.warranties_enabled)))
 
 const quickLinks = computed(() => [
   {
@@ -119,7 +123,11 @@ const quickLinks = computed(() => [
     icon: 'i-lucide-shield-check', to: '/warranties',
     iconClass: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
   }
-])
+].filter(link =>
+  (link.label !== 'Collections' || configuration.value.collections_enabled)
+  && (link.label !== 'Locations' || configuration.value.locations_enabled)
+  && (link.label !== 'Warranties' || configuration.value.warranties_enabled)
+))
 </script>
 
 <template>
@@ -173,6 +181,7 @@ const quickLinks = computed(() => [
                 Inventory overview
               </p>
               <USelectMenu
+                v-if="configuration.locations_enabled"
                 v-model="selectedLocationId"
                 :items="locationOptions"
                 value-key="value"
@@ -275,7 +284,10 @@ const quickLinks = computed(() => [
                 />
               </div>
             </div>
-            <span class="absolute left-3 top-3 hidden rounded-full sm:inline bg-white/90 px-2.5 py-1 text-[10px] font-extrabold text-mist-600 shadow-sm backdrop-blur dark:bg-mist-900/85 dark:text-mist-300">
+            <span
+              v-if="configuration.plugins_enabled || !asset.category?.plugin_id"
+              class="absolute left-3 top-3 hidden rounded-full sm:inline bg-white/90 px-2.5 py-1 text-[10px] font-extrabold text-mist-600 shadow-sm backdrop-blur dark:bg-mist-900/85 dark:text-mist-300"
+            >
               {{ asset.category?.name || 'Uncategorized' }}
             </span>
           </div>
@@ -285,11 +297,13 @@ const quickLinks = computed(() => [
                 <h3 class="line-clamp-2 font-extrabold text-mist-950 dark:text-white">{{ asset.name }}</h3>
                 <p class="mt-1 flex items-center gap-1.5 truncate text-xs text-muted">
                   <UIcon
+                    v-if="configuration.locations_enabled"
                     name="i-lucide-map-pin"
                     class="size-3.5 shrink-0"
-                  />{{ asset.location?.name || 'No location' }}
+                  /><template v-if="configuration.locations_enabled">{{ asset.location?.name || 'No location' }}</template>
                 </p>
                 <div
+                  v-if="configuration.collections_enabled"
                   class="mt-2 flex min-w-0 items-center gap-1.5 text-[11px] text-muted"
                   :title="asset.collections?.length ? asset.collections.map(collection => collection.name).join(', ') : 'No collections'"
                 >
@@ -375,7 +389,7 @@ const quickLinks = computed(() => [
     </section>
 
     <NuxtLink
-      v-if="(expiringWarranties?.length || 0) > 0"
+      v-if="configuration.warranties_enabled && (expiringWarranties?.length || 0) > 0"
       to="/warranties"
       class="xl:col-span-2 group flex flex-col gap-4 rounded-[22px] border border-amber-200 bg-amber-50 p-5 transition hover:border-amber-300 dark:border-amber-800/50 dark:bg-amber-900/10 sm:flex-row sm:items-center"
     >

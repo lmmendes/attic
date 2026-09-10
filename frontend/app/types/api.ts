@@ -6,11 +6,23 @@ export interface User {
   display_name: string
 }
 
+export type FeatureName = 'collections' | 'plugins' | 'conditions' | 'locations' | 'warranties'
+
+export interface FeatureConfiguration {
+  collections_enabled: boolean
+  plugins_enabled: boolean
+  conditions_enabled: boolean
+  locations_enabled: boolean
+  warranties_enabled: boolean
+  updated_at?: string
+}
+
 export type AttributeDataType = 'string' | 'number' | 'boolean' | 'text' | 'date'
 
 export interface Attribute {
   id: string
   organization_id: string
+  plugin_id?: string
   name: string
   key: string
   data_type: AttributeDataType
@@ -33,6 +45,7 @@ export interface Category {
   id: string
   organization_id: string
   parent_id?: string
+  plugin_id?: string
   name: string
   description?: string
   icon?: string

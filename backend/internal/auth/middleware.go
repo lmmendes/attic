@@ -12,7 +12,8 @@ import (
 type contextKey string
 
 const (
-	UserContextKey contextKey = "user"
+	UserContextKey      contextKey = "user"
+	AuthDisabledContext contextKey = "auth_disabled"
 )
 
 // Claims represents the JWT claims we care about
@@ -108,6 +109,7 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 				DisplayName: "devuser",
 			}
 			ctx := context.WithValue(r.Context(), UserContextKey, claims)
+			ctx = context.WithValue(ctx, AuthDisabledContext, true)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
@@ -226,6 +228,14 @@ func (t *oidcVerifiedToken) Subject() string {
 func RequireAdmin(sessionManager *SessionManager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Authentication-disabled mode is an explicit local-development mode;
+			// its mock user is allowed to access admin endpoints without a session
+			// cookie, including feature configuration.
+			if disabled, ok := r.Context().Value(AuthDisabledContext).(bool); ok && disabled {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			// Check domain user from context first (used by OIDC via UserProvisioner)
 			if user := GetUser(r.Context()); user != nil {
 				if user.Role != domain.UserRoleAdmin {

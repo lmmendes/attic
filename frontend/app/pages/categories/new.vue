@@ -11,9 +11,16 @@ const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 const apiFetch = useApiFetch()
+const { configuration } = useConfiguration()
 
 const { data: attributes, refresh: refreshAttributes } = useApi<Attribute[]>('/api/attributes')
 const { data: categories, clear: clearCategories } = useApi<Category[]>('/api/categories')
+const visibleAttributes = computed(() => (attributes.value || []).filter(attribute =>
+  configuration.value.plugins_enabled || !attribute.plugin_id
+))
+const visibleCategories = computed(() => (categories.value || []).filter(category =>
+  configuration.value.plugins_enabled || !category.plugin_id
+))
 
 // Form state
 interface CategoryDraft {
@@ -49,10 +56,10 @@ const selectedAttributes = ref<AttributeSelection[]>(restoredDraft?.selectedAttr
 categoryDraft.value = null
 const parentOptions = computed(() => [
   { label: 'None (Top Level)', value: undefined },
-  ...buildCategoryOptions(categories.value || [])
+  ...buildCategoryOptions(visibleCategories.value)
 ])
 const inheritedAttributes = computed(() =>
-  getInheritedCategoryAttributes(categories.value || [], form.parent_id)
+  getInheritedCategoryAttributes(visibleCategories.value, form.parent_id)
 )
 
 // Search query for attribute library
@@ -126,8 +133,7 @@ const descriptionCount = computed(() => form.description.length)
 
 // Filter available attributes (not already selected)
 const availableAttributes = computed(() => {
-  if (!attributes.value) return []
-  return attributes.value.filter(
+  return visibleAttributes.value.filter(
     a => !selectedAttributes.value.some(sa => sa.attribute_id === a.id)
       && !inheritedAttributes.value.some(ia => ia.attribute_id === a.id)
   )
@@ -144,7 +150,7 @@ const filteredAttributes = computed(() => {
 
 // Get attribute by ID
 function getAttribute(id: string): Attribute | undefined {
-  return attributes.value?.find(a => a.id === id)
+  return visibleAttributes.value.find(a => a.id === id)
 }
 
 // Add attribute to selection
@@ -565,7 +571,7 @@ function cancel() {
 
                 <!-- No attributes message -->
                 <div
-                  v-if="!attributes?.length"
+                  v-if="!visibleAttributes.length"
                   class="text-center py-6"
                 >
                   <UIcon

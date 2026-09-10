@@ -17,6 +17,17 @@ type Organization struct {
 	DeletedAt   *time.Time `json:"-"`
 }
 
+// FeatureConfiguration controls optional organization features.
+type FeatureConfiguration struct {
+	OrganizationID     uuid.UUID `json:"-"`
+	CollectionsEnabled bool      `json:"collections_enabled"`
+	PluginsEnabled     bool      `json:"plugins_enabled"`
+	ConditionsEnabled  bool      `json:"conditions_enabled"`
+	LocationsEnabled   bool      `json:"locations_enabled"`
+	WarrantiesEnabled  bool      `json:"warranties_enabled"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
 // UserRole represents the user's role in the system
 type UserRole string
 

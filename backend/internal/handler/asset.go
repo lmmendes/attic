@@ -173,6 +173,23 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	configuration, err := h.repos.Configurations.Get(r.Context(), h.orgID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get configuration")
+		return
+	}
+	if !configuration.CollectionsEnabled && req.CollectionIDs != nil {
+		writeError(w, http.StatusForbidden, "collections feature is disabled")
+		return
+	}
+	if !configuration.LocationsEnabled && req.LocationID != nil {
+		writeError(w, http.StatusForbidden, "locations feature is disabled")
+		return
+	}
+	if !configuration.ConditionsEnabled && req.ConditionID != nil {
+		writeError(w, http.StatusForbidden, "conditions feature is disabled")
+		return
+	}
 
 	if req.Name == "" {
 		writeError(w, http.StatusBadRequest, "name is required")
@@ -188,7 +205,7 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		}
 		categoryID = &id
 	}
-	if message, err := h.validateAssetCategory(r.Context(), categoryID, req.Attributes); err != nil {
+	if message, err := h.validateAssetCategory(r.Context(), categoryID, req.Attributes, configuration.PluginsEnabled); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to validate category attributes")
 		return
 	} else if message != "" {
@@ -275,6 +292,23 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "asset not found")
 		return
 	}
+	configuration, err := h.repos.Configurations.Get(r.Context(), h.orgID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get configuration")
+		return
+	}
+	if !configuration.CollectionsEnabled && req.CollectionIDs != nil {
+		writeError(w, http.StatusForbidden, "collections feature is disabled")
+		return
+	}
+	if !configuration.LocationsEnabled && req.LocationID != nil {
+		writeError(w, http.StatusForbidden, "locations feature is disabled")
+		return
+	}
+	if !configuration.ConditionsEnabled && req.ConditionID != nil {
+		writeError(w, http.StatusForbidden, "conditions feature is disabled")
+		return
+	}
 
 	var categoryID *uuid.UUID
 	if req.CategoryID != nil && *req.CategoryID != "" {
@@ -285,7 +319,8 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		}
 		categoryID = &id
 	}
-	if message, err := h.validateAssetCategory(r.Context(), categoryID, req.Attributes); err != nil {
+	pluginsEnabledForCategory := configuration.PluginsEnabled || sameUUID(asset.CategoryID, categoryID)
+	if message, err := h.validateAssetCategory(r.Context(), categoryID, req.Attributes, pluginsEnabledForCategory); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to validate category attributes")
 		return
 	} else if message != "" {
@@ -313,14 +348,14 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		if id, err := parseUUIDString(*req.LocationID); err == nil {
 			asset.LocationID = &id
 		}
-	} else {
+	} else if configuration.LocationsEnabled {
 		asset.LocationID = nil
 	}
 	if req.ConditionID != nil {
 		if id, err := parseUUIDString(*req.ConditionID); err == nil {
 			asset.ConditionID = &id
 		}
-	} else {
+	} else if configuration.ConditionsEnabled {
 		asset.ConditionID = nil
 	}
 	if req.PurchaseAt != nil && *req.PurchaseAt != "" {
@@ -333,12 +368,14 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	asset.PurchasePrice = req.PurchasePrice
 	asset.PurchaseNote = req.PurchaseNote
 	asset.Notes = req.Notes
-	collectionIDs, err := parseCollectionIDs(req.CollectionIDs)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
+	if configuration.CollectionsEnabled {
+		collectionIDs, err := parseCollectionIDs(req.CollectionIDs)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		asset.CollectionIDs = collectionIDs
 	}
-	asset.CollectionIDs = collectionIDs
 
 	if err := h.repos.Assets.Update(r.Context(), asset); err != nil {
 		if errors.Is(err, repository.ErrInvalidCollections) {
@@ -352,7 +389,7 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, asset)
 }
 
-func (h *Handler) validateAssetCategory(ctx context.Context, categoryID *uuid.UUID, rawAttributes json.RawMessage) (string, error) {
+func (h *Handler) validateAssetCategory(ctx context.Context, categoryID *uuid.UUID, rawAttributes json.RawMessage, pluginsEnabled bool) (string, error) {
 	if categoryID == nil {
 		return "", nil
 	}
@@ -362,6 +399,9 @@ func (h *Handler) validateAssetCategory(ctx context.Context, categoryID *uuid.UU
 	}
 	if category == nil {
 		return "category does not exist in this workspace", nil
+	}
+	if !pluginsEnabled && category.PluginID != nil {
+		return "plugin-managed categories are disabled", nil
 	}
 	missing, err := missingRequiredCategoryAttributes(category, rawAttributes)
 	if err != nil {
@@ -395,6 +435,10 @@ func missingRequiredCategoryAttributes(category *domain.Category, rawAttributes 
 		}
 	}
 	return missing, nil
+}
+
+func sameUUID(left, right *uuid.UUID) bool {
+	return left != nil && right != nil && *left == *right
 }
 
 func (h *Handler) DeleteAsset(w http.ResponseWriter, r *http.Request) {

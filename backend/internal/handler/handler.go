@@ -23,16 +23,17 @@ type FileStorage interface {
 
 // Repositories holds all repository implementations
 type Repositories struct {
-	Organizations *repository.OrganizationRepository
-	Users         *repository.UserRepository
-	Categories    *repository.CategoryRepository
-	Collections   *repository.CollectionRepository
-	Locations     *repository.LocationRepository
-	Conditions    *repository.ConditionRepository
-	Assets        *repository.AssetRepository
-	Warranties    *repository.WarrantyRepository
-	Attachments   *repository.AttachmentRepository
-	Attributes    *repository.AttributeRepository
+	Organizations  *repository.OrganizationRepository
+	Configurations *repository.ConfigurationRepository
+	Users          *repository.UserRepository
+	Categories     *repository.CategoryRepository
+	Collections    *repository.CollectionRepository
+	Locations      *repository.LocationRepository
+	Conditions     *repository.ConditionRepository
+	Assets         *repository.AssetRepository
+	Warranties     *repository.WarrantyRepository
+	Attachments    *repository.AttachmentRepository
+	Attributes     *repository.AttributeRepository
 }
 
 // Handler holds dependencies for HTTP handlers

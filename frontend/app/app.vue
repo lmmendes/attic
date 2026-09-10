@@ -22,6 +22,7 @@ useSeoMeta({
 })
 
 const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isOIDCEnabled, changePassword } = useAuth()
+const { fetchConfiguration, isFeatureEnabled } = useConfiguration()
 const config = useRuntimeConfig()
 
 type AppInfo = {
@@ -38,6 +39,7 @@ const apiDocsUrl = computed(() => `${config.public.apiBase || ''}/api/docs`)
 watch(loggedIn, (isLoggedIn) => {
   if (isLoggedIn) {
     void fetchAppInfo()
+    void fetchConfiguration().catch(() => {})
   }
 }, { immediate: true })
 
@@ -110,17 +112,26 @@ const secondaryNavigation = [
 ]
 
 const navigation = computed(() => {
-  const items = [...baseNavigation]
-  return items
+  return baseNavigation.filter(item => routeFeatureEnabled(item.to))
 })
 
 const secondaryNav = computed(() => {
-  const items = [...secondaryNavigation]
+  const items = secondaryNavigation.filter(item => routeFeatureEnabled(item.to))
   if (isAdmin.value) {
     items.push({ label: 'Users', to: '/users', icon: 'i-lucide-users' })
+    items.push({ label: 'Configuration', to: '/configuration', icon: 'i-lucide-settings' })
   }
   return items
 })
+
+function routeFeatureEnabled(to: string) {
+  if (to === '/collections') return isFeatureEnabled('collections')
+  if (to === '/plugins') return isFeatureEnabled('plugins')
+  if (to === '/conditions') return isFeatureEnabled('conditions')
+  if (to === '/locations') return isFeatureEnabled('locations')
+  if (to === '/warranties') return isFeatureEnabled('warranties')
+  return true
+}
 
 // Check if a nav item is active
 const isActive = (to: string) => {
