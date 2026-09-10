@@ -39,7 +39,7 @@ describe('accessibility template regressions', () => {
   })
 
   it('names icon and data-type choices and exposes their selected state', () => {
-    for (const file of ['pages/locations.vue', 'pages/categories/new.vue', 'pages/categories/[id]/edit.vue']) {
+    for (const file of ['pages/locations.vue', 'components/CategoryEditor.vue']) {
       const source = readAppFile(file)
       expect(source, file).toContain(':aria-label=')
       expect(source, file).toContain(':aria-pressed=')
@@ -90,8 +90,7 @@ describe('accessibility template regressions', () => {
   })
 
   it('lets category icon grids contribute their full mobile height', () => {
-    expect(readAppFile('pages/categories/new.vue')).toContain('sm:max-h-[280px] sm:overflow-y-auto')
-    expect(readAppFile('pages/categories/[id]/edit.vue')).toContain('sm:max-h-40 sm:overflow-y-auto')
+    expect(readAppFile('components/CategoryEditor.vue')).toContain('sm:max-h-[280px] sm:overflow-y-auto')
   })
 
   it('allows the attribute filters to shrink without overlapping search', () => {
