@@ -512,7 +512,7 @@ func Test_AuthHandler_GetSession_ExposesOIDCAutoRedirect(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := NewAuthHandler(nil, auth.NewSessionManager("test-secret-key-32-bytes-long!!", 24), 8, tt.oidcEnabled, tt.oidcAutoRedirect)
+			h := NewAuthHandler(nil, auth.NewSessionManager("test-secret-key-32-bytes-long!!", 24), 8, tt.oidcEnabled, tt.oidcAutoRedirect, false, nil)
 			req := httptest.NewRequest(http.MethodGet, "/auth/session", nil)
 			rec := httptest.NewRecorder()
 
@@ -526,6 +526,52 @@ func Test_AuthHandler_GetSession_ExposesOIDCAutoRedirect(t *testing.T) {
 				t.Errorf("expected oidc_auto_redirect to be %v, got %v", tt.want, resp["oidc_auto_redirect"])
 			}
 		})
+	}
+}
+
+func Test_AuthHandler_GetSession_AuthDisabledReturnsConfiguredUser(t *testing.T) {
+	displayName := "Read Only User"
+	user := &domain.User{
+		ID:          uuid.New(),
+		Email:       "viewer@example.com",
+		DisplayName: &displayName,
+		Role:        domain.UserRoleUser,
+	}
+	h := NewAuthHandler(nil, auth.NewSessionManager("test-secret-key-32-bytes-long!!", 24), 8, true, true, true, user)
+	req := httptest.NewRequest(http.MethodGet, "/auth/session", nil)
+	rec := httptest.NewRecorder()
+
+	h.GetSession(rec, req)
+
+	var resp map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp["authenticated"] != true || resp["auth_disabled"] != true {
+		t.Fatalf("expected authenticated disabled session, got %v", resp)
+	}
+	if resp["oidc_enabled"] != false || resp["oidc_auto_redirect"] != false {
+		t.Fatalf("expected disabled auth to take precedence over OIDC, got %v", resp)
+	}
+	userInfo := resp["user"].(map[string]any)
+	if userInfo["id"] != user.ID.String() || userInfo["email"] != user.Email || userInfo["role"] != string(user.Role) {
+		t.Fatalf("expected configured user in session, got %v", userInfo)
+	}
+}
+
+func Test_AuthHandler_GetAuthMode_AuthDisabledTakesPrecedence(t *testing.T) {
+	h := NewAuthHandler(nil, auth.NewSessionManager("test-secret-key-32-bytes-long!!", 24), 8, true, true, true, &domain.User{})
+	req := httptest.NewRequest(http.MethodGet, "/auth/mode", nil)
+	rec := httptest.NewRecorder()
+
+	h.GetAuthMode(rec, req)
+
+	var resp map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp["auth_disabled"] != true || resp["oidc_enabled"] != false {
+		t.Fatalf("expected disabled auth mode, got %v", resp)
 	}
 }
 

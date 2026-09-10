@@ -203,9 +203,10 @@ describe('Password Change Modal', () => {
   describe('User Menu Items', () => {
     it('includes change password option when OIDC is disabled', () => {
       const isOIDCEnabled = false
+      const isAuthDisabled = false
       const items: { label: string, icon?: string }[][] = []
 
-      if (!isOIDCEnabled) {
+      if (!isOIDCEnabled && !isAuthDisabled) {
         items.push([{
           label: 'Change Password',
           icon: 'i-lucide-key'
@@ -218,13 +219,29 @@ describe('Password Change Modal', () => {
 
     it('excludes change password option when OIDC is enabled', () => {
       const isOIDCEnabled = true
+      const isAuthDisabled = false
       const items: { label: string, icon?: string }[][] = []
 
-      if (!isOIDCEnabled) {
+      if (!isOIDCEnabled && !isAuthDisabled) {
         items.push([{
           label: 'Change Password',
           icon: 'i-lucide-key'
         }])
+      }
+
+      expect(items).toHaveLength(0)
+    })
+
+    it('excludes authentication actions when authentication is disabled', () => {
+      const isOIDCEnabled = false
+      const isAuthDisabled = true
+      const items: { label: string, icon?: string }[][] = []
+
+      if (!isOIDCEnabled && !isAuthDisabled) {
+        items.push([{ label: 'Change Password', icon: 'i-lucide-key' }])
+      }
+      if (!isAuthDisabled) {
+        items.push([{ label: 'Sign out', icon: 'i-lucide-log-out' }])
       }
 
       expect(items).toHaveLength(0)

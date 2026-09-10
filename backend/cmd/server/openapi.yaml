@@ -21,6 +21,8 @@ tags:
     description: Asset condition management
   - name: Assets
     description: Asset management
+  - name: Asset Events
+    description: User-managed asset history events
   - name: Warranties
     description: Warranty management
   - name: Attachments
@@ -584,6 +586,104 @@ paths:
         '204':
           description: Warranty deleted
 
+  /api/assets/{id}/events:
+    get:
+      tags: [Asset Events]
+      summary: List custom events for an asset
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Events ordered by occurrence time descending
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AssetEvent'
+        '400':
+          description: Invalid asset ID
+        '404':
+          description: Asset not found
+    post:
+      tags: [Asset Events]
+      summary: Create a custom asset event
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetEventInput'
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetEvent'
+        '400':
+          description: Invalid request
+        '404':
+          description: Asset not found
+
+  /api/assets/{id}/events/{eventId}:
+    put:
+      tags: [Asset Events]
+      summary: Update a custom asset event
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetEventInput'
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetEvent'
+        '400':
+          description: Invalid request
+        '404':
+          description: Asset or event not found
+    delete:
+      tags: [Asset Events]
+      summary: Delete a custom asset event
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Event deleted
+        '400':
+          description: Invalid asset or event ID
+        '404':
+          description: Asset or event not found
+
   /api/warranties/expiring:
     get:
       tags: [Warranties]
@@ -1024,6 +1124,55 @@ components:
           type: string
           format: date-time
         updated_at:
+          type: string
+          format: date-time
+
+    AssetEvent:
+      type: object
+      required: [id, asset_id, title, description, icon, occurred_at, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        asset_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+        icon:
+          type: string
+          maxLength: 100
+          pattern: '^i-lucide-[a-z0-9]+(?:-[a-z0-9]+)*$'
+        occurred_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AssetEventInput:
+      type: object
+      required: [title, icon, occurred_at]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+        icon:
+          type: string
+          maxLength: 100
+          pattern: '^i-lucide-[a-z0-9]+(?:-[a-z0-9]+)*$'
+        occurred_at:
           type: string
           format: date-time
 

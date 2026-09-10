@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"testing"
@@ -10,6 +11,48 @@ import (
 	"github.com/lmmendes/attic/internal/domain"
 	"github.com/lmmendes/attic/internal/plugin"
 )
+
+type disabledAuthUserLookup struct {
+	user  *domain.User
+	err   error
+	email string
+}
+
+func (l *disabledAuthUserLookup) GetByEmail(_ context.Context, email string) (*domain.User, error) {
+	l.email = email
+	return l.user, l.err
+}
+
+func TestResolveAuthDisabledUserReturnsSelectedUser(t *testing.T) {
+	want := &domain.User{Email: "viewer@example.com", Role: domain.UserRoleUser}
+	lookup := &disabledAuthUserLookup{user: want}
+
+	got, err := resolveAuthDisabledUser(context.Background(), lookup, "viewer@example.com")
+	if err != nil {
+		t.Fatalf("resolve disabled auth user: %v", err)
+	}
+	if got != want {
+		t.Fatal("expected resolved database user")
+	}
+	if lookup.email != "viewer@example.com" {
+		t.Fatalf("expected configured email lookup, got %q", lookup.email)
+	}
+}
+
+func TestResolveAuthDisabledUserFailsWhenUserDoesNotExist(t *testing.T) {
+	_, err := resolveAuthDisabledUser(context.Background(), &disabledAuthUserLookup{}, "admin")
+	if err == nil || !strings.Contains(err.Error(), `user with email "admin" not found`) {
+		t.Fatalf("expected missing user error, got %v", err)
+	}
+}
+
+func TestResolveAuthDisabledUserWrapsLookupError(t *testing.T) {
+	lookupErr := errors.New("database unavailable")
+	_, err := resolveAuthDisabledUser(context.Background(), &disabledAuthUserLookup{err: lookupErr}, "admin")
+	if !errors.Is(err, lookupErr) {
+		t.Fatalf("expected lookup error to be wrapped, got %v", err)
+	}
+}
 
 type startupTestPlugin struct{}
 

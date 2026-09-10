@@ -79,6 +79,18 @@ describe('useAuth', () => {
   })
 
   describe('logout', () => {
+    it('does nothing when authentication is disabled', async () => {
+      const { useAuth } = await import('../../app/composables/useAuth')
+      const { logout, session } = useAuth()
+
+      session.value = { authenticated: true, auth_disabled: true, user: { email: 'admin', name: 'Administrator' } }
+
+      await logout()
+
+      expect(mockFetch).not.toHaveBeenCalled()
+      expect(session.value.authenticated).toBe(true)
+    })
+
     it('calls logout endpoint and resets session for local auth', async () => {
       mockFetch.mockResolvedValueOnce({})
 
@@ -123,6 +135,17 @@ describe('useAuth', () => {
   })
 
   describe('computed properties', () => {
+    it('isAuthDisabled returns auth_disabled value from session', async () => {
+      const { useAuth } = await import('../../app/composables/useAuth')
+      const { isAuthDisabled, session } = useAuth()
+
+      session.value = { authenticated: true, auth_disabled: true }
+      expect(isAuthDisabled.value).toBe(true)
+
+      session.value = { authenticated: true, auth_disabled: false }
+      expect(isAuthDisabled.value).toBe(false)
+    })
+
     it('isAuthenticated returns correct value based on session', async () => {
       const { useAuth } = await import('../../app/composables/useAuth')
       const { isAuthenticated, session } = useAuth()

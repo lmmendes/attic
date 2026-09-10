@@ -1,5 +1,6 @@
 interface AuthSession {
   authenticated: boolean
+  auth_disabled?: boolean
   oidc_enabled?: boolean
   oidc_auto_redirect?: boolean
   user?: {
@@ -72,6 +73,10 @@ export function useAuth() {
   }
 
   const logout = async () => {
+    if (session.value?.auth_disabled) {
+      return
+    }
+
     // For OIDC, redirect to the OIDC logout endpoint which handles provider logout
     if (session.value?.oidc_enabled) {
       window.location.href = `${config.public.apiBase}/auth/oidc/logout`
@@ -109,6 +114,7 @@ export function useAuth() {
   }
 
   const isAuthenticated = computed(() => session.value?.authenticated ?? false)
+  const isAuthDisabled = computed(() => session.value?.auth_disabled ?? false)
   const isOIDCEnabled = computed(() => session.value?.oidc_enabled ?? false)
   const isOIDCAutoRedirectEnabled = computed(() => session.value?.oidc_auto_redirect ?? false)
   const user = computed(() => session.value?.user ?? null)
@@ -118,6 +124,7 @@ export function useAuth() {
     session,
     loading,
     isAuthenticated,
+    isAuthDisabled,
     isOIDCEnabled,
     isOIDCAutoRedirectEnabled,
     user,

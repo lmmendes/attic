@@ -137,3 +137,12 @@ type AttachmentRepository interface {
 	Create(ctx context.Context, attachment *Attachment) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
+
+// AssetEventRepository handles custom asset history persistence.
+type AssetEventRepository interface {
+	GetByID(ctx context.Context, orgID, assetID, eventID uuid.UUID) (*AssetEvent, error)
+	ListByAsset(ctx context.Context, orgID, assetID uuid.UUID) ([]AssetEvent, error)
+	Create(ctx context.Context, orgID uuid.UUID, event *AssetEvent) error
+	Update(ctx context.Context, orgID uuid.UUID, event *AssetEvent) error
+	Delete(ctx context.Context, orgID, assetID, eventID uuid.UUID) error
+}

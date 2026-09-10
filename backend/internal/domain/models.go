@@ -212,3 +212,15 @@ type Attachment struct {
 	Description *string    `json:"description,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 }
+
+// AssetEvent represents a user-managed entry in an asset's history.
+type AssetEvent struct {
+	ID          uuid.UUID `json:"id"`
+	AssetID     uuid.UUID `json:"asset_id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Icon        string    `json:"icon"`
+	OccurredAt  time.Time `json:"occurred_at"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}

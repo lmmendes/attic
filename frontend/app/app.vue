@@ -21,7 +21,7 @@ useSeoMeta({
   ogDescription: description
 })
 
-const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isOIDCEnabled, changePassword } = useAuth()
+const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isAuthDisabled, isOIDCEnabled, changePassword } = useAuth()
 const config = useRuntimeConfig()
 
 type AppInfo = {
@@ -146,7 +146,7 @@ const userMenuItems = computed(() => {
   ]
 
   // Add change password option if not using OIDC
-  if (!isOIDCEnabled.value) {
+  if (!isOIDCEnabled.value && !isAuthDisabled.value) {
     items.push([{
       label: 'Change Password',
       icon: 'i-lucide-key',
@@ -154,11 +154,13 @@ const userMenuItems = computed(() => {
     }])
   }
 
-  items.push([{
-    label: 'Sign out',
-    icon: 'i-lucide-log-out',
-    onSelect: () => logout()
-  }])
+  if (!isAuthDisabled.value) {
+    items.push([{
+      label: 'Sign out',
+      icon: 'i-lucide-log-out',
+      onSelect: () => logout()
+    }])
+  }
 
   return items
 })

@@ -32,6 +32,7 @@ type Repositories struct {
 	Assets        *repository.AssetRepository
 	Warranties    *repository.WarrantyRepository
 	Attachments   *repository.AttachmentRepository
+	AssetEvents   *repository.AssetEventRepository
 	Attributes    *repository.AttributeRepository
 }
 

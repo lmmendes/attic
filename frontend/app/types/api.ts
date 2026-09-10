@@ -134,6 +134,17 @@ export interface Attachment {
   created_at: string
 }
 
+export interface AssetEvent {
+  id: string
+  asset_id: string
+  title: string
+  description: string
+  icon: string
+  occurred_at: string
+  created_at: string
+  updated_at: string
+}
+
 export interface PaginatedResponse<T> {
   items: T[]
   total: number

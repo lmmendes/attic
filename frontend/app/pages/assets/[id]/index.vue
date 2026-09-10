@@ -253,17 +253,6 @@ function formatDate(dateStr?: string) {
   })
 }
 
-function formatDateTime(dateStr?: string) {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
 function formatBytes(bytes: number) {
   if (bytes === 0) return '0 B'
   const k = 1024
@@ -815,46 +804,11 @@ function getShortId(): string {
           </div>
         </section>
 
-        <!-- Asset History -->
-        <section class="space-y-3 pb-6">
-          <h3 class="px-1 text-base font-extrabold text-mist-950 dark:text-white">
-            Asset History
-          </h3>
-          <div class="attic-panel overflow-hidden rounded-[20px]">
-            <ul class="relative border-l-2 border-gray-200 dark:border-gray-700 ml-8 my-6 space-y-8">
-              <!-- History Item: Updated -->
-              <li class="relative pl-8">
-                <span class="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-attic-500 ring-4 ring-white dark:ring-gray-800 shadow-sm" />
-                <div class="flex flex-col gap-1">
-                  <div class="flex items-center justify-between">
-                    <p class="text-sm font-bold text-mist-950 dark:text-white">
-                      Last Updated
-                    </p>
-                    <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">{{ formatDateTime(asset.updated_at) }}</span>
-                  </div>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">
-                    Asset details were modified.
-                  </p>
-                </div>
-              </li>
-              <!-- History Item: Created -->
-              <li class="relative pl-8">
-                <span class="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-gray-200 dark:bg-gray-600 ring-4 ring-white dark:ring-gray-800 shadow-sm" />
-                <div class="flex flex-col gap-1">
-                  <div class="flex items-center justify-between">
-                    <p class="text-sm font-bold text-mist-950 dark:text-white">
-                      Asset Created
-                    </p>
-                    <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">{{ formatDateTime(asset.created_at) }}</span>
-                  </div>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">
-                    Initial entry created.
-                  </p>
-                </div>
-              </li>
-            </ul>
-          </div>
-        </section>
+        <AssetHistory
+          :asset-id="asset.id"
+          :created-at="asset.created_at"
+          :updated-at="asset.updated_at"
+        />
       </div>
     </div>
 
