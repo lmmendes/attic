@@ -5,10 +5,11 @@ import { getDashboardUrls } from '~/utils/dashboardUrls'
 definePageMeta({ middleware: 'auth' })
 
 const { user } = useAuth()
-const { data: categories } = useApi<Category[]>('/api/categories')
-const { data: locations } = useApi<Location[]>('/api/locations')
-const { data: collections, error: collectionsError } = useApi<Collection[]>('/api/collections')
-const { data: expiringWarranties } = useApi<Warranty[]>('/api/warranties/expiring?days=30')
+const { features } = useFeatures()
+const { data: categories } = useApi<Category[]>('/api/categories', { immediate: features.value.categories })
+const { data: locations } = useApi<Location[]>('/api/locations', { immediate: features.value.locations })
+const { data: collections, error: collectionsError } = useApi<Collection[]>('/api/collections', { immediate: features.value.collections })
+const { data: expiringWarranties } = useApi<Warranty[]>('/api/warranties/expiring?days=30', { immediate: features.value.warranties })
 
 const selectedLocationId = ref('all')
 
@@ -87,39 +88,39 @@ const formatRelativeTime = (dateString: string) => {
 }
 
 const overviewMetrics = computed(() => [
-  { label: 'Assets', value: assets.value?.total || 0, icon: 'i-lucide-package', to: assetsPageUrl.value },
-  { label: 'Locations', value: locations.value?.length || 0, icon: 'i-lucide-map-pin', to: '/locations' },
-  { label: 'Expiring', value: expiringWarranties.value?.length || 0, icon: 'i-lucide-shield-alert', to: '/warranties' }
-])
+  { label: 'Assets', value: assets.value?.total || 0, icon: 'i-lucide-package', to: assetsPageUrl.value, enabled: true },
+  { label: 'Locations', value: locations.value?.length || 0, icon: 'i-lucide-map-pin', to: '/locations', enabled: features.value.locations },
+  { label: 'Expiring', value: expiringWarranties.value?.length || 0, icon: 'i-lucide-shield-alert', to: '/warranties', enabled: features.value.warranties }
+].filter(metric => metric.enabled))
 
 const quickLinks = computed(() => [
   {
     label: 'Collections', description: collectionsError.value ? 'Manage your collections' : `${collections.value?.length || 0} shared collections`,
     icon: 'i-lucide-library', to: '/collections',
-    iconClass: 'bg-attic-100 text-attic-600 dark:bg-attic-500/15 dark:text-attic-300'
+    iconClass: 'bg-attic-100 text-attic-600 dark:bg-attic-500/15 dark:text-attic-300', enabled: features.value.collections
   },
   {
     label: 'Browse assets', description: `${assets.value?.total || 0} items catalogued`,
     icon: 'i-lucide-package-search', to: assetsPageUrl.value,
-    iconClass: 'bg-attic-100 text-attic-600 dark:bg-attic-500/15 dark:text-attic-300'
+    iconClass: 'bg-attic-100 text-attic-600 dark:bg-attic-500/15 dark:text-attic-300', enabled: true
   },
   {
     label: 'Locations', description: `${locations.value?.length || 0} storage spaces`,
     icon: 'i-lucide-map-pinned', to: '/locations',
-    iconClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+    iconClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400', enabled: features.value.locations
   },
   {
     label: 'Categories', description: `${categories.value?.length || 0} ways to organize`,
     icon: 'i-lucide-shapes', to: '/categories',
-    iconClass: 'bg-terracotta-100 text-terracotta-600 dark:bg-terracotta-500/10 dark:text-terracotta-300'
+    iconClass: 'bg-terracotta-100 text-terracotta-600 dark:bg-terracotta-500/10 dark:text-terracotta-300', enabled: features.value.categories
   },
   {
     label: 'Warranties',
     description: expiringWarranties.value?.length ? `${expiringWarranties.value.length} need attention` : 'Everything is up to date',
     icon: 'i-lucide-shield-check', to: '/warranties',
-    iconClass: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
+    iconClass: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400', enabled: features.value.warranties
   }
-])
+].filter(link => link.enabled))
 </script>
 
 <template>
@@ -173,6 +174,7 @@ const quickLinks = computed(() => [
                 Inventory overview
               </p>
               <USelectMenu
+                v-if="features.locations"
                 v-model="selectedLocationId"
                 :items="locationOptions"
                 value-key="value"
@@ -375,7 +377,7 @@ const quickLinks = computed(() => [
     </section>
 
     <NuxtLink
-      v-if="(expiringWarranties?.length || 0) > 0"
+      v-if="features.warranties && (expiringWarranties?.length || 0) > 0"
       to="/warranties"
       class="xl:col-span-2 group flex flex-col gap-4 rounded-[22px] border border-amber-200 bg-amber-50 p-5 transition hover:border-amber-300 dark:border-amber-800/50 dark:bg-amber-900/10 sm:flex-row sm:items-center"
     >

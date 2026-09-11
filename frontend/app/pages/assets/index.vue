@@ -10,6 +10,7 @@ definePageMeta({
 
 const router = useRouter()
 const route = useRoute()
+const { features } = useFeatures()
 const importModalOpen = ref(false)
 const searchContainer = ref<HTMLElement | null>(null)
 
@@ -26,10 +27,10 @@ function onImported(assetId: string) {
 }
 
 const filters = reactive<AssetFilters>({
-  collection_id: typeof route.query.collection_id === 'string' ? route.query.collection_id : undefined,
+  collection_id: features.value.collections && typeof route.query.collection_id === 'string' ? route.query.collection_id : undefined,
   q: '',
-  category_id: typeof route.query.category_id === 'string' ? route.query.category_id : undefined,
-  location_id: typeof route.query.location_id === 'string' ? route.query.location_id : undefined,
+  category_id: features.value.categories && typeof route.query.category_id === 'string' ? route.query.category_id : undefined,
+  location_id: features.value.locations && typeof route.query.location_id === 'string' ? route.query.location_id : undefined,
   condition_id: undefined,
   limit: 24,
   offset: 0
@@ -42,16 +43,16 @@ watch(
 )
 
 watch(() => route.query.category_id, (id) => {
-  filters.category_id = typeof id === 'string' ? id : undefined
+  filters.category_id = features.value.categories && typeof id === 'string' ? id : undefined
 })
 
 const queryString = computed(() => {
   const params = new URLSearchParams()
-  if (filters.collection_id) params.set('collection_id', filters.collection_id)
+  if (features.value.collections && filters.collection_id) params.set('collection_id', filters.collection_id)
   if (filters.q) params.set('q', filters.q)
-  if (filters.category_id) params.set('category_id', filters.category_id)
-  if (filters.location_id) params.set('location_id', filters.location_id)
-  if (filters.condition_id) params.set('condition_id', filters.condition_id)
+  if (features.value.categories && filters.category_id) params.set('category_id', filters.category_id)
+  if (features.value.locations && filters.location_id) params.set('location_id', filters.location_id)
+  if (features.value.conditions && filters.condition_id) params.set('condition_id', filters.condition_id)
   params.set('limit', String(filters.limit))
   params.set('offset', String(filters.offset))
   return params.toString()
@@ -61,10 +62,10 @@ const { data: assetsResponse, status, error, refresh } = useApi<AssetsResponse>(
   () => `/api/assets?${queryString.value}`
 )
 
-const { data: collections } = useApi<Collection[]>('/api/collections')
+const { data: collections } = useApi<Collection[]>('/api/collections', { immediate: features.value.collections })
 const collectionOptions = computed(() => collections.value?.map(c => ({ label: c.name, value: c.id, icon: c.icon })) || [])
 watch(() => route.query.collection_id, (id) => {
-  filters.collection_id = typeof id === 'string' ? id : undefined
+  filters.collection_id = features.value.collections && typeof id === 'string' ? id : undefined
   filters.offset = 0
 })
 watch(() => filters.collection_id, (id) => {
@@ -72,9 +73,9 @@ watch(() => filters.collection_id, (id) => {
   if (id !== route.query.collection_id) router.replace({ query: { ...route.query, collection_id: id } })
 })
 
-const { data: categories } = useApi<Category[]>('/api/categories')
-const { data: locations } = useApi<Location[]>('/api/locations')
-const { data: conditions } = useApi<Condition[]>('/api/conditions')
+const { data: categories } = useApi<Category[]>('/api/categories', { immediate: features.value.categories })
+const { data: locations } = useApi<Location[]>('/api/locations', { immediate: features.value.locations })
+const { data: conditions } = useApi<Condition[]>('/api/conditions', { immediate: features.value.conditions })
 
 const categoryOptions = computed(() =>
   [
@@ -201,6 +202,7 @@ watch(searchQuery, (val: string) => {
       </div>
       <div class="flex items-center gap-2">
         <UButton
+          v-if="features.plugins"
           variant="outline"
           color="neutral"
           class="rounded-xl font-bold"
@@ -236,6 +238,7 @@ watch(searchQuery, (val: string) => {
         </div>
         <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center 2xl:justify-end">
           <USelectMenu
+            v-if="features.collections"
             v-model="filters.collection_id"
             :items="collectionOptions"
             value-key="value"
@@ -244,6 +247,7 @@ watch(searchQuery, (val: string) => {
             class="min-w-0 sm:w-44"
           />
           <USelectMenu
+            v-if="features.categories"
             v-model="filters.category_id"
             :items="categoryOptions"
             placeholder="Category"
@@ -252,6 +256,7 @@ watch(searchQuery, (val: string) => {
             icon="i-lucide-folder"
           />
           <USelectMenu
+            v-if="features.locations"
             v-model="filters.location_id"
             :items="locationOptions"
             placeholder="Location"
@@ -260,6 +265,7 @@ watch(searchQuery, (val: string) => {
             icon="i-lucide-map-pin"
           />
           <USelectMenu
+            v-if="features.conditions"
             v-model="filters.condition_id"
             :items="conditionOptions"
             placeholder="Condition"
@@ -306,13 +312,22 @@ watch(searchQuery, (val: string) => {
                 <th class="p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
                   Asset
                 </th>
-                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted md:table-cell">
+                <th
+                  v-if="features.categories"
+                  class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted md:table-cell"
+                >
                   Category
                 </th>
-                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted md:table-cell">
+                <th
+                  v-if="features.collections"
+                  class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted md:table-cell"
+                >
                   Collections
                 </th>
-                <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted lg:table-cell">
+                <th
+                  v-if="features.locations"
+                  class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted lg:table-cell"
+                >
                   Location
                 </th>
                 <th class="hidden p-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted xl:table-cell">
@@ -431,15 +446,21 @@ watch(searchQuery, (val: string) => {
                   <p class="mt-0.5 truncate text-xs text-muted">
                     {{ asset.description || `${asset.quantity} ${asset.quantity === 1 ? 'item' : 'items'} in inventory` }}
                   </p>
-                  <div class="mt-1.5 flex items-center gap-1.5 md:hidden">
-                    <span class="text-[10px] font-bold text-attic-500">{{ asset.category?.name || 'Uncategorized' }}</span>
+                  <div
+                    v-if="features.categories || features.locations"
+                    class="mt-1.5 flex items-center gap-1.5 md:hidden"
+                  >
                     <span
-                      v-if="asset.location?.name"
+                      v-if="features.categories"
+                      class="text-[10px] font-bold text-attic-500"
+                    >{{ asset.category?.name || 'Uncategorized' }}</span>
+                    <span
+                      v-if="features.locations && asset.location?.name"
                       class="text-[10px] text-muted"
                     >· {{ asset.location.name }}</span>
                   </div>
                   <div
-                    v-if="asset.collections?.length"
+                    v-if="features.collections && asset.collections?.length"
                     class="mt-2 flex flex-wrap gap-1.5 md:hidden"
                     aria-label="Collections"
                   >
@@ -451,12 +472,18 @@ watch(searchQuery, (val: string) => {
                     >{{ collection.name }}</NuxtLink>
                   </div>
                 </td>
-                <td class="hidden p-3 md:table-cell">
+                <td
+                  v-if="features.categories"
+                  class="hidden p-3 md:table-cell"
+                >
                   <span class="inline-flex rounded-full bg-attic-50 px-2.5 py-1 text-[10px] font-extrabold text-attic-600 ring-1 ring-attic-100 dark:bg-attic-500/10 dark:text-attic-300 dark:ring-attic-500/20">
                     {{ asset.category?.name || 'Uncategorized' }}
                   </span>
                 </td>
-                <td class="hidden max-w-64 p-3 md:table-cell">
+                <td
+                  v-if="features.collections"
+                  class="hidden max-w-64 p-3 md:table-cell"
+                >
                   <div
                     v-if="asset.collections?.length"
                     class="flex flex-wrap gap-1.5"
@@ -480,7 +507,10 @@ watch(searchQuery, (val: string) => {
                     aria-label="No collections"
                   >—</span>
                 </td>
-                <td class="hidden p-3 lg:table-cell">
+                <td
+                  v-if="features.locations"
+                  class="hidden p-3 lg:table-cell"
+                >
                   <div
                     v-if="asset.location?.name"
                     class="flex items-center gap-1.5 text-muted"
@@ -585,6 +615,7 @@ watch(searchQuery, (val: string) => {
 
     <!-- Import Modal -->
     <ImportModal
+      v-if="features.plugins"
       v-model:open="importModalOpen"
       @imported="onImported"
     />

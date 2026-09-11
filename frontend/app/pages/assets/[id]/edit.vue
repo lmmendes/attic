@@ -10,15 +10,16 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const apiFetch = useApiFetch()
+const { features } = useFeatures()
 
 const assetUrl = computed(() => `/api/assets/${route.params.id}`)
 const { data: asset, status: assetStatus, clear: clearAsset } = useApi<Asset>(
   () => assetUrl.value,
   { key: assetUrl }
 )
-const { data: categories } = useApi<Category[]>('/api/categories')
-const { data: locations } = useApi<Location[]>('/api/locations')
-const { data: conditions } = useApi<Condition[]>('/api/conditions')
+const { data: categories } = useApi<Category[]>('/api/categories', { immediate: features.value.categories })
+const { data: locations } = useApi<Location[]>('/api/locations', { immediate: features.value.locations })
+const { data: conditions } = useApi<Condition[]>('/api/conditions', { immediate: features.value.conditions })
 
 const detailsOpen = ref(false)
 const purchaseOpen = ref(false)
@@ -85,7 +86,7 @@ watch(
   () => form.category_id,
   async (categoryId) => {
     const requestId = ++categoryRequestId
-    if (categoryId) {
+    if (features.value.categories && categoryId) {
       categoryLoading.value = true
       try {
         const category = await apiFetch<Category>(
@@ -211,13 +212,14 @@ async function submitForm() {
     const payload = {
       name: form.name,
       description: form.description || undefined,
-      category_id: form.category_id,
-      location_id: form.location_id || undefined,
-      collection_ids: form.collection_ids,
-      condition_id: form.condition_id || undefined,
+      category_id: features.value.categories ? form.category_id : undefined,
+      location_id: features.value.locations ? form.location_id || undefined : undefined,
+      collection_ids: features.value.collections ? form.collection_ids : undefined,
+      condition_id: features.value.conditions ? form.condition_id || undefined : undefined,
       quantity: form.quantity,
-      attributes:
-        Object.keys(form.attributes).length > 0 ? form.attributes : undefined,
+      attributes: features.value.categories && Object.keys(form.attributes).length > 0
+        ? form.attributes
+        : undefined,
       purchase_at: form.purchase_at || undefined,
       purchase_price: form.purchase_price ?? undefined,
       purchase_note: form.purchase_note || undefined,
@@ -396,7 +398,10 @@ async function submitForm() {
               </div>
 
               <!-- Location -->
-              <div class="md:col-span-4 space-y-2">
+              <div
+                v-if="features.locations"
+                class="md:col-span-4 space-y-2"
+              >
                 <label
                   for="location"
                   class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
@@ -416,12 +421,16 @@ async function submitForm() {
             </div>
 
             <AssetCategoryField
+              v-if="features.categories"
               v-model="form.category_id"
               :categories="categories || []"
               :selected-category="selectedCategory"
               :loading="categoryLoading"
             />
-            <AssetCollectionsField v-model="form.collection_ids" />
+            <AssetCollectionsField
+              v-if="features.collections"
+              v-model="form.collection_ids"
+            />
           </section>
 
           <hr class="hidden">
@@ -455,7 +464,10 @@ async function submitForm() {
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <!-- Condition -->
-              <div class="space-y-2">
+              <div
+                v-if="features.conditions"
+                class="space-y-2"
+              >
                 <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Condition
                 </label>
@@ -511,7 +523,7 @@ async function submitForm() {
           </details>
 
           <!-- Category Attributes -->
-          <template v-if="selectedCategory?.attributes?.length">
+          <template v-if="features.categories && selectedCategory?.attributes?.length">
             <hr class="hidden">
 
             <section
@@ -599,7 +611,7 @@ async function submitForm() {
           </template>
 
           <div
-            v-else-if="form.category_id && !selectedCategory?.attributes?.length"
+            v-else-if="features.categories && form.category_id && !selectedCategory?.attributes?.length"
             class="attic-panel rounded-[20px] py-5 text-center text-sm text-muted"
           >
             <p>This category has no custom attributes.</p>

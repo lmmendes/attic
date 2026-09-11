@@ -83,11 +83,11 @@ func (m *mockAttachmentRepo) addAttachment(a *domain.Attachment) {
 
 // mockStorage implements storage interface for testing
 type mockStorage struct {
-	files         map[string][]byte
-	uploadErr     error
-	deleteErr     error
-	presignedErr  error
-	presignedURL  string
+	files        map[string][]byte
+	uploadErr    error
+	deleteErr    error
+	presignedErr error
+	presignedURL string
 }
 
 func newMockStorage() *mockStorage {

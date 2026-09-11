@@ -28,6 +28,29 @@ type PluginHandler struct {
 	orgID    uuid.UUID
 }
 
+func namespacedPluginAttributes(pluginID string, attributes map[string]any) map[string]any {
+	result := make(map[string]any, len(attributes))
+	for key, value := range attributes {
+		if strings.HasPrefix(key, "plugin.") {
+			result[key] = value
+		} else {
+			result["plugin."+pluginID+"."+key] = value
+		}
+	}
+	return result
+}
+
+func namespacedPluginAttributeDefinitions(pluginID string, attributes []domain.PluginAttribute) []domain.PluginAttribute {
+	result := make([]domain.PluginAttribute, len(attributes))
+	copy(result, attributes)
+	for i := range result {
+		if !strings.HasPrefix(result[i].Key, "plugin.") {
+			result[i].Key = "plugin." + pluginID + "." + result[i].Key
+		}
+	}
+	return result
+}
+
 type pluginCategoryRepository interface {
 	GetByPluginID(context.Context, uuid.UUID, string) (*domain.Category, error)
 	GetByIDWithAttributes(context.Context, uuid.UUID) (*domain.Category, error)
@@ -50,9 +73,33 @@ func NewPluginHandler(registry *plugin.Registry, repos *Repositories, storage Fi
 	}
 }
 
+func allFeaturesEnabled() *domain.OrganizationFeatures {
+	return &domain.OrganizationFeatures{Locations: true, Collections: true, Categories: true, Attributes: true, Conditions: true, Warranties: true, Plugins: true}
+}
+
+func (h *PluginHandler) organizationFeatures(ctx context.Context) (*domain.OrganizationFeatures, error) {
+	if features, ok := featuresFromContext(ctx); ok {
+		return normalizeFeatures(features), nil
+	}
+	if h.repos.Organizations == nil {
+		return allFeaturesEnabled(), nil
+	}
+	return h.repos.Organizations.GetFeatures(ctx, h.orgID)
+}
+
 // InitializeEnabledPluginCategories creates the category schema for every usable
 // import plugin before the server begins accepting requests.
 func (h *PluginHandler) InitializeEnabledPluginCategories(ctx context.Context) error {
+	features, err := h.organizationFeatures(ctx)
+	if err != nil {
+		return fmt.Errorf("reading organization features: %w", err)
+	}
+	if !features.Plugins {
+		return nil
+	}
+	if !features.Categories {
+		return nil
+	}
 	var initializationErrors []error
 
 	for _, p := range h.registry.List() {
@@ -133,7 +180,7 @@ func (h *PluginHandler) ListPlugins(w http.ResponseWriter, r *http.Request) {
 			CategoryName:        p.CategoryName(),
 			CategoryDescription: p.CategoryDescription(),
 			SearchFields:        p.SearchFields(),
-			Attributes:          p.Attributes(),
+			Attributes:          namespacedPluginAttributeDefinitions(p.ID(), p.Attributes()),
 		}
 
 		// Check if category exists for this plugin
@@ -167,7 +214,7 @@ func (h *PluginHandler) GetPlugin(w http.ResponseWriter, r *http.Request) {
 		CategoryName:        p.CategoryName(),
 		CategoryDescription: p.CategoryDescription(),
 		SearchFields:        p.SearchFields(),
-		Attributes:          p.Attributes(),
+		Attributes:          namespacedPluginAttributeDefinitions(p.ID(), p.Attributes()),
 	}
 
 	// Check if category exists for this plugin
@@ -273,6 +320,11 @@ func (h *PluginHandler) Import(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, fmt.Sprintf("plugin '%s' is disabled: %s", pluginID, p.DisabledReason()))
 		return
 	}
+	features, err := h.organizationFeatures(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	}
 
 	var req ImportRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -319,17 +371,24 @@ func (h *PluginHandler) Import(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure category exists for this plugin
-	cat, _, err := h.ensurePluginCategory(r.Context(), p)
-	if err != nil {
-		slog.Error("failed to ensure plugin category",
-			"plugin_id", pluginID,
-			"error", err)
-		writeError(w, http.StatusInternalServerError, "failed to initialize plugin category")
-		return
+	var cat *domain.Category
+	if features.Categories {
+		cat, _, err = h.ensurePluginCategory(r.Context(), p)
+		if err != nil {
+			slog.Error("failed to ensure plugin category",
+				"plugin_id", pluginID,
+				"error", err)
+			writeError(w, http.StatusInternalServerError, "failed to initialize plugin category")
+			return
+		}
 	}
 
 	// Convert attributes to JSON
-	attrsJSON, err := json.Marshal(importData.Attributes)
+	importAttributes := map[string]any{}
+	if features.Attributes {
+		importAttributes = namespacedPluginAttributes(pluginID, importData.Attributes)
+	}
+	attrsJSON, err := json.Marshal(importAttributes)
 	if err != nil {
 		slog.Error("failed to marshal import attributes",
 			"plugin_id", pluginID,
@@ -341,13 +400,15 @@ func (h *PluginHandler) Import(w http.ResponseWriter, r *http.Request) {
 	// Create the asset
 	asset := &domain.Asset{
 		OrganizationID:   h.orgID,
-		CategoryID:       &cat.ID,
 		Name:             importData.Name,
 		Description:      importData.Description,
 		Quantity:         1,
 		Attributes:       attrsJSON,
 		ImportPluginID:   &pluginID,
 		ImportExternalID: &importData.ExternalID,
+	}
+	if cat != nil {
+		asset.CategoryID = &cat.ID
 	}
 
 	if err := h.repos.Assets.Create(r.Context(), asset); err != nil {
@@ -443,6 +504,9 @@ func ensurePluginCategory(
 	assignmentsChanged := false
 
 	for _, pa := range pluginAttrs {
+		if !strings.HasPrefix(pa.Key, "plugin.") {
+			pa.Key = "plugin." + pluginID + "." + pa.Key
+		}
 		// Check if attribute already exists
 		attr, err := attributes.GetByKey(ctx, organizationID, pa.Key)
 		if err != nil {

@@ -67,6 +67,34 @@ type AssetDetailResponse struct {
 
 func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	if enabled, err := h.featureEnabled(r, "locations"); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	} else if !enabled && q.Get("location_id") != "" {
+		writeError(w, http.StatusForbidden, "locations feature is not enabled")
+		return
+	}
+	if enabled, err := h.featureEnabled(r, "collections"); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	} else if !enabled && q.Get("collection_id") != "" {
+		writeError(w, http.StatusForbidden, "collections feature is not enabled")
+		return
+	}
+	if enabled, err := h.featureEnabled(r, "categories"); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	} else if !enabled && q.Get("category_id") != "" {
+		writeError(w, http.StatusForbidden, "categories feature is not enabled")
+		return
+	}
+	if enabled, err := h.featureEnabled(r, "conditions"); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	} else if !enabled && q.Get("condition_id") != "" {
+		writeError(w, http.StatusForbidden, "conditions feature is not enabled")
+		return
+	}
 
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	if limit <= 0 || limit > 100 {
@@ -121,6 +149,10 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 	// Generate presigned URLs for main attachments
 	assetsWithURLs := make([]AssetWithImageURL, len(assets))
 	for i, asset := range assets {
+		if err := h.sanitizeAsset(r, &asset); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to apply organization features")
+			return
+		}
 		assetsWithURLs[i] = AssetWithImageURL{Asset: asset}
 		if asset.MainAttachment != nil && h.storage != nil {
 			url, err := h.storage.GetPresignedURL(r.Context(), asset.MainAttachment.FileKey, 15*time.Minute)
@@ -156,6 +188,10 @@ func (h *Handler) GetAsset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate presigned URL for main attachment
+	if err := h.sanitizeAsset(r, asset); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to apply organization features")
+		return
+	}
 	response := AssetDetailResponse{Asset: *asset}
 	if asset.MainAttachment != nil && h.storage != nil {
 		url, err := h.storage.GetPresignedURL(r.Context(), asset.MainAttachment.FileKey, 15*time.Minute)
@@ -178,6 +214,24 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
+	features, err := h.features(r)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	}
+	collectionIDs, err := parseCollectionIDs(req.CollectionIDs)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := h.rejectDisabledAssetFields(r, req.CategoryID, req.LocationID, req.ConditionID, collectionIDs, req.Attributes); err != nil {
+		if _, ok := err.(featureDisabledError); ok {
+			writeError(w, http.StatusForbidden, err.Error())
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	}
 
 	var categoryID *uuid.UUID
 	if req.CategoryID != nil && *req.CategoryID != "" {
@@ -188,7 +242,7 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		}
 		categoryID = &id
 	}
-	if message, err := h.validateAssetCategory(r.Context(), categoryID, req.Attributes); err != nil {
+	if message, err := h.validateAssetCategory(r.Context(), categoryID, req.Attributes, features.Attributes, features.Plugins); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to validate category attributes")
 		return
 	} else if message != "" {
@@ -235,11 +289,6 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	asset.PurchaseNote = req.PurchaseNote
 	asset.Notes = req.Notes
 
-	collectionIDs, err := parseCollectionIDs(req.CollectionIDs)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
 	asset.CollectionIDs = collectionIDs
 	if err := h.repos.Assets.Create(r.Context(), asset); err != nil {
 		if errors.Is(err, repository.ErrInvalidCollections) {
@@ -275,17 +324,54 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "asset not found")
 		return
 	}
-
-	var categoryID *uuid.UUID
-	if req.CategoryID != nil && *req.CategoryID != "" {
-		id, err := uuid.Parse(*req.CategoryID)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "invalid category_id")
+	features, err := h.features(r)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	}
+	collectionIDs, err := parseCollectionIDs(req.CollectionIDs)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := h.rejectDisabledAssetFields(r, req.CategoryID, req.LocationID, req.ConditionID, collectionIDs, req.Attributes); err != nil {
+		if _, ok := err.(featureDisabledError); ok {
+			writeError(w, http.StatusForbidden, err.Error())
 			return
 		}
-		categoryID = &id
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
 	}
-	if message, err := h.validateAssetCategory(r.Context(), categoryID, req.Attributes); err != nil {
+
+	preserveHiddenPluginCategory := false
+	if features.Categories && !features.Plugins && req.CategoryID == nil && asset.CategoryID != nil {
+		existingCategory, categoryErr := h.repos.Categories.GetByID(r.Context(), *asset.CategoryID)
+		if categoryErr != nil {
+			writeError(w, http.StatusInternalServerError, "failed to validate existing category")
+			return
+		}
+		preserveHiddenPluginCategory = shouldPreserveHiddenPluginCategory(features, req.CategoryID, existingCategory)
+	}
+
+	categoryID := asset.CategoryID
+	if features.Categories {
+		if !preserveHiddenPluginCategory {
+			categoryID = nil
+		}
+		if req.CategoryID != nil && *req.CategoryID != "" {
+			id, parseErr := uuid.Parse(*req.CategoryID)
+			if parseErr != nil {
+				writeError(w, http.StatusBadRequest, "invalid category_id")
+				return
+			}
+			categoryID = &id
+		}
+	}
+	attributesForValidation := asset.Attributes
+	if features.Attributes {
+		attributesForValidation = req.Attributes
+	}
+	if message, err := h.validateAssetCategory(r.Context(), categoryID, attributesForValidation, features.Attributes, features.Plugins || !features.Categories || preserveHiddenPluginCategory); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to validate category attributes")
 		return
 	} else if message != "" {
@@ -304,23 +390,33 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "quantity exceeds maximum allowed value")
 		return
 	}
-	asset.Attributes = req.Attributes
-	if categoryID == nil {
-		asset.Attributes = nil
+	if features.Attributes {
+		if features.Plugins {
+			asset.Attributes = req.Attributes
+		} else {
+			asset.Attributes, err = mergePreservedPluginAttributes(asset.Attributes, req.Attributes)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "attributes must be a JSON object")
+				return
+			}
+		}
+		if categoryID == nil {
+			asset.Attributes = nil
+		}
 	}
 
-	if req.LocationID != nil {
+	if features.Locations && req.LocationID != nil {
 		if id, err := parseUUIDString(*req.LocationID); err == nil {
 			asset.LocationID = &id
 		}
-	} else {
+	} else if features.Locations {
 		asset.LocationID = nil
 	}
-	if req.ConditionID != nil {
+	if features.Conditions && req.ConditionID != nil {
 		if id, err := parseUUIDString(*req.ConditionID); err == nil {
 			asset.ConditionID = &id
 		}
-	} else {
+	} else if features.Conditions {
 		asset.ConditionID = nil
 	}
 	if req.PurchaseAt != nil && *req.PurchaseAt != "" {
@@ -333,12 +429,9 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	asset.PurchasePrice = req.PurchasePrice
 	asset.PurchaseNote = req.PurchaseNote
 	asset.Notes = req.Notes
-	collectionIDs, err := parseCollectionIDs(req.CollectionIDs)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
+	if features.Collections {
+		asset.CollectionIDs = collectionIDs
 	}
-	asset.CollectionIDs = collectionIDs
 
 	if err := h.repos.Assets.Update(r.Context(), asset); err != nil {
 		if errors.Is(err, repository.ErrInvalidCollections) {
@@ -352,7 +445,15 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, asset)
 }
 
-func (h *Handler) validateAssetCategory(ctx context.Context, categoryID *uuid.UUID, rawAttributes json.RawMessage) (string, error) {
+func shouldPreserveHiddenPluginCategory(features *domain.OrganizationFeatures, requestedCategoryID *string, existingCategory *domain.Category) bool {
+	return features.Categories &&
+		!features.Plugins &&
+		requestedCategoryID == nil &&
+		existingCategory != nil &&
+		existingCategory.PluginID != nil
+}
+
+func (h *Handler) validateAssetCategory(ctx context.Context, categoryID *uuid.UUID, rawAttributes json.RawMessage, validateAttributes, pluginsEnabled bool) (string, error) {
 	if categoryID == nil {
 		return "", nil
 	}
@@ -362,6 +463,12 @@ func (h *Handler) validateAssetCategory(ctx context.Context, categoryID *uuid.UU
 	}
 	if category == nil {
 		return "category does not exist in this workspace", nil
+	}
+	if !pluginsEnabled && category.PluginID != nil {
+		return "category is not available while plugins are disabled", nil
+	}
+	if !validateAttributes {
+		return "", nil
 	}
 	missing, err := missingRequiredCategoryAttributes(category, rawAttributes)
 	if err != nil {
@@ -423,6 +530,15 @@ type AssetStatsResponse struct {
 func (h *Handler) GetAssetStats(w http.ResponseWriter, r *http.Request) {
 	filter := domain.AssetFilter{}
 	if locID := r.URL.Query().Get("location_id"); locID != "" {
+		enabled, featureErr := h.featureEnabled(r, "locations")
+		if featureErr != nil {
+			writeError(w, http.StatusInternalServerError, "failed to read organization features")
+			return
+		}
+		if !enabled {
+			writeError(w, http.StatusForbidden, "locations feature is not enabled")
+			return
+		}
 		id, err := uuid.Parse(locID)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "invalid location ID")

@@ -6,18 +6,30 @@ import EditAsset from '../../app/pages/assets/[id]/edit.vue'
 import NewAsset from '../../app/pages/assets/new.vue'
 import AssetCategoryField from '../../app/components/AssetCategoryField.vue'
 
-const { api, mutate, toast, clearAsset } = vi.hoisted(() => ({
-  api: vi.fn(), mutate: vi.fn(), toast: vi.fn(), clearAsset: vi.fn()
-}))
+const { api, mutate, toast, clearAsset, featureFlags, featureRef } = vi.hoisted(() => {
+  const featureFlags = {
+    locations: true, collections: true, categories: true, attributes: true,
+    conditions: true, warranties: true, plugins: true
+  }
+  return {
+    api: vi.fn(), mutate: vi.fn(), toast: vi.fn(), clearAsset: vi.fn(), featureFlags,
+    featureRef: { __v_isRef: true, value: featureFlags }
+  }
+})
 mockNuxtImport('useApi', () => api)
 mockNuxtImport('useApiFetch', () => () => mutate)
 mockNuxtImport('useToast', () => () => ({ add: toast }))
 mockNuxtImport('useRoute', () => () => ({ params: { id: 'asset' }, query: {} }))
+mockNuxtImport('useFeatures', () => () => ({ features: featureRef }))
 
 describe('Asset form sections', () => {
   const asset = ref<Record<string, unknown> | null>(null)
   beforeEach(() => {
     vi.clearAllMocks()
+    Object.assign(featureFlags, {
+      locations: true, collections: true, categories: true, attributes: true,
+      conditions: true, warranties: true, plugins: true
+    })
     asset.value = { id: 'asset', name: 'Desk', quantity: 1 }
     api.mockImplementation((url: unknown) => ({
       data: typeof url === 'function' ? asset : ref([]),
@@ -119,6 +131,71 @@ describe('Asset form sections', () => {
     const payload = JSON.parse(mutate.mock.calls[0]![1].body)
     expect(payload.name).toBe('Unsorted item')
     expect(payload).not.toHaveProperty('category_id')
+    wrapper.unmount()
+  })
+
+  it.each(['locations', 'collections', 'categories', 'attributes', 'conditions'] as const)(
+    'omits disabled %s data from asset creation',
+    async (feature) => {
+      featureFlags[feature] = false
+      const wrapper = await mountSuspended(NewAsset)
+      await wrapper.get('#asset-name').setValue('Feature-safe asset')
+      await wrapper.get('#new-asset-form').trigger('submit')
+      await flushPromises()
+
+      const payload = JSON.parse(mutate.mock.calls.find(([url]) => url === '/api/assets')![1].body)
+      const property = {
+        locations: 'location_id', collections: 'collection_ids', categories: 'category_id',
+        attributes: 'attributes', conditions: 'condition_id'
+      }[feature]
+      expect(payload).not.toHaveProperty(property)
+      wrapper.unmount()
+    }
+  )
+
+  it('does not request or render disabled asset feature controls', async () => {
+    Object.assign(featureFlags, {
+      locations: false, collections: false, categories: false,
+      attributes: false, conditions: false
+    })
+    const wrapper = await mountSuspended(NewAsset)
+
+    expect(api).toHaveBeenCalledWith('/api/categories', { immediate: false })
+    expect(api).toHaveBeenCalledWith('/api/locations', { immediate: false })
+    expect(api).toHaveBeenCalledWith('/api/conditions', { immediate: false })
+    expect(wrapper.text()).not.toContain('Manage categories')
+    expect(wrapper.text()).not.toContain('Collections (optional)')
+    expect(wrapper.text()).not.toContain('Select condition')
+    wrapper.unmount()
+  })
+
+  it('omits preserved feature data when editing with features disabled', async () => {
+    Object.assign(featureFlags, {
+      locations: false, collections: false, categories: false,
+      attributes: false, conditions: false, plugins: false
+    })
+    asset.value = {
+      ...asset.value,
+      category_id: 'books',
+      location_id: 'office',
+      collection_ids: ['favorites'],
+      condition_id: 'good',
+      attributes: {
+        'serial': 'user-value',
+        'plugin.google_books.books.isbn': '123'
+      }
+    }
+    const wrapper = await mountSuspended(EditAsset)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    const updateCall = mutate.mock.calls.find(([url]) => url === '/api/assets/asset')!
+    const payload = JSON.parse(updateCall[1].body)
+    for (const property of [
+      'category_id', 'location_id', 'collection_ids', 'condition_id', 'attributes'
+    ]) {
+      expect(payload).not.toHaveProperty(property)
+    }
     wrapper.unmount()
   })
 

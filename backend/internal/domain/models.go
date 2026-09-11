@@ -17,6 +17,18 @@ type Organization struct {
 	DeletedAt   *time.Time `json:"-"`
 }
 
+// OrganizationFeatures controls which optional inventory capabilities are
+// available to members of an organization. All capabilities default to true.
+type OrganizationFeatures struct {
+	Locations   bool `json:"locations"`
+	Collections bool `json:"collections"`
+	Categories  bool `json:"categories"`
+	Attributes  bool `json:"attributes"`
+	Conditions  bool `json:"conditions"`
+	Warranties  bool `json:"warranties"`
+	Plugins     bool `json:"plugins"`
+}
+
 // UserRole represents the user's role in the system
 type UserRole string
 

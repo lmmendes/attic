@@ -9,13 +9,17 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const apiFetch = useApiFetch()
+const { features } = useFeatures()
 
 const assetUrl = computed(() => `/api/assets/${route.params.id}`)
 const { data: asset, refresh: refreshAsset } = useApi<Asset>(
   () => assetUrl.value,
   { key: assetUrl }
 )
-const { data: warranty, refresh: refreshWarranty } = useApi<Warranty>(() => `/api/assets/${route.params.id}/warranty`)
+const { data: warranty, refresh: refreshWarranty } = useApi<Warranty>(
+  () => `/api/assets/${route.params.id}/warranty`,
+  { immediate: features.value.warranties }
+)
 const { data: attachments, refresh: refreshAttachments } = useApi<Attachment[]>(
   () => `/api/assets/${route.params.id}/attachments`
 )
@@ -24,7 +28,7 @@ const { data: attachments, refresh: refreshAttachments } = useApi<Attachment[]>(
 const categoryWithAttrs = ref<Category | null>(null)
 
 watch(() => asset.value?.category_id, async (categoryId) => {
-  if (categoryId) {
+  if (features.value.categories && categoryId) {
     try {
       categoryWithAttrs.value = await apiFetch<Category>(`/api/categories/${categoryId}?inherited=true`)
     } catch {
@@ -69,6 +73,7 @@ watch(warranty, (w) => {
 }, { immediate: true })
 
 function openWarrantyModal() {
+  if (!features.value.warranties) return
   if (!warranty.value) {
     warrantyForm.provider = ''
     warrantyForm.policy_number = ''
@@ -80,7 +85,7 @@ function openWarrantyModal() {
 }
 
 watch(() => route.query.warranty, (action) => {
-  if (action === 'edit') openWarrantyModal()
+  if (features.value.warranties && action === 'edit') openWarrantyModal()
 }, { immediate: true })
 
 async function saveWarranty() {
@@ -417,18 +422,24 @@ function getShortId(): string {
         <div class="flex flex-col items-start justify-between gap-4 md:flex-row">
           <div class="space-y-1">
             <div class="mb-2 flex items-center gap-2">
-              <span class="rounded-full bg-attic-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-attic-600 ring-1 ring-attic-100 dark:bg-attic-500/10 dark:text-attic-300 dark:ring-attic-500/20">
+              <span
+                v-if="features.categories"
+                class="rounded-full bg-attic-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-attic-600 ring-1 ring-attic-100 dark:bg-attic-500/10 dark:text-attic-300 dark:ring-attic-500/20"
+              >
                 {{ asset.category?.name || 'Uncategorized' }}
               </span>
               <span
-                v-if="asset.condition?.label"
+                v-if="features.conditions && asset.condition?.label"
                 class="text-xs font-semibold text-muted"
               >{{ asset.condition.label }}</span>
             </div>
             <h1 class="text-3xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-4xl">
               {{ asset.name }}
             </h1>
-            <p class="mt-2 flex items-center gap-1.5 text-sm font-medium text-muted">
+            <p
+              v-if="features.locations"
+              class="mt-2 flex items-center gap-1.5 text-sm font-medium text-muted"
+            >
               <UIcon
                 name="i-lucide-map-pin"
                 class="size-4"
@@ -457,7 +468,7 @@ function getShortId(): string {
         </div>
 
         <div
-          v-if="asset.collections?.length"
+          v-if="features.collections && asset.collections?.length"
           class="flex flex-wrap gap-2"
           aria-label="Collections"
         >
@@ -530,11 +541,17 @@ function getShortId(): string {
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 divide-y divide-x-0 md:divide-x md:divide-y-0 divide-gray-100 dark:divide-gray-700">
             <div class="divide-y divide-gray-100 dark:divide-gray-700">
-              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
+              <div
+                v-if="features.locations"
+                class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50"
+              >
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Location</span>
                 <span class="text-sm font-bold text-mist-950 dark:text-white">{{ asset.location?.name || '-' }}</span>
               </div>
-              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
+              <div
+                v-if="features.conditions"
+                class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50"
+              >
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Condition</span>
                 <span class="text-sm font-bold text-mist-950 dark:text-white">{{ asset.condition?.label || '-' }}</span>
               </div>
@@ -562,7 +579,7 @@ function getShortId(): string {
 
         <!-- Category Attributes -->
         <section
-          v-if="categoryWithAttrs?.attributes?.length"
+          v-if="features.categories && categoryWithAttrs?.attributes?.length"
           class="attic-panel overflow-hidden rounded-[20px]"
         >
           <div class="flex items-center justify-between border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
@@ -602,7 +619,10 @@ function getShortId(): string {
         </section>
 
         <!-- Warranty Section -->
-        <section class="attic-panel overflow-hidden rounded-[20px]">
+        <section
+          v-if="features.warranties"
+          class="attic-panel overflow-hidden rounded-[20px]"
+        >
           <div class="flex items-center justify-between border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
             <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
               <UIcon
@@ -875,6 +895,7 @@ function getShortId(): string {
 
     <!-- Warranty Modal -->
     <UModal
+      v-if="features.warranties"
       v-model:open="warrantyModalOpen"
       :title="warranty ? 'Edit warranty' : 'Add warranty'"
       description="Keep provider, policy, and coverage dates together."

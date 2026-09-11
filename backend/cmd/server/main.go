@@ -293,6 +293,7 @@ func main() {
 		if cfg.OIDCEnabled && !cfg.AuthDisabled {
 			r.Use(userProvisioner.Provision)
 		}
+		r.Use(h.LoadFeatures)
 
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -306,6 +307,8 @@ func main() {
 
 		// Current user info
 		r.Get("/me", h.GetCurrentUser)
+		r.Get("/organization/features", h.GetOrganizationFeatures)
+		r.With(auth.RequireAdmin(sessionManager)).Put("/organization/features", h.UpdateOrganizationFeatures)
 
 		// User management (admin only)
 		r.Route("/users", func(r chi.Router) {
@@ -320,6 +323,7 @@ func main() {
 
 		// Collections are shared by authenticated users in the workspace.
 		r.Route("/collections", func(r chi.Router) {
+			r.Use(h.RequireFeature("collections"))
 			r.Get("/", h.ListCollections)
 			r.Post("/", h.CreateCollection)
 			r.Get("/{id}", h.GetCollection)
@@ -329,6 +333,7 @@ func main() {
 
 		// Categories
 		r.Route("/categories", func(r chi.Router) {
+			r.Use(h.RequireFeature("categories"))
 			r.Get("/", h.ListCategories)
 			r.Post("/", h.CreateCategory)
 			r.Get("/asset-counts", h.GetCategoryAssetCounts)
@@ -339,6 +344,7 @@ func main() {
 
 		// Attributes
 		r.Route("/attributes", func(r chi.Router) {
+			r.Use(h.RequireFeature("attributes"))
 			r.Get("/", h.ListAttributes)
 			r.Post("/", h.CreateAttribute)
 			r.Get("/{id}", h.GetAttribute)
@@ -348,6 +354,7 @@ func main() {
 
 		// Locations
 		r.Route("/locations", func(r chi.Router) {
+			r.Use(h.RequireFeature("locations"))
 			r.Get("/", h.ListLocations)
 			r.Post("/", h.CreateLocation)
 			r.Get("/{id}", h.GetLocation)
@@ -357,6 +364,7 @@ func main() {
 
 		// Conditions
 		r.Route("/conditions", func(r chi.Router) {
+			r.Use(h.RequireFeature("conditions"))
 			r.Get("/", h.ListConditions)
 			r.Post("/", h.CreateCondition)
 			r.Get("/{id}", h.GetCondition)
@@ -374,10 +382,10 @@ func main() {
 			r.Delete("/{id}", h.DeleteAsset)
 
 			// Warranty (nested under asset)
-			r.Get("/{id}/warranty", h.GetWarranty)
-			r.Post("/{id}/warranty", h.CreateWarranty)
-			r.Put("/{id}/warranty", h.UpdateWarranty)
-			r.Delete("/{id}/warranty", h.DeleteWarranty)
+			r.With(h.RequireFeature("warranties")).Get("/{id}/warranty", h.GetWarranty)
+			r.With(h.RequireFeature("warranties")).Post("/{id}/warranty", h.CreateWarranty)
+			r.With(h.RequireFeature("warranties")).Put("/{id}/warranty", h.UpdateWarranty)
+			r.With(h.RequireFeature("warranties")).Delete("/{id}/warranty", h.DeleteWarranty)
 
 			// Attachments (nested under asset)
 			r.Get("/{id}/attachments", h.ListAttachments)
@@ -401,11 +409,12 @@ func main() {
 		})
 
 		// Warranties overview
-		r.Get("/warranties", h.ListWarranties)
-		r.Get("/warranties/expiring", h.ListExpiringWarranties)
+		r.With(h.RequireFeature("warranties")).Get("/warranties", h.ListWarranties)
+		r.With(h.RequireFeature("warranties")).Get("/warranties/expiring", h.ListExpiringWarranties)
 
 		// Import Plugins
 		r.Route("/plugins", func(r chi.Router) {
+			r.Use(h.RequireFeature("plugins"))
 			r.Get("/", pluginHandler.ListPlugins)
 			r.Get("/{pluginId}", pluginHandler.GetPlugin)
 			r.Get("/{pluginId}/search", pluginHandler.Search)

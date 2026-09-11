@@ -22,6 +22,7 @@ useSeoMeta({
 })
 
 const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isAuthDisabled, isOIDCEnabled, changePassword } = useAuth()
+const { features, loaded: featuresLoaded, load: loadFeatures } = useFeatures()
 const config = useRuntimeConfig()
 
 type AppInfo = {
@@ -38,6 +39,7 @@ const apiDocsUrl = computed(() => `${config.public.apiBase || ''}/api/docs`)
 watch(loggedIn, (isLoggedIn) => {
   if (isLoggedIn) {
     void fetchAppInfo()
+    void loadFeatures()
   }
 }, { immediate: true })
 
@@ -93,6 +95,25 @@ const handleChangePassword = async () => {
 }
 
 const route = useRoute()
+const protectedRoutes: Array<[string, keyof typeof features.value]> = [
+  ['/locations', 'locations'],
+  ['/collections', 'collections'],
+  ['/categories', 'categories'],
+  ['/attributes', 'categories'],
+  ['/conditions', 'conditions'],
+  ['/warranties', 'warranties'],
+  ['/plugins', 'plugins']
+]
+const currentRouteEnabled = computed(() => {
+  const match = protectedRoutes.find(([prefix]) => route.path.startsWith(prefix))
+  return !match || features.value[match[1]]
+})
+
+watch([() => route.path, featuresLoaded, features], ([path, loaded]) => {
+  if (!loaded || typeof path !== 'string') return
+  const match = protectedRoutes.find(([prefix]) => path.startsWith(prefix))
+  if (match && !features.value[match[1]]) void navigateTo('/')
+}, { immediate: true, deep: true })
 
 const baseNavigation = [
   { label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' },
@@ -110,14 +131,26 @@ const secondaryNavigation = [
 ]
 
 const navigation = computed(() => {
-  const items = [...baseNavigation]
+  const items = baseNavigation.filter((item) => {
+    if (item.to === '/locations') return features.value.locations
+    if (item.to === '/collections') return features.value.collections
+    if (item.to === '/categories') return features.value.categories
+    return true
+  })
   return items
 })
 
 const secondaryNav = computed(() => {
-  const items = [...secondaryNavigation]
+  const items = secondaryNavigation.filter((item) => {
+    if (item.to === '/attributes') return features.value.categories
+    if (item.to === '/conditions') return features.value.conditions
+    if (item.to === '/warranties') return features.value.warranties
+    if (item.to === '/plugins') return features.value.plugins
+    return true
+  })
   if (isAdmin.value) {
     items.push({ label: 'Users', to: '/users', icon: 'i-lucide-users' })
+    items.push({ label: 'Settings', to: '/settings', icon: 'i-lucide-settings' })
   }
   return items
 })
@@ -447,7 +480,7 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
           <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 xl:p-7">
             <div class="mx-auto flex min-h-full max-w-[1440px] flex-col">
               <div class="flex-1">
-                <NuxtPage />
+                <NuxtPage v-if="featuresLoaded && currentRouteEnabled" />
               </div>
 
               <footer class="shrink-0 pt-6 text-center text-xs font-medium text-muted dark:text-mist-400">

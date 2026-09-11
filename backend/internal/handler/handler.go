@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/lmmendes/attic/internal/database"
+	"github.com/lmmendes/attic/internal/domain"
 	"github.com/lmmendes/attic/internal/repository"
 )
 
@@ -23,7 +24,7 @@ type FileStorage interface {
 
 // Repositories holds all repository implementations
 type Repositories struct {
-	Organizations *repository.OrganizationRepository
+	Organizations domain.OrganizationRepository
 	Users         *repository.UserRepository
 	Categories    *repository.CategoryRepository
 	Collections   *repository.CollectionRepository

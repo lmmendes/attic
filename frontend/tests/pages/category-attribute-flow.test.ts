@@ -6,17 +6,25 @@ import CategoryEditor from '../../app/components/CategoryEditor.vue'
 import NewCategory from '../../app/pages/categories/new.vue'
 import NewAttribute from '../../app/pages/attributes/new.vue'
 
-const { api, mutate, push, replace, resolve, toast, route, draft, clearCategories } = vi.hoisted(() => ({
-  api: vi.fn(),
-  mutate: vi.fn(),
-  push: vi.fn(),
-  replace: vi.fn(),
-  resolve: vi.fn((to: string | { path: string }) => ({ href: typeof to === 'string' ? to : to.path })),
-  toast: vi.fn(),
-  clearCategories: vi.fn(),
-  route: { query: {} as Record<string, string> },
-  draft: { value: null as Record<string, unknown> | null }
-}))
+const { api, mutate, push, replace, resolve, toast, route, draft, clearCategories, featureFlags, featureRef } = vi.hoisted(() => {
+  const featureFlags = {
+    locations: true, collections: true, categories: true, attributes: true,
+    conditions: true, warranties: true, plugins: true
+  }
+  return {
+    api: vi.fn(),
+    mutate: vi.fn(),
+    push: vi.fn(),
+    replace: vi.fn(),
+    resolve: vi.fn((to: string | { path: string }) => ({ href: typeof to === 'string' ? to : to.path })),
+    toast: vi.fn(),
+    clearCategories: vi.fn(),
+    route: { query: {} as Record<string, string> },
+    draft: { value: null as Record<string, unknown> | null },
+    featureFlags,
+    featureRef: { __v_isRef: true, value: featureFlags }
+  }
+})
 
 mockNuxtImport('useApi', () => api)
 mockNuxtImport('useApiFetch', () => () => mutate)
@@ -24,6 +32,7 @@ mockNuxtImport('useRouter', () => () => ({ push, replace, resolve }))
 mockNuxtImport('useRoute', () => () => route)
 mockNuxtImport('useToast', () => () => ({ add: toast }))
 mockNuxtImport('useState', () => () => draft)
+mockNuxtImport('useFeatures', () => () => ({ features: featureRef }))
 
 describe('creating an attribute from a category draft', () => {
   const attributes = ref<Record<string, unknown>[]>([])
@@ -34,6 +43,10 @@ describe('creating an attribute from a category draft', () => {
     route.query = {}
     draft.value = null
     attributes.value = []
+    Object.assign(featureFlags, {
+      locations: true, collections: true, categories: true, attributes: true,
+      conditions: true, warranties: true, plugins: true
+    })
     api.mockImplementation((url: string) => url === '/api/attributes'
       ? { data: attributes, refresh: refreshAttributes }
       : { data: ref([]), clear: clearCategories })
@@ -51,7 +64,7 @@ describe('creating an attribute from a category draft', () => {
       form: { name: 'Vintage cameras', description: 'Analog photography gear' },
       selectedAttributes: []
     })
-    expect(push).toHaveBeenCalledWith({ path: '/attributes/new', query: { returnTo: 'category' } })
+    expect(push).toHaveBeenCalledWith({ path: '/attributes/new', query: { returnTo: '/categories/new' } })
     wrapper.unmount()
   })
 
@@ -102,6 +115,76 @@ describe('creating an attribute from a category draft', () => {
     wrapper.unmount()
   })
 
+  it('opens the attribute form from category editing and preserves the draft', async () => {
+    const category = {
+      id: 'category-1',
+      organization_id: 'organization-1',
+      name: 'Vintage cameras',
+      icon: 'i-lucide-camera',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      attributes: []
+    }
+    const wrapper = await mountSuspended(CategoryEditor, { props: { category } })
+    await wrapper.get('input[placeholder="e.g. Rare Books"]').setValue('Film cameras')
+    const newAttribute = wrapper.findAll('button').find(button => button.text().includes('New Attribute'))!
+    await newAttribute.trigger('click')
+
+    expect(draft.value).toMatchObject({
+      returnPath: '/categories/category-1/edit',
+      form: { name: 'Film cameras' }
+    })
+    expect(push).toHaveBeenCalledWith({
+      path: '/attributes/new',
+      query: { returnTo: '/categories/category-1/edit' }
+    })
+    wrapper.unmount()
+  })
+
+  it('uses the categories switch for attributes when legacy state disagrees', async () => {
+    featureFlags.attributes = false
+    const category = {
+      id: 'category-1',
+      organization_id: 'organization-1',
+      name: 'Vintage cameras',
+      icon: 'i-lucide-camera',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      attributes: [{ attribute_id: 'serial', required: true, sort_order: 0 }]
+    }
+    const wrapper = await mountSuspended(CategoryEditor, { props: { category } })
+
+    expect(api).toHaveBeenCalledWith('/api/attributes', { immediate: true })
+    expect(wrapper.text()).toContain('Attribute Schema')
+    expect(wrapper.text()).toContain('New Attribute')
+    wrapper.unmount()
+  })
+
+  it('hides attribute controls and omits assignments with categories disabled', async () => {
+    featureFlags.categories = false
+    const category = {
+      id: 'category-1',
+      organization_id: 'organization-1',
+      name: 'Vintage cameras',
+      icon: 'i-lucide-camera',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      attributes: [{ attribute_id: 'serial', required: true, sort_order: 0 }]
+    }
+    const wrapper = await mountSuspended(CategoryEditor, { props: { category } })
+
+    expect(api).toHaveBeenCalledWith('/api/attributes', { immediate: false })
+    expect(wrapper.text()).not.toContain('Attribute Schema')
+    expect(wrapper.text()).not.toContain('New Attribute')
+    const save = wrapper.findAll('button').find(button => button.text().includes('Save Changes'))!
+    await save.trigger('click')
+    await flushPromises()
+
+    const payload = JSON.parse(mutate.mock.calls.find(([url]) => url === '/api/categories/category-1')![1].body)
+    expect(payload).not.toHaveProperty('attributes')
+    wrapper.unmount()
+  })
+
   it('returns to the category draft and identifies the created attribute', async () => {
     route.query = { returnTo: 'category' }
     const wrapper = await mountSuspended(NewAttribute)
@@ -114,6 +197,58 @@ describe('creating an attribute from a category draft', () => {
       path: '/categories/new',
       query: { resume: 'attribute', attribute_id: 'new-attribute' }
     })
+    wrapper.unmount()
+  })
+
+  it('returns to the exact category edit page after creating an attribute', async () => {
+    route.query = { returnTo: '/categories/category-1/edit' }
+    const wrapper = await mountSuspended(NewAttribute)
+    await wrapper.get('input[placeholder="e.g. Purchase Date"]').setValue('Serial number')
+    const save = wrapper.findAll('button').find(button => button.text().includes('Save Attribute'))!
+    await save.trigger('click')
+    await flushPromises()
+
+    expect(push).toHaveBeenCalledWith({
+      path: '/categories/category-1/edit',
+      query: { resume: 'attribute', attribute_id: 'new-attribute' }
+    })
+    wrapper.unmount()
+  })
+
+  it('restores the edited category and selects its newly created attribute', async () => {
+    route.query = { resume: 'attribute', attribute_id: 'new-attribute' }
+    draft.value = {
+      returnPath: '/categories/category-1/edit',
+      form: {
+        name: 'Unsaved film cameras',
+        description: 'Unsaved description',
+        icon: 'i-lucide-camera'
+      },
+      selectedAttributes: [{ attribute_id: 'existing', required: true, sort_order: 0 }]
+    }
+    attributes.value = [
+      { id: 'existing', name: 'Maker', key: 'maker', data_type: 'string' },
+      { id: 'new-attribute', name: 'Serial number', key: 'serial_number', data_type: 'string' }
+    ]
+    const category = {
+      id: 'category-1',
+      organization_id: 'organization-1',
+      name: 'Saved cameras',
+      icon: 'i-lucide-camera',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      attributes: []
+    }
+
+    const wrapper = await mountSuspended(CategoryEditor, { props: { category } })
+    await flushPromises()
+
+    expect((wrapper.get('input[placeholder="e.g. Rare Books"]').element as HTMLInputElement).value)
+      .toBe('Unsaved film cameras')
+    expect(wrapper.text()).toContain('Maker')
+    expect(wrapper.text()).toContain('Serial number')
+    expect(refreshAttributes).toHaveBeenCalledOnce()
+    expect(draft.value).toBeNull()
     wrapper.unmount()
   })
 

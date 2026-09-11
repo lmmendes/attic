@@ -54,10 +54,10 @@ func (r *AssetRepository) GetByIDFull(ctx context.Context, id uuid.UUID) (*domai
 
 	// Load category
 	if asset.CategoryID != nil {
-		catQuery := `SELECT id, organization_id, parent_id, name, description, created_at, updated_at FROM categories WHERE id = $1`
+		catQuery := `SELECT id, organization_id, parent_id, plugin_id, name, description, icon, created_at, updated_at FROM categories WHERE id = $1`
 		var cat domain.Category
 		if err := r.pool.QueryRow(ctx, catQuery, *asset.CategoryID).Scan(
-			&cat.ID, &cat.OrganizationID, &cat.ParentID, &cat.Name, &cat.Description, &cat.CreatedAt, &cat.UpdatedAt,
+			&cat.ID, &cat.OrganizationID, &cat.ParentID, &cat.PluginID, &cat.Name, &cat.Description, &cat.Icon, &cat.CreatedAt, &cat.UpdatedAt,
 		); err == nil {
 			asset.Category = &cat
 		}
@@ -194,7 +194,7 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 	query := fmt.Sprintf(`
 		SELECT a.id, a.organization_id, a.category_id, a.location_id, a.condition_id, a.collection_id, a.main_attachment_id,
 		       a.name, a.description, a.quantity, a.attributes, a.purchase_at, a.purchase_price, a.purchase_note, a.notes, a.created_at, a.updated_at,
-		       c.id, c.name,
+		       c.id, c.name, c.plugin_id,
 		       l.id, l.name,
 		       cond.id, cond.code, cond.label,
 		       att.id, att.file_key, att.file_name, att.content_type
@@ -219,7 +219,7 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 	var assets []domain.Asset
 	for rows.Next() {
 		var a domain.Asset
-		var catID, catName *string
+		var catID, catName, catPluginID *string
 		var locID, locName *string
 		var condID, condCode, condLabel *string
 		var attID, attFileKey, attFileName, attContentType *string
@@ -227,7 +227,7 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 		if err := rows.Scan(
 			&a.ID, &a.OrganizationID, &a.CategoryID, &a.LocationID, &a.ConditionID, &a.CollectionID, &a.MainAttachmentID,
 			&a.Name, &a.Description, &a.Quantity, &a.Attributes, &a.PurchaseAt, &a.PurchasePrice, &a.PurchaseNote, &a.Notes, &a.CreatedAt, &a.UpdatedAt,
-			&catID, &catName,
+			&catID, &catName, &catPluginID,
 			&locID, &locName,
 			&condID, &condCode, &condLabel,
 			&attID, &attFileKey, &attFileName, &attContentType,
@@ -238,8 +238,9 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 		// Populate category
 		if catID != nil && catName != nil {
 			a.Category = &domain.Category{
-				ID:   uuid.MustParse(*catID),
-				Name: *catName,
+				ID:       uuid.MustParse(*catID),
+				Name:     *catName,
+				PluginID: catPluginID,
 			}
 		}
 

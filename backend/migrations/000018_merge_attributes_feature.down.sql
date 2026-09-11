@@ -1,0 +1,2 @@
+ALTER TABLE organization_feature_settings
+DROP CONSTRAINT IF EXISTS organization_features_attributes_follow_categories;
