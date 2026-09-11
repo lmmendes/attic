@@ -7,8 +7,8 @@ const secondAttributeName = `Edition ${runID}`
 
 async function signIn(page: import('@playwright/test').Page) {
   await page.goto('/login')
-  await page.getByPlaceholder('Enter your email').fill('admin')
-  await page.getByPlaceholder('Enter your password').fill('admin')
+  await page.getByPlaceholder('Enter your email').fill(process.env.E2E_EMAIL || 'admin')
+  await page.getByPlaceholder('Enter your password').fill(process.env.E2E_PASSWORD || 'admin')
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page).toHaveURL(/\/$/)
 }
