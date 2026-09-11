@@ -89,6 +89,23 @@ short-lived access token and keeps the token in memory only.
 
    Default test credentials: `testuser` / `testpassword`
 
+### Browser integration tests
+
+The Playwright suite exercises real browser workflows against a running Attic
+instance, including login, category/attribute handoffs, and feature settings.
+
+```bash
+cd frontend
+bunx playwright install chromium
+bun run test:e2e
+```
+
+The local suite targets the Nuxt development server at `http://127.0.0.1:3000`.
+Set `E2E_BASE_URL` when testing another running instance.
+
+GitHub Actions runs the same suite against the compiled application and a
+disposable PostgreSQL database on every pull request.
+
 ### Production Deployment
 
 ```bash
