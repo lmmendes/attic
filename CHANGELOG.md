@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.0](https://github.com/lmmendes/attic/compare/v2.3.0...v2.4.0) (2026-09-12)
+
+
+### Features
+
+* add organization feature toggles and browser integration tests ([#77](https://github.com/lmmendes/attic/issues/77)) ([d65dde9](https://github.com/lmmendes/attic/commit/d65dde91ff8d7f230b6a46b3e93245baaa825f62))
+
 ## [2.3.0](https://github.com/lmmendes/attic/compare/v2.2.2...v2.3.0) (2026-09-10)
 
 
