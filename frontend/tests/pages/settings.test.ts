@@ -48,6 +48,16 @@ describe('organization feature settings', () => {
     wrapper.unmount()
   })
 
+  it('uses readable text colors in light and dark mode', async () => {
+    const wrapper = await mountSuspended(SettingsPage)
+    const heading = wrapper.get('h1')
+    const featureLabel = wrapper.findAll('p').find(element => element.text() === 'Locations')!
+
+    expect(heading.classes()).toEqual(expect.arrayContaining(['text-mist-950', 'dark:text-white']))
+    expect(featureLabel.classes()).toEqual(expect.arrayContaining(['text-mist-950', 'dark:text-white']))
+    wrapper.unmount()
+  })
+
   it('resolves authentication before loading settings', async () => {
     authLoading.value = true
     fetchSession.mockImplementationOnce(() => {
