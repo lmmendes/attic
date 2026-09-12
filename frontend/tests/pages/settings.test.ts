@@ -3,7 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import SettingsPage from '../../app/pages/settings.vue'
 
-const { features, featureRef, load, update, toast } = vi.hoisted(() => {
+const { features, featureRef, authLoading, fetchSession, load, update, toast } = vi.hoisted(() => {
   const features = {
     locations: true, collections: true, categories: true, attributes: true,
     conditions: true, warranties: true, plugins: true
@@ -11,6 +11,8 @@ const { features, featureRef, load, update, toast } = vi.hoisted(() => {
   return {
     features,
     featureRef: { __v_isRef: true, value: features },
+    authLoading: { __v_isRef: true, value: false },
+    fetchSession: vi.fn(),
     load: vi.fn(),
     update: vi.fn(),
     toast: vi.fn()
@@ -20,8 +22,8 @@ const { features, featureRef, load, update, toast } = vi.hoisted(() => {
 mockNuxtImport('useAuth', () => () => ({
   isAdmin: { __v_isRef: true, value: true },
   isAuthenticated: { __v_isRef: true, value: true },
-  loading: { __v_isRef: true, value: false },
-  fetchSession: vi.fn()
+  loading: authLoading,
+  fetchSession
 }))
 mockNuxtImport('useFeatures', () => () => ({ features: featureRef, load, update }))
 mockNuxtImport('useToast', () => () => ({ add: toast }))
@@ -29,6 +31,7 @@ mockNuxtImport('useToast', () => () => ({ add: toast }))
 describe('organization feature settings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authLoading.value = false
     Object.keys(features).forEach(key => features[key as keyof typeof features] = true)
     update.mockResolvedValue(features)
   })
@@ -42,6 +45,20 @@ describe('organization feature settings', () => {
       expect(wrapper.text()).toContain(label)
     }
     expect(wrapper.text()).not.toContain('Use custom category properties')
+    wrapper.unmount()
+  })
+
+  it('resolves authentication before loading settings', async () => {
+    authLoading.value = true
+    fetchSession.mockImplementationOnce(() => {
+      authLoading.value = false
+    })
+
+    const wrapper = await mountSuspended(SettingsPage)
+    await flushPromises()
+
+    expect(fetchSession).toHaveBeenCalledOnce()
+    expect(load).toHaveBeenCalledOnce()
     wrapper.unmount()
   })
 
