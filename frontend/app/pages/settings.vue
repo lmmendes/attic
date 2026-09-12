@@ -40,7 +40,7 @@ async function save() {
 <template>
   <div class="max-w-3xl mx-auto p-6 lg:p-10 space-y-8">
     <div>
-      <h1 class="text-3xl font-black">
+      <h1 class="text-3xl font-black text-mist-950 dark:text-white">
         Settings
       </h1>
       <p class="text-muted mt-2">
@@ -55,7 +55,7 @@ async function save() {
           class="py-5 flex items-center justify-between gap-6"
         >
           <div>
-            <p class="font-bold">
+            <p class="font-bold text-mist-950 dark:text-white">
               {{ item.label }}
             </p>
             <p class="text-sm text-muted mt-1">
