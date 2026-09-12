@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({
-  middleware: 'auth'
+  middleware: ['auth', 'admin']
 })
 
 const router = useRouter()
@@ -32,11 +32,14 @@ function returnAfterAttribute(attributeID?: string) {
 const form = reactive({
   name: '',
   key: '',
-  data_type: 'string'
+  data_type: 'string',
+  selection_mode: 'single' as 'single' | 'multiple',
+  options: [] as import('~/types/api').AttributeOption[]
 })
 
 // Data types available
 const dataTypes = [
+  { value: 'select', label: 'Select', icon: 'i-lucide-list-filter', description: 'Choose one or multiple configured options' },
   { value: 'string', label: 'String', icon: 'i-lucide-type', description: 'Short text, names, or identifiers' },
   { value: 'text', label: 'Text', icon: 'i-lucide-align-left', description: 'Long form text or descriptions' },
   { value: 'number', label: 'Number', icon: 'i-lucide-hash', description: 'Numeric values' },
@@ -127,7 +130,8 @@ async function saveAttribute() {
       body: JSON.stringify({
         name: form.name,
         key: form.key,
-        data_type: form.data_type
+        data_type: form.data_type,
+        ...(form.data_type === 'select' ? { selection_mode: form.selection_mode, options: form.options } : {})
       })
     })
 
@@ -232,6 +236,28 @@ function cancel() {
             </p>
           </div>
 
+          <div
+            v-if="form.data_type === 'select'"
+            class="space-y-4"
+          >
+            <label
+              for="selection-mode"
+              class="block font-semibold"
+            >Selection mode</label>
+            <select
+              id="selection-mode"
+              v-model="form.selection_mode"
+              class="rounded-lg border border-default bg-default p-2"
+            >
+              <option value="single">
+                Single
+              </option>
+              <option value="multiple">
+                Multiple
+              </option>
+            </select>
+            <AttributeOptionsEditor v-model="form.options" />
+          </div>
           <!-- Data Type Field -->
           <div>
             <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-3">

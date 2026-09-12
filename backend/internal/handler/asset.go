@@ -291,6 +291,11 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 
 	asset.CollectionIDs = collectionIDs
 	if err := h.repos.Assets.Create(r.Context(), asset); err != nil {
+		var attributeErr *repository.AttributeError
+		if errors.As(err, &attributeErr) {
+			writeAttributeError(w, err)
+			return
+		}
 		if errors.Is(err, repository.ErrInvalidCollections) {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -434,6 +439,11 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repos.Assets.Update(r.Context(), asset); err != nil {
+		var attributeErr *repository.AttributeError
+		if errors.As(err, &attributeErr) {
+			writeAttributeError(w, err)
+			return
+		}
 		if errors.Is(err, repository.ErrInvalidCollections) {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return

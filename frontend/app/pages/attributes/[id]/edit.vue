@@ -2,13 +2,12 @@
 import type { Attribute } from '~/types/api'
 
 definePageMeta({
-  middleware: 'auth'
+  middleware: ['auth', 'admin']
 })
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
-const apiFetch = useApiFetch()
 
 const attributeId = computed(() => route.params.id as string)
 
@@ -19,7 +18,9 @@ const { data: attribute, status } = useApi<Attribute>(`/api/attributes/${attribu
 const form = reactive({
   name: '',
   key: '',
-  data_type: 'string'
+  data_type: 'string',
+  selection_mode: 'single' as 'single' | 'multiple',
+  options: [] as import('~/types/api').AttributeOption[]
 })
 
 // Populate form when attribute loads
@@ -28,11 +29,14 @@ watch(attribute, (attr) => {
     form.name = attr.name
     form.key = attr.key
     form.data_type = attr.data_type
+    form.selection_mode = attr.selection_mode || 'single'
+    form.options = attr.options || []
   }
 }, { immediate: true })
 
 // Data types available
 const dataTypes = [
+  { value: 'select', label: 'Select', icon: 'i-lucide-list-filter', description: 'Choose one or multiple configured options' },
   { value: 'string', label: 'String', icon: 'i-lucide-type', description: 'Short text, names, or identifiers' },
   { value: 'text', label: 'Text', icon: 'i-lucide-align-left', description: 'Long form text or descriptions' },
   { value: 'number', label: 'Number', icon: 'i-lucide-hash', description: 'Numeric values' },
@@ -42,6 +46,7 @@ const dataTypes = [
 
 // Saving state
 const saving = ref(false)
+const impactModal = useTemplateRef('impactModal')
 
 // Get style for selected type
 function getTypeStyle(type: string): { bgColor: string, textColor: string, borderColor: string } {
@@ -98,17 +103,17 @@ async function saveAttribute() {
 
   saving.value = true
   try {
-    await apiFetch(`/api/attributes/${attributeId.value}`, {
-      method: 'PUT',
-      body: JSON.stringify({
-        name: form.name,
-        key: form.key,
-        data_type: form.data_type
-      })
+    const deletedOptionCount = (attribute.value?.options || []).filter(option => !form.options.some(draft => draft.id === option.id)).length
+    await impactModal.value?.run({ attributeId: attributeId.value, action: 'update_attribute', changes: {
+      name: form.name,
+      key: form.key,
+      data_type: form.data_type,
+      ...(form.data_type === 'select' ? { selection_mode: form.selection_mode, options: form.options } : {})
+    }, deletedOptionCount
+    }, async () => {
+      toast.add({ title: 'Attribute updated successfully', color: 'success' })
+      await router.push('/attributes')
     })
-
-    toast.add({ title: 'Attribute updated successfully', color: 'success' })
-    router.push('/attributes')
   } catch {
     toast.add({ title: 'Failed to update attribute', color: 'error' })
   } finally {
@@ -243,6 +248,30 @@ function cancel() {
               </p>
             </div>
 
+            <div
+              v-if="form.data_type === 'select'"
+              class="space-y-4"
+            >
+              <label
+                for="selection-mode"
+                class="block font-semibold"
+              >Selection mode</label>
+              <select
+                id="selection-mode"
+                v-model="form.selection_mode"
+                class="rounded-lg border border-default bg-default p-2"
+              >
+                <option value="single">
+                  Single
+                </option>
+                <option value="multiple">
+                  Multiple
+                </option>
+              </select>
+              <AttributeOptionsEditor
+                v-model="form.options"
+              />
+            </div>
             <!-- Data Type Field -->
             <div>
               <label class="block text-sm font-semibold text-mist-700 dark:text-mist-300 mb-3">
@@ -306,12 +335,13 @@ function cancel() {
                 Caution
               </p>
               <p class="text-sm text-amber-600 dark:text-amber-400 mt-1">
-                Changing the data type may affect existing asset data that uses this attribute. Make sure to review any assets using this attribute after making changes.
+                A populated field cannot change its type or selection mode. Renaming this field will show the number of affected assets before confirmation.
               </p>
             </div>
           </div>
         </div>
       </div>
     </template>
+    <AttributeImpactModal ref="impactModal" />
   </div>
 </template>

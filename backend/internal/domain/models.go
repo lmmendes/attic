@@ -101,7 +101,15 @@ const (
 	AttributeTypeBoolean AttributeDataType = "boolean"
 	AttributeTypeText    AttributeDataType = "text"
 	AttributeTypeDate    AttributeDataType = "date"
+	AttributeTypeSelect  AttributeDataType = "select"
 )
+
+type AttributeOption struct {
+	ID        uuid.UUID `json:"id"`
+	Label     string    `json:"label"`
+	Value     string    `json:"value"`
+	SortOrder int       `json:"sort_order"`
+}
 
 // Attribute represents a reusable attribute definition (organization-level)
 type Attribute struct {
@@ -111,6 +119,8 @@ type Attribute struct {
 	Name           string            `json:"name"`
 	Key            string            `json:"key"`
 	DataType       AttributeDataType `json:"data_type"`
+	SelectionMode  string            `json:"selection_mode,omitempty"`
+	Options        []AttributeOption `json:"options,omitempty"`
 	CreatedAt      time.Time         `json:"created_at"`
 	UpdatedAt      time.Time         `json:"updated_at"`
 	DeletedAt      *time.Time        `json:"-"`

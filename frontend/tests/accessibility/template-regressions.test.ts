@@ -20,7 +20,7 @@ describe('accessibility template regressions', () => {
     const files = [
       'app.vue',
       'pages/assets/[id]/index.vue',
-      'pages/attributes/index.vue',
+      'components/AttributeImpactModal.vue',
       'pages/categories/index.vue',
       'pages/conditions/index.vue',
       'pages/locations.vue',
@@ -98,5 +98,9 @@ describe('accessibility template regressions', () => {
 
     expect(source).toContain('flex min-w-0 flex-1 gap-2 overflow-x-auto')
     expect(source).toContain('class="w-full shrink-0 2xl:w-64"')
+  })
+
+  it('reserves a fixed action column so field types align across plugin and custom rows', () => {
+    expect(readAppFile('pages/attributes/index.vue')).toContain('sm:grid-cols-[minmax(0,1.25fr)_minmax(150px,.7fr)_8rem]')
   })
 })

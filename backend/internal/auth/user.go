@@ -64,6 +64,35 @@ func (p *UserProvisioner) Provision(next http.Handler) http.Handler {
 	})
 }
 
+// LoadLocalUser loads the existing account identified by an authenticated local
+// session. Unlike OIDC provisioning, this must never create an account.
+func (p *UserProvisioner) LoadLocalUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims := GetClaims(r.Context())
+		if claims == nil {
+			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
+			return
+		}
+		id, err := uuid.Parse(claims.Subject)
+		if err != nil {
+			http.Error(w, `{"error":"invalid session"}`, http.StatusUnauthorized)
+			return
+		}
+		user, err := p.userRepo.GetByID(r.Context(), id)
+		if err != nil {
+			slog.Error("failed to load local user", "error", err, "user_id", id)
+			http.Error(w, `{"error":"failed to load user"}`, http.StatusInternalServerError)
+			return
+		}
+		if user == nil || user.OrganizationID != p.orgID {
+			http.Error(w, `{"error":"invalid session"}`, http.StatusUnauthorized)
+			return
+		}
+		ctx := context.WithValue(r.Context(), DomainUserContextKey, user)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 // GetUser extracts the domain user from context
 func GetUser(ctx context.Context) *domain.User {
 	user, ok := ctx.Value(DomainUserContextKey).(*domain.User)

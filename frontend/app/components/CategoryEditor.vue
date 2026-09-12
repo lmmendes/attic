@@ -16,6 +16,7 @@ const route = useRoute()
 const toast = useToast()
 const apiFetch = useApiFetch()
 const { features } = useFeatures()
+const { isAdmin } = useAuth()
 
 const { data: attributes, refresh: refreshAttributes } = useApi<Attribute[]>(
   '/api/attributes',
@@ -451,6 +452,7 @@ function cancel() {
               </div>
             </div>
             <button
+              v-if="isAdmin"
               type="button"
               class="text-sm font-semibold text-attic-500 hover:text-attic-600 flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-attic-500/5 transition-colors"
               @click="createAttribute"

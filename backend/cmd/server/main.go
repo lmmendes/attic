@@ -239,8 +239,8 @@ func main() {
 	// CORS middleware
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   strings.Split(cfg.CORSOrigins, ","),
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Impact-Token"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
 		MaxAge:           300,
@@ -289,9 +289,11 @@ func main() {
 		// Apply auth middleware to all /api routes
 		r.Use(authMiddleware.Authenticate)
 
-		// Only use user provisioner for OIDC mode
+		// Load the domain user for both authenticated modes.
 		if cfg.OIDCEnabled && !cfg.AuthDisabled {
 			r.Use(userProvisioner.Provision)
+		} else if !cfg.AuthDisabled {
+			r.Use(userProvisioner.LoadLocalUser)
 		}
 		r.Use(h.LoadFeatures)
 
@@ -350,6 +352,12 @@ func main() {
 			r.Get("/{id}", h.GetAttribute)
 			r.Put("/{id}", h.UpdateAttribute)
 			r.Delete("/{id}", h.DeleteAttribute)
+			r.Post("/{id}/impact-preview", h.PreviewAttributeImpact)
+			r.Get("/{id}/options", h.ListAttributeOptions)
+			r.Post("/{id}/options", h.AddAttributeOption)
+			r.Patch("/{id}/options/{option_id}", h.UpdateAttributeOption)
+			r.Delete("/{id}/options/{option_id}", h.DeleteAttributeOption)
+			r.Put("/{id}/options/order", h.OrderAttributeOptions)
 		})
 
 		// Locations

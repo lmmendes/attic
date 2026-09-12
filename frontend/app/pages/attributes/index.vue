@@ -6,7 +6,6 @@ definePageMeta({
 })
 
 const toast = useToast()
-const apiFetch = useApiFetch()
 
 const { data: attributes, refresh, status } = useApi<Attribute[]>('/api/attributes')
 
@@ -16,11 +15,12 @@ const selectedType = ref('all')
 
 const dataTypes = [
   { value: 'all', label: 'All fields', icon: 'i-lucide-layers-3' },
-  { value: 'string', label: 'Short text', icon: 'i-lucide-type' },
+  { value: 'date', label: 'Date', icon: 'i-lucide-calendar' },
   { value: 'text', label: 'Long text', icon: 'i-lucide-align-left' },
   { value: 'number', label: 'Number', icon: 'i-lucide-hash' },
-  { value: 'boolean', label: 'Yes / No', icon: 'i-lucide-toggle-left' },
-  { value: 'date', label: 'Date', icon: 'i-lucide-calendar' }
+  { value: 'select', label: 'Select', icon: 'i-lucide-list-filter' },
+  { value: 'string', label: 'Short text', icon: 'i-lucide-type' },
+  { value: 'boolean', label: 'Yes / No', icon: 'i-lucide-toggle-left' }
 ]
 
 // Pagination
@@ -80,29 +80,13 @@ function prevPage() {
   }
 }
 
-// Delete confirmation modal
-const deleteModalOpen = ref(false)
-const attributeToDelete = ref<Attribute | null>(null)
-
+const { isAdmin } = useAuth()
+const impactModal = useTemplateRef('impactModal')
 function confirmDelete(attribute: Attribute) {
-  attributeToDelete.value = attribute
-  deleteModalOpen.value = true
-}
-
-async function deleteAttribute() {
-  if (!attributeToDelete.value) return
-
-  try {
-    await apiFetch(`/api/attributes/${attributeToDelete.value.id}`, {
-      method: 'DELETE'
-    })
+  impactModal.value?.run({ attributeId: attribute.id, action: 'delete_attribute' }, async () => {
     toast.add({ title: 'Attribute deleted', color: 'success' })
-    deleteModalOpen.value = false
-    attributeToDelete.value = null
-    refresh()
-  } catch {
-    toast.add({ title: 'Failed to delete attribute', color: 'error' })
-  }
+    await refresh()
+  })
 }
 
 // Get style for data type
@@ -207,6 +191,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
         </p>
       </div>
       <UButton
+        v-if="isAdmin"
         to="/attributes/new"
         icon="i-lucide-plus"
         class="rounded-xl font-bold shadow-primary"
@@ -295,7 +280,10 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
         <p class="text-sm text-muted mb-4 max-w-sm">
           Create your first reusable field, then add it to one or more categories.
         </p>
-        <UButton to="/attributes/new">
+        <UButton
+          v-if="isAdmin"
+          to="/attributes/new"
+        >
           Create field
         </UButton>
       </div>
@@ -329,7 +317,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
           <article
             v-for="attr in paginatedAttributes"
             :key="attr.id"
-            class="grid gap-3 px-4 py-4 transition-colors hover:bg-mist-50/60 dark:hover:bg-mist-700/20 sm:grid-cols-[minmax(0,1.25fr)_minmax(150px,.7fr)_auto] sm:items-center sm:px-5"
+            class="grid gap-3 px-4 py-4 transition-colors hover:bg-mist-50/60 dark:hover:bg-mist-700/20 sm:grid-cols-[minmax(0,1.25fr)_minmax(150px,.7fr)_8rem] sm:items-center sm:px-5"
           >
             <div class="flex min-w-0 items-center gap-3">
               <div
@@ -366,6 +354,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
 
             <div class="flex items-center justify-end gap-1 border-t border-mist-100 pt-3 dark:border-mist-700 sm:border-0 sm:pt-0">
               <UButton
+                v-if="isAdmin && !attr.plugin_id"
                 :to="`/attributes/${attr.id}/edit`"
                 variant="soft"
                 size="sm"
@@ -374,6 +363,7 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
                 Edit
               </UButton>
               <button
+                v-if="isAdmin && !attr.plugin_id"
                 type="button"
                 class="flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
                 :aria-label="`Delete ${attr.name}`"
@@ -422,47 +412,6 @@ function getAttributeIcon(attr: Attribute): { icon: string, bgColor: string, tex
       </template>
     </section>
 
-    <!-- Delete Confirmation Modal -->
-    <UModal
-      v-model:open="deleteModalOpen"
-      title="Delete field"
-      description="Confirm deletion of this field and review the impact on categories that use it."
-    >
-      <template #content>
-        <div class="max-w-md rounded-[20px] bg-white p-6 shadow-xl dark:bg-mist-800">
-          <div class="flex items-start gap-4">
-            <div class="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
-              <UIcon
-                name="i-lucide-alert-triangle"
-                class="w-6 h-6 text-red-600 dark:text-red-400"
-              />
-            </div>
-            <div class="flex-1">
-              <h3 class="text-lg font-bold text-mist-950 dark:text-white">
-                Delete field
-              </h3>
-              <p class="text-sm text-muted mt-2">
-                Are you sure you want to delete <strong>{{ attributeToDelete?.name }}</strong>? Categories using this field may be affected.
-              </p>
-            </div>
-          </div>
-          <div class="flex justify-end gap-3 mt-6">
-            <UButton
-              variant="ghost"
-              color="neutral"
-              @click="deleteModalOpen = false"
-            >
-              Cancel
-            </UButton>
-            <UButton
-              color="error"
-              @click="deleteAttribute"
-            >
-              Delete
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
+    <AttributeImpactModal ref="impactModal" />
   </div>
 </template>

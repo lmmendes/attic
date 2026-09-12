@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lmmendes/attic/internal/domain"
 	"github.com/lmmendes/attic/internal/plugin"
+	"github.com/lmmendes/attic/internal/repository"
 )
 
 // PluginHandler handles plugin-related HTTP requests
@@ -420,6 +421,11 @@ func (h *PluginHandler) Import(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repos.Assets.Create(r.Context(), asset); err != nil {
+		var attributeErr *repository.AttributeError
+		if errors.As(err, &attributeErr) {
+			writeAttributeError(w, err)
+			return
+		}
 		slog.Error("failed to create imported asset",
 			"plugin_id", pluginID,
 			"external_id", req.ExternalID,

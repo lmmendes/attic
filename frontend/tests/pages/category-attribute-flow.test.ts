@@ -26,6 +26,7 @@ const { api, mutate, push, replace, resolve, toast, route, draft, clearCategorie
   }
 })
 
+mockNuxtImport('useAuth', () => () => ({ isAdmin: { __v_isRef: true, value: true } }))
 mockNuxtImport('useApi', () => api)
 mockNuxtImport('useApiFetch', () => () => mutate)
 mockNuxtImport('useRouter', () => () => ({ push, replace, resolve }))

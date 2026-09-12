@@ -16,7 +16,14 @@ export interface OrganizationFeatures {
   plugins: boolean
 }
 
-export type AttributeDataType = 'string' | 'number' | 'boolean' | 'text' | 'date'
+export type AttributeDataType = 'string' | 'number' | 'boolean' | 'text' | 'date' | 'select'
+
+export interface AttributeOption {
+  id: string
+  label: string
+  value: string
+  sort_order: number
+}
 
 export interface Attribute {
   id: string
@@ -24,6 +31,9 @@ export interface Attribute {
   name: string
   key: string
   data_type: AttributeDataType
+  selection_mode?: 'single' | 'multiple'
+  options?: AttributeOption[]
+  plugin_id?: string
   created_at: string
   updated_at: string
 }
