@@ -9,7 +9,8 @@ async function signIn(page: import('@playwright/test').Page) {
   await page.getByPlaceholder('Enter your email').fill(loginEmail)
   await page.getByPlaceholder('Enter your password').fill(loginPassword)
   await page.getByRole('button', { name: 'Sign in' }).click()
-  await expect(page).toHaveURL(/\/$/)
+  await expect(page).toHaveURL(url => url.pathname === '/')
+  await expect(page.getByRole('link', { name: 'All Assets', exact: true })).toBeVisible()
 }
 
 async function selectOption(

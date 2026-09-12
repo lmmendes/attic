@@ -10,7 +10,8 @@ async function signIn(page: import('@playwright/test').Page) {
   await page.getByPlaceholder('Enter your email').fill(process.env.E2E_EMAIL || 'admin')
   await page.getByPlaceholder('Enter your password').fill(process.env.E2E_PASSWORD || 'admin')
   await page.getByRole('button', { name: 'Sign in' }).click()
-  await expect(page).toHaveURL(/\/$/)
+  await expect(page).toHaveURL(url => url.pathname === '/')
+  await expect(page.getByRole('link', { name: 'All Assets', exact: true })).toBeVisible()
 }
 
 test.describe.configure({ mode: 'serial' })
