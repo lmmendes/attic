@@ -2,7 +2,7 @@
 import type { OrganizationFeatures } from '~/types/api'
 
 definePageMeta({ middleware: 'auth' })
-const { isAdmin } = useAuth()
+const { isAdmin, loading: authLoading } = useAuth()
 const { features, load, update } = useFeatures()
 const toast = useToast()
 const saving = ref(false)
@@ -16,6 +16,16 @@ const labels: Array<{ key: keyof OrganizationFeatures, label: string, descriptio
 ]
 
 onMounted(async () => {
+  if (authLoading.value) {
+    await new Promise<void>((resolve) => {
+      const stop = watch(authLoading, (loading) => {
+        if (!loading) {
+          stop()
+          resolve()
+        }
+      })
+    })
+  }
   if (!isAdmin.value) return navigateTo('/')
   await load()
 })
