@@ -2,21 +2,26 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/lmmendes/attic/internal/domain"
 )
 
 // CreateAttributeRequest represents the request body for creating an attribute
 type CreateAttributeRequest struct {
-	Name     string                  `json:"name"`
-	Key      string                  `json:"key"`
+	Name     string                   `json:"name"`
+	Key      string                   `json:"key"`
 	DataType domain.AttributeDataType `json:"data_type"`
 }
 
 // UpdateAttributeRequest represents the request body for updating an attribute
 type UpdateAttributeRequest struct {
-	Name     string                  `json:"name"`
+	Name     string                   `json:"name"`
 	DataType domain.AttributeDataType `json:"data_type"`
+}
+
+func hasReservedPluginAttributeKey(attribute *domain.Attribute) bool {
+	return strings.HasPrefix(attribute.Key, "plugin.") && attribute.PluginID == nil
 }
 
 // ListAttributes returns all attributes for the organization
@@ -25,6 +30,20 @@ func (h *Handler) ListAttributes(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list attributes")
 		return
+	}
+	enabled, featureErr := h.featureEnabled(r, "plugins")
+	if featureErr != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	}
+	if !enabled {
+		filtered := attributes[:0]
+		for _, attribute := range attributes {
+			if attribute.PluginID == nil {
+				filtered = append(filtered, attribute)
+			}
+		}
+		attributes = filtered
 	}
 	writeJSON(w, http.StatusOK, attributes)
 }
@@ -43,6 +62,15 @@ func (h *Handler) GetAttribute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if attr == nil {
+		writeError(w, http.StatusNotFound, "attribute not found")
+		return
+	}
+	enabled, featureErr := h.featureEnabled(r, "plugins")
+	if featureErr != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	}
+	if !enabled && attr.PluginID != nil {
 		writeError(w, http.StatusNotFound, "attribute not found")
 		return
 	}
@@ -86,6 +114,10 @@ func (h *Handler) CreateAttribute(w http.ResponseWriter, r *http.Request) {
 		Key:            req.Key,
 		DataType:       req.DataType,
 	}
+	if hasReservedPluginAttributeKey(attr) {
+		writeError(w, http.StatusBadRequest, "attribute keys beginning with plugin. are reserved for plugins")
+		return
+	}
 
 	if err := h.repos.Attributes.Create(r.Context(), attr); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create attribute")
@@ -110,6 +142,13 @@ func (h *Handler) UpdateAttribute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if existing == nil {
+		writeError(w, http.StatusNotFound, "attribute not found")
+		return
+	}
+	if enabled, featureErr := h.featureEnabled(r, "plugins"); featureErr != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	} else if !enabled && existing.PluginID != nil {
 		writeError(w, http.StatusNotFound, "attribute not found")
 		return
 	}
@@ -164,6 +203,13 @@ func (h *Handler) DeleteAttribute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if existing == nil {
+		writeError(w, http.StatusNotFound, "attribute not found")
+		return
+	}
+	if enabled, featureErr := h.featureEnabled(r, "plugins"); featureErr != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	} else if !enabled && existing.PluginID != nil {
 		writeError(w, http.StatusNotFound, "attribute not found")
 		return
 	}

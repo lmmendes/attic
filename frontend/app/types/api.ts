@@ -6,6 +6,16 @@ export interface User {
   display_name: string
 }
 
+export interface OrganizationFeatures {
+  locations: boolean
+  collections: boolean
+  categories: boolean
+  attributes: boolean
+  conditions: boolean
+  warranties: boolean
+  plugins: boolean
+}
+
 export type AttributeDataType = 'string' | 'number' | 'boolean' | 'text' | 'date'
 
 export interface Attribute {

@@ -15,12 +15,17 @@ const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 const apiFetch = useApiFetch()
+const { features } = useFeatures()
 
-const { data: attributes, refresh: refreshAttributes } = useApi<Attribute[]>('/api/attributes')
+const { data: attributes, refresh: refreshAttributes } = useApi<Attribute[]>(
+  '/api/attributes',
+  { immediate: features.value.categories }
+)
 const { data: categories, clear: clearCategories } = useApi<Category[]>('/api/categories')
 
 // Form state
 interface CategoryDraft {
+  returnPath?: string
   form: {
     name: string
     description: string
@@ -37,7 +42,13 @@ interface AttributeSelection {
 }
 
 const categoryDraft = useState<CategoryDraft | null>('new-category-draft', () => null)
-const restoreDraft = !isEditing.value && route.query.resume === 'attribute'
+const categoryReturnPath = computed(() => isEditing.value
+  ? `/categories/${props.category!.id}/edit`
+  : '/categories/new')
+const restoreDraft = route.query.resume === 'attribute'
+  && categoryDraft.value != null
+  && (categoryDraft.value.returnPath === categoryReturnPath.value
+    || (!categoryDraft.value.returnPath && !isEditing.value))
 const restoredDraft = restoreDraft ? categoryDraft.value : null
 
 const form = reactive({
@@ -59,7 +70,7 @@ const selectedAttributes = ref<AttributeSelection[]>(
   }))
   || []
 )
-if (!isEditing.value) categoryDraft.value = null
+if (restoreDraft || !isEditing.value) categoryDraft.value = null
 const excludedParentIds = computed(() =>
   props.category
     ? getCategoryDescendantIds(categories.value || [], props.category.id)
@@ -187,16 +198,14 @@ async function restoreCreatedAttribute() {
 onMounted(restoreCreatedAttribute)
 
 function createAttribute() {
-  if (isEditing.value) {
-    router.push('/attributes')
-    return
-  }
+  if (!features.value.categories) return
 
   categoryDraft.value = {
+    returnPath: categoryReturnPath.value,
     form: { ...form },
     selectedAttributes: selectedAttributes.value.map(attribute => ({ ...attribute }))
   }
-  router.push({ path: '/attributes/new', query: { returnTo: 'category' } })
+  router.push({ path: '/attributes/new', query: { returnTo: categoryReturnPath.value } })
 }
 
 // Remove attribute from selection
@@ -243,7 +252,7 @@ async function saveCategory() {
         description: form.description || null,
         icon: form.icon,
         parent_id: form.parent_id || null,
-        attributes: selectedAttributes.value
+        ...(features.value.categories ? { attributes: selectedAttributes.value } : {})
       })
     })
 
@@ -317,7 +326,10 @@ function cancel() {
     <!-- Two Column Layout -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
       <!-- LEFT COLUMN: Identity -->
-      <div class="lg:col-span-4 space-y-6">
+      <div
+        class="space-y-6"
+        :class="features.categories ? 'lg:col-span-4' : 'lg:col-span-12'"
+      >
         <!-- Basic Info Card -->
         <div class="bg-white dark:bg-mist-800 rounded-xl shadow-soft border border-mist-100 dark:border-mist-700 p-6">
           <div class="flex items-center gap-2 mb-6">
@@ -417,7 +429,10 @@ function cancel() {
       </div>
 
       <!-- RIGHT COLUMN: Attribute Schema -->
-      <div class="lg:col-span-8">
+      <div
+        v-if="features.categories"
+        class="lg:col-span-8"
+      >
         <div class="bg-white dark:bg-mist-800 rounded-xl shadow-soft border border-mist-100 dark:border-mist-700 flex flex-col min-h-[500px]">
           <!-- Composer Header -->
           <div class="px-6 py-5 border-b border-mist-100 dark:border-mist-700 flex items-center justify-between">

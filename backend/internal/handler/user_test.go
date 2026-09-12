@@ -109,4 +109,3 @@ func Test_GetCurrentUser_WithoutDisplayName_ReturnsNil(t *testing.T) {
 		t.Errorf("expected nil display name, got %v", response.DisplayName)
 	}
 }
-

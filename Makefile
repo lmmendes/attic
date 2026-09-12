@@ -1,4 +1,4 @@
-.PHONY: help dev dev-up dev-down backend-run backend-build backend-test backend-test-coverage migrate-up migrate-down migrate-create frontend-dev frontend-build frontend-test build clean test
+.PHONY: help dev dev-up dev-down backend-run backend-build backend-test backend-test-coverage migrate-up migrate-down migrate-create frontend-dev frontend-build frontend-test frontend-e2e build clean test
 
 help:
 	@echo "Available commands:"
@@ -16,6 +16,7 @@ help:
 	@echo "  frontend-dev  - Run frontend dev server"
 	@echo "  frontend-build - Build frontend for production"
 	@echo "  frontend-test - Run frontend tests"
+	@echo "  frontend-e2e  - Run browser integration tests against a running app"
 	@echo "  test          - Run all tests (backend + frontend)"
 	@echo "  backend-test-coverage - Run backend tests with coverage"
 
@@ -82,3 +83,6 @@ frontend-build:
 
 frontend-test:
 	cd frontend && bun run test
+
+frontend-e2e:
+	cd frontend && bun run test:e2e

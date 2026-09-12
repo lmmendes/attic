@@ -54,6 +54,26 @@ func (m *mockPlugin) Fetch(ctx context.Context, externalID string) (*domain.Impo
 	return m.fetchData, nil
 }
 
+func TestNewPluginResponseHidesAttributesWhenFeatureDisabled(t *testing.T) {
+	p := &mockPlugin{
+		id: "google_books",
+		attributes: []domain.PluginAttribute{{
+			Name: "ISBN",
+			Key:  "books.isbn",
+		}},
+	}
+
+	hidden := newPluginResponse(p, false)
+	if hidden.Attributes == nil || len(hidden.Attributes) != 0 {
+		t.Fatalf("expected an empty attribute list, got %#v", hidden.Attributes)
+	}
+
+	visible := newPluginResponse(p, true)
+	if len(visible.Attributes) != 1 || visible.Attributes[0].Key != "plugin.google_books.books.isbn" {
+		t.Fatalf("expected a namespaced plugin attribute, got %#v", visible.Attributes)
+	}
+}
+
 // mockPluginRegistry for testing
 type mockPluginRegistry struct {
 	plugins map[string]domain.ImportPlugin

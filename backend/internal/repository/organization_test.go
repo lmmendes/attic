@@ -49,6 +49,53 @@ func Test_OrganizationRepository_Create_Success(t *testing.T) {
 	}
 }
 
+func Test_OrganizationRepository_Create_DefaultsAllFeaturesEnabled(t *testing.T) {
+	ctx := context.Background()
+	if err := testDB.TruncateAll(ctx); err != nil {
+		t.Fatalf("failed to truncate: %v", err)
+	}
+	repo := NewOrganizationRepository(testDB.Pool)
+	org := &domain.Organization{Name: "Feature defaults"}
+	if err := repo.Create(ctx, org); err != nil {
+		t.Fatal(err)
+	}
+	features, err := repo.GetFeatures(ctx, org.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !features.Locations || !features.Collections || !features.Categories || !features.Attributes ||
+		!features.Conditions || !features.Warranties || !features.Plugins {
+		t.Fatalf("expected all features enabled, got %+v", features)
+	}
+}
+
+func Test_OrganizationRepository_UpdateFeatures_ReplacesCompleteMap(t *testing.T) {
+	ctx := context.Background()
+	if err := testDB.TruncateAll(ctx); err != nil {
+		t.Fatalf("failed to truncate: %v", err)
+	}
+	repo := NewOrganizationRepository(testDB.Pool)
+	org := &domain.Organization{Name: "Feature update"}
+	if err := repo.Create(ctx, org); err != nil {
+		t.Fatal(err)
+	}
+	want := &domain.OrganizationFeatures{
+		Locations: true, Collections: false, Categories: true, Attributes: false,
+		Conditions: true, Warranties: false, Plugins: false,
+	}
+	if err := repo.UpdateFeatures(ctx, org.ID, want); err != nil {
+		t.Fatal(err)
+	}
+	want.Attributes = want.Categories
+	got, err := repo.GetFeatures(ctx, org.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *got != *want {
+		t.Fatalf("features mismatch: got %+v want %+v", got, want)
+	}
+}
+
 func Test_OrganizationRepository_Create_WithDescription(t *testing.T) {
 	ctx := context.Background()
 	if err := testDB.TruncateAll(ctx); err != nil {

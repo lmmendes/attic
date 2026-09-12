@@ -40,3 +40,72 @@ jobs:
 
       - name: Frontend tests
         run: cd frontend && bun run test
+
+  browser-e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: attic
+          POSTGRES_PASSWORD: attic
+          POSTGRES_DB: attic
+        options: >-
+          --health-cmd "pg_isready -U attic"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.24'
+
+      - name: Install frontend dependencies
+        run: cd frontend && bun install --frozen-lockfile
+
+      - name: Install Chromium
+        run: cd frontend && bunx playwright install --with-deps chromium
+
+      - name: Build application
+        run: |
+          cd frontend && bun run build
+          cd ../backend && go build -ldflags="-w -s" -o bin/attic ./cmd/server
+
+      - name: Start application
+        env:
+          ATTIC_DATABASE_URL: postgres://attic:attic@127.0.0.1:5432/attic?sslmode=disable
+          ATTIC_BASE_URL: http://127.0.0.1:8080
+          ATTIC_CORS_ORIGINS: http://127.0.0.1:8080
+          ATTIC_LOCAL_STORAGE_PATH: /tmp/attic-uploads
+          ATTIC_SESSION_SECRET: e2e-session-secret-must-be-long-enough
+        run: |
+          mkdir -p /tmp/attic-uploads
+          ./backend/bin/attic > backend/e2e-server.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:8080/health && exit 0
+            sleep 1
+          done
+          cat backend/e2e-server.log
+          exit 1
+
+      - name: Browser integration tests
+        run: cd frontend && E2E_BASE_URL=http://127.0.0.1:8080 bun run test:e2e
+
+      - name: Upload browser test artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-artifacts
+          path: |
+            frontend/test-results
+            frontend/playwright-report
+            backend/e2e-server.log
+          if-no-files-found: ignore

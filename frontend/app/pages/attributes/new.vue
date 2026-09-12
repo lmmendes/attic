@@ -7,12 +7,17 @@ const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 const apiFetch = useApiFetch()
-const returnToCategory = route.query.returnTo === 'category'
+const requestedReturnPath = typeof route.query.returnTo === 'string' ? route.query.returnTo : ''
+const categoryReturnPath = requestedReturnPath === 'category'
+  ? '/categories/new'
+  : /^\/categories\/[^/]+\/edit$/.test(requestedReturnPath)
+    ? requestedReturnPath
+    : requestedReturnPath === '/categories/new' ? requestedReturnPath : null
 
 function returnAfterAttribute(attributeID?: string) {
-  if (returnToCategory) {
+  if (categoryReturnPath) {
     router.push({
-      path: '/categories/new',
+      path: categoryReturnPath,
       query: {
         resume: 'attribute',
         ...(attributeID ? { attribute_id: attributeID } : {})

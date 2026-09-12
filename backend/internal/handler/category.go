@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"errors"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -30,6 +32,66 @@ type UpdateCategoryRequest struct {
 	Attributes  []AttributeAssignment `json:"attributes,omitempty"`
 }
 
+var errInvalidCategoryAttribute = errors.New("invalid category attribute")
+
+func validateCategoryAttributeOwnership(attribute *domain.Attribute, orgID uuid.UUID, pluginsEnabled bool) error {
+	if attribute == nil || attribute.OrganizationID != orgID {
+		return errInvalidCategoryAttribute
+	}
+	if !pluginsEnabled && attribute.PluginID != nil {
+		return errFeatureDisabled("plugins")
+	}
+	return nil
+}
+
+func (h *Handler) validateCategoryAttributeAssignments(ctx context.Context, attrs []AttributeAssignment, pluginsEnabled bool) ([]domain.CategoryAttributeAssignment, error) {
+	assignments, err := parseAttributeAssignments(attrs)
+	if err != nil {
+		return nil, errInvalidCategoryAttribute
+	}
+	if pluginsEnabled {
+		return assignments, nil
+	}
+
+	for _, assignment := range assignments {
+		attribute, err := h.repos.Attributes.GetByID(ctx, assignment.AttributeID)
+		if err != nil {
+			return nil, err
+		}
+		if err := validateCategoryAttributeOwnership(attribute, h.orgID, pluginsEnabled); err != nil {
+			return nil, err
+		}
+	}
+
+	return assignments, nil
+}
+
+func writeCategoryAttributeValidationError(w http.ResponseWriter, err error) {
+	var disabled featureDisabledError
+	switch {
+	case errors.As(err, &disabled):
+		writeError(w, http.StatusForbidden, err.Error())
+	case errors.Is(err, errInvalidCategoryAttribute):
+		writeError(w, http.StatusBadRequest, "invalid attribute_id in attributes")
+	default:
+		writeError(w, http.StatusInternalServerError, "failed to validate category attributes")
+	}
+}
+
+func preservePluginCategoryAssignments(assignments []domain.CategoryAttributeAssignment, existing []domain.CategoryAttribute) []domain.CategoryAttributeAssignment {
+	for _, current := range existing {
+		if current.Attribute == nil || current.Attribute.PluginID == nil {
+			continue
+		}
+		assignments = append(assignments, domain.CategoryAttributeAssignment{
+			AttributeID: current.AttributeID,
+			Required:    current.Required,
+			SortOrder:   current.SortOrder,
+		})
+	}
+	return assignments
+}
+
 func (h *Handler) ListCategories(w http.ResponseWriter, r *http.Request) {
 	tree := r.URL.Query().Get("tree") == "true"
 
@@ -50,6 +112,19 @@ func (h *Handler) ListCategories(w http.ResponseWriter, r *http.Request) {
 	if categories == nil {
 		categories = []domain.Category{}
 	}
+	features, featureErr := h.features(r)
+	if featureErr != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	}
+	if !features.Plugins {
+		categories = filterPluginCategories(categories)
+	}
+	if !features.Attributes {
+		for i := range categories {
+			clearCategoryAttributes(&categories[i])
+		}
+	}
 
 	writeJSON(w, http.StatusOK, categories)
 }
@@ -59,6 +134,23 @@ func (h *Handler) GetCategoryAssetCounts(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get asset counts")
 		return
+	}
+	pluginsEnabled, featureErr := h.featureEnabled(r, "plugins")
+	if featureErr != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	}
+	if !pluginsEnabled {
+		categories, err := h.repos.Categories.List(r.Context(), h.orgID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to filter asset counts")
+			return
+		}
+		for _, category := range categories {
+			if category.PluginID != nil {
+				delete(counts, category.ID.String())
+			}
+		}
 	}
 	writeJSON(w, http.StatusOK, counts)
 }
@@ -87,8 +179,54 @@ func (h *Handler) GetCategory(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "category not found")
 		return
 	}
+	features, featureErr := h.features(r)
+	if featureErr != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	}
+	if !features.Plugins {
+		if cat.PluginID != nil {
+			writeError(w, http.StatusNotFound, "category not found")
+			return
+		}
+		cat.Attributes = filterPluginCategoryAttributes(cat.Attributes)
+	}
+	if !features.Attributes {
+		cat.Attributes = nil
+	}
 
 	writeJSON(w, http.StatusOK, cat)
+}
+
+func filterPluginCategories(categories []domain.Category) []domain.Category {
+	filtered := make([]domain.Category, 0, len(categories))
+	for _, category := range categories {
+		if category.PluginID != nil {
+			continue
+		}
+		category.Attributes = filterPluginCategoryAttributes(category.Attributes)
+		category.Children = filterPluginCategories(category.Children)
+		filtered = append(filtered, category)
+	}
+	return filtered
+}
+
+func filterPluginCategoryAttributes(attributes []domain.CategoryAttribute) []domain.CategoryAttribute {
+	filtered := make([]domain.CategoryAttribute, 0, len(attributes))
+	for _, assignment := range attributes {
+		if assignment.Attribute != nil && assignment.Attribute.PluginID != nil {
+			continue
+		}
+		filtered = append(filtered, assignment)
+	}
+	return filtered
+}
+
+func clearCategoryAttributes(category *domain.Category) {
+	category.Attributes = nil
+	for i := range category.Children {
+		clearCategoryAttributes(&category.Children[i])
+	}
 }
 
 func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
@@ -100,6 +238,20 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 
 	if req.Name == "" {
 		writeError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	features, err := h.features(r)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	}
+	if !features.Attributes && len(req.Attributes) > 0 {
+		writeError(w, http.StatusForbidden, "attributes feature is not enabled")
+		return
+	}
+	assignments, err := h.validateCategoryAttributeAssignments(r.Context(), req.Attributes, features.Plugins)
+	if err != nil {
+		writeCategoryAttributeValidationError(w, err)
 		return
 	}
 
@@ -134,12 +286,7 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set attributes if provided
-	if len(req.Attributes) > 0 {
-		assignments, err := parseAttributeAssignments(req.Attributes)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "invalid attribute_id in attributes")
-			return
-		}
+	if len(assignments) > 0 {
 		if err := h.repos.Categories.SetAttributes(r.Context(), cat.ID, assignments); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to set category attributes")
 			return
@@ -147,10 +294,13 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the category with attributes to return
-	cat, err := h.repos.Categories.GetByIDWithAttributes(r.Context(), cat.ID)
+	cat, err = h.repos.Categories.GetByIDWithAttributes(r.Context(), cat.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get category")
 		return
+	}
+	if !features.Attributes {
+		cat.Attributes = nil
 	}
 
 	writeJSON(w, http.StatusCreated, cat)
@@ -169,7 +319,7 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cat, err := h.repos.Categories.GetByID(r.Context(), id)
+	cat, err := h.repos.Categories.GetByIDWithAttributes(r.Context(), id)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get category")
 		return
@@ -177,6 +327,26 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	if cat == nil || cat.OrganizationID != h.orgID {
 		writeError(w, http.StatusNotFound, "category not found")
 		return
+	}
+	features, featureErr := h.features(r)
+	if featureErr != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	} else if !features.Plugins && cat.PluginID != nil {
+		writeError(w, http.StatusNotFound, "category not found")
+		return
+	}
+
+	var assignments []domain.CategoryAttributeAssignment
+	if features.Attributes {
+		assignments, err = h.validateCategoryAttributeAssignments(r.Context(), req.Attributes, features.Plugins)
+		if err != nil {
+			writeCategoryAttributeValidationError(w, err)
+			return
+		}
+		if !features.Plugins {
+			assignments = preservePluginCategoryAssignments(assignments, cat.Attributes)
+		}
 	}
 
 	cat.Name = req.Name
@@ -208,15 +378,11 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update attributes - always set (even if empty to clear existing)
-	assignments, err := parseAttributeAssignments(req.Attributes)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid attribute_id in attributes")
-		return
-	}
-	if err := h.repos.Categories.SetAttributes(r.Context(), cat.ID, assignments); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to set category attributes")
-		return
+	if features.Attributes {
+		if err := h.repos.Categories.SetAttributes(r.Context(), cat.ID, assignments); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to set category attributes")
+			return
+		}
 	}
 
 	// Fetch the category with attributes to return
@@ -224,6 +390,12 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to get category")
 		return
+	}
+	if !features.Plugins {
+		cat.Attributes = filterPluginCategoryAttributes(cat.Attributes)
+	}
+	if !features.Attributes {
+		cat.Attributes = nil
 	}
 
 	writeJSON(w, http.StatusOK, cat)
