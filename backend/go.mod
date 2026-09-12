@@ -1,6 +1,6 @@
 module github.com/lmmendes/attic
 
-go 1.25.0
+go 1.27.0
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.47.0
