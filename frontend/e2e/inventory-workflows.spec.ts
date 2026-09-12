@@ -39,7 +39,7 @@ test('creates attributes from category create and edit flows', async ({ page }) 
   await expect(page).toHaveURL(/\/categories$/)
   await expect(page.getByRole('heading', { name: categoryName })).toBeVisible()
 
-  await page.getByRole('button', { name: `Edit ${categoryName}` }).click()
+  await page.getByRole('link', { name: `Edit ${categoryName}` }).click()
   await expect(page).toHaveURL(/\/categories\/[^/]+\/edit$/)
   await page.getByRole('button', { name: 'New Attribute' }).click()
   await expect(page).toHaveURL(/\/attributes\/new/)

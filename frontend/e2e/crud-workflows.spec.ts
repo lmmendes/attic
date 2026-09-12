@@ -18,8 +18,11 @@ async function selectOption(
   label: string,
   option: string
 ) {
-  await page.getByRole('button', { name: label, exact: true }).click()
+  const trigger = page.getByRole('button', { name: label, exact: true })
+  await trigger.click()
   await page.getByRole('option', { name: option, exact: true }).click()
+  await page.keyboard.press('Escape')
+  await expect(trigger).toContainText(option)
 }
 
 test.describe('core browser workflows', () => {
@@ -159,7 +162,6 @@ test.describe('core browser workflows', () => {
     await page.goto('/assets/new')
     await page.getByPlaceholder('e.g. Vintage Canon AE-1').fill(assetName)
     await selectOption(page, 'Collections', collectionName)
-    await expect(page.getByText(collectionName, { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Save Asset' }).first().click()
 
     await expect(page).toHaveURL(/\/assets\/[^/]+$/)
@@ -168,7 +170,7 @@ test.describe('core browser workflows', () => {
 
     await page.getByRole('link', { name: 'Edit Asset' }).click()
     await expect(page).toHaveURL(/\/assets\/[^/]+\/edit$/)
-    await selectOption(page, 'Collections', collectionName)
+    await expect(page.getByRole('button', { name: 'Collections', exact: true })).toContainText(collectionName)
     await page.getByRole('button', { name: 'Save Changes' }).first().click()
     await expect(page).toHaveURL(/\/assets\/[^/]+$/)
     await expect(page.getByText(collectionName, { exact: true })).toBeVisible()
