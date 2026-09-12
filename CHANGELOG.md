@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.1](https://github.com/lmmendes/attic/compare/v2.4.0...v2.4.1) (2026-09-12)
+
+
+### Bug Fixes
+
+* **ui:** improve settings page dark mode readability ([#80](https://github.com/lmmendes/attic/issues/80)) ([5948429](https://github.com/lmmendes/attic/commit/5948429cc78aad36ad7b9bad5cd08e6edfb0be16))
+
 ## [2.4.0](https://github.com/lmmendes/attic/compare/v2.3.0...v2.4.0) (2026-09-12)
 
 
