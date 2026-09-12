@@ -21,7 +21,7 @@ test('creates attributes from category create and edit flows', async ({ page }) 
 
   await expect(page.getByRole('link', { name: 'Categories', exact: true })).toBeVisible()
   await page.goto('/categories/new')
-  await expect(page).toHaveURL(/\/categories\/new$/)
+  await expect(page).toHaveURL(/\/categories\/new\/?$/)
   const categoryNameInput = page.getByPlaceholder('e.g. Rare Books')
   await expect(categoryNameInput).toBeVisible()
   await expect(categoryNameInput).toBeEnabled()
@@ -67,7 +67,7 @@ test('applies feature settings to navigation and asset forms', async ({ page }) 
     await locations.click()
     await expect(locations).not.toBeChecked()
     await page.getByRole('button', { name: 'Save changes' }).click()
-    await expect(page.getByText('Settings saved')).toBeVisible()
+    await expect(page.getByText('Settings saved', { exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Locations' })).toHaveCount(0)
 
     await page.goto('/assets/new')
@@ -80,7 +80,7 @@ test('applies feature settings to navigation and asset forms', async ({ page }) 
       if (!(await locations.isChecked())) {
         await locations.click()
         await page.getByRole('button', { name: 'Save changes' }).click()
-        await expect(page.getByText('Settings saved')).toBeVisible()
+        await expect(page.getByText('Settings saved', { exact: true })).toBeVisible()
       }
     }
   }

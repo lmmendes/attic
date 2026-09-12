@@ -18,7 +18,7 @@ async function selectOption(
   label: string,
   option: string
 ) {
-  await page.getByRole('combobox', { name: label }).click()
+  await page.getByRole('button', { name: label, exact: true }).click()
   await page.getByRole('option', { name: option, exact: true }).click()
 }
 
@@ -35,7 +35,7 @@ test.describe('core browser workflows', () => {
     await page.getByPlaceholder('What belongs in this collection?').fill('Browser test collection')
     await page.getByRole('button', { name: 'Create collection' }).click()
 
-    await expect(page.getByText('Collection created')).toBeVisible()
+    await expect(page.getByText('Collection created', { exact: true })).toBeVisible()
     const collection = page.getByRole('listitem').filter({ hasText: collectionName })
     await expect(collection).toBeVisible()
 
@@ -45,7 +45,7 @@ test.describe('core browser workflows', () => {
     await page.getByPlaceholder('What belongs in this collection?').fill('Updated browser test collection')
     await page.getByRole('button', { name: 'Save changes' }).click()
 
-    await expect(page.getByText('Collection updated')).toBeVisible()
+    await expect(page.getByText('Collection updated', { exact: true })).toBeVisible()
     await expect(page.getByText(updatedName, { exact: true })).toBeVisible()
 
     await page.getByPlaceholder('Search collections').fill('Updated browser test')
@@ -72,7 +72,7 @@ test.describe('core browser workflows', () => {
     await page.getByRole('button', { name: 'Save Changes' }).click()
 
     await expect(page).toHaveURL(/\/attributes$/)
-    await expect(page.getByText('Attribute updated successfully')).toBeVisible()
+    await expect(page.getByText('Attribute updated successfully', { exact: true })).toBeVisible()
     await expect(page.getByText(updatedName, { exact: true })).toBeVisible()
 
     await page.getByPlaceholder('Search name or key').fill('Updated')
@@ -126,7 +126,7 @@ test.describe('core browser workflows', () => {
     await page.getByPlaceholder('At least 8 characters').fill('e2e-password')
     await page.getByRole('button', { name: 'Add person' }).click()
 
-    await expect(page.getByText('User created successfully')).toBeVisible()
+    await expect(page.getByText('User created successfully', { exact: true })).toBeVisible()
     let user = page.getByRole('row').filter({ hasText: email })
     await expect(user).toBeVisible()
 
@@ -135,7 +135,7 @@ test.describe('core browser workflows', () => {
     await page.getByPlaceholder('e.g. John Doe').fill(updatedName)
     await page.getByRole('button', { name: 'Save changes' }).click()
 
-    await expect(page.getByText('User updated successfully')).toBeVisible()
+    await expect(page.getByText('User updated successfully', { exact: true })).toBeVisible()
     user = page.getByRole('row').filter({ hasText: email })
     await expect(user).toContainText(updatedName)
 
