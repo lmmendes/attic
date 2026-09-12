@@ -146,7 +146,7 @@ describe('attribute impact confirmation', () => {
     const page = within(document.body)
     await userEvent.setup().click(page.getByRole('button', { name: 'Save attribute' }))
     await waitFor(() => expect(page.getByText('1 asset uses an option you changed. Deleted selections will be removed, and renamed values will be updated automatically.')).toBeTruthy())
-    expect(page.queryByText(/asset will have no selection/)).toBeNull()
+    expect(page.getByText('1 asset will have no selection. Because this attribute is required, it must be updated the next time it is saved.')).toBeTruthy()
     expect(page.queryByText('Any changed stored values or keys will also be updated on the affected assets.')).toBeNull()
   })
 })

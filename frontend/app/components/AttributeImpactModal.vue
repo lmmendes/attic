@@ -130,7 +130,7 @@ defineExpose({ run })
         <p v-if="impact?.deleted_assets">
           Includes {{ impact.deleted_assets }} deleted assets.
         </p>
-        <p v-if="impact?.required_fields_left_empty && !hasOptionDraft">
+        <p v-if="impact?.required_fields_left_empty">
           {{ impact.required_fields_left_empty }} {{ impact.required_fields_left_empty === 1 ? 'asset will have no selection' : 'assets will have no selection' }}. Because this attribute is required, {{ impact.required_fields_left_empty === 1 ? 'it must be updated' : 'they must be updated' }} the next time {{ impact.required_fields_left_empty === 1 ? 'it is' : 'they are' }} saved.
         </p>
         <p v-if="deleting">

@@ -62,6 +62,10 @@ func lockAttributeWrites(ctx context.Context, tx pgx.Tx, org uuid.UUID) error {
 	_, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1, 619))", org.String())
 	return err
 }
+func lockAttributeReads(ctx context.Context, tx pgx.Tx, org uuid.UUID) error {
+	_, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 619))", org.String())
+	return err
+}
 func invalidAttribute(message string) error {
 	return &AttributeError{400, "invalid_attribute", message}
 }
@@ -81,6 +85,9 @@ func validateDefinition(a *domain.Attribute) error {
 	case domain.AttributeTypeSelect:
 		if a.SelectionMode == "" {
 			a.SelectionMode = "single"
+		}
+		if len(a.Options) == 0 {
+			return invalidAttribute("select fields require at least one option")
 		}
 		if a.SelectionMode != "single" && a.SelectionMode != "multiple" {
 			return invalidAttribute("selection_mode must be single or multiple")
@@ -626,7 +633,7 @@ func replaceSelectValues(v any, replacements map[string]optionReplacement) any {
 // validateSelectAsset runs inside the same transaction and organization lock as
 // the asset write, including writes made by import plugins.
 func validateSelectAsset(ctx context.Context, tx pgx.Tx, a *domain.Asset) error {
-	if err := lockAttributeWrites(ctx, tx, a.OrganizationID); err != nil {
+	if err := lockAttributeReads(ctx, tx, a.OrganizationID); err != nil {
 		return err
 	}
 	var values map[string]any

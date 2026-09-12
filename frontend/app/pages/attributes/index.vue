@@ -132,6 +132,14 @@ function getTypeStyle(type: string): { icon: string, bgColor: string, textColor:
         borderColor: 'border-purple-100 dark:border-purple-900/50',
         label: 'Date'
       }
+    case 'select':
+      return {
+        icon: 'i-lucide-list-filter',
+        bgColor: 'bg-cyan-50 dark:bg-cyan-900/30',
+        textColor: 'text-cyan-700 dark:text-cyan-300',
+        borderColor: 'border-cyan-100 dark:border-cyan-900/50',
+        label: 'Select'
+      }
     default:
       return {
         icon: 'i-lucide-circle',

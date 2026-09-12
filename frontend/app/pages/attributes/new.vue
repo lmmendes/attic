@@ -69,6 +69,7 @@ function onKeyInput() {
 
 // Saving state
 const saving = ref(false)
+const optionsError = ref('')
 
 // Get style for selected type
 function getTypeStyle(type: string): { bgColor: string, textColor: string, borderColor: string } {
@@ -120,6 +121,11 @@ async function saveAttribute() {
   }
   if (!form.key.trim()) {
     toast.add({ title: 'Please enter an attribute key', color: 'error' })
+    return
+  }
+  optionsError.value = ''
+  if (form.data_type === 'select' && form.options.length === 0) {
+    optionsError.value = 'Add at least one option before saving this select field.'
     return
   }
 
@@ -257,6 +263,13 @@ function cancel() {
               </option>
             </select>
             <AttributeOptionsEditor v-model="form.options" />
+            <p
+              v-if="optionsError"
+              role="alert"
+              class="text-sm text-red-600 dark:text-red-400"
+            >
+              {{ optionsError }}
+            </p>
           </div>
           <!-- Data Type Field -->
           <div>

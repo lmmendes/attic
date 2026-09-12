@@ -346,7 +346,11 @@ func TestSelectMutationRollbackAndOrdering(t *testing.T) {
 	if _, err = testDB.Pool.Exec(ctx, "ALTER TABLE assets ADD CONSTRAINT test_keep_choice CHECK (attributes ? 'choice')"); err != nil {
 		t.Fatal(err)
 	}
-	defer testDB.Pool.Exec(ctx, "ALTER TABLE assets DROP CONSTRAINT test_keep_choice")
+	defer func() {
+		if _, err := testDB.Pool.Exec(ctx, "ALTER TABLE assets DROP CONSTRAINT test_keep_choice"); err != nil {
+			t.Errorf("drop test constraint: %v", err)
+		}
+	}()
 	key := "renamed"
 	action := AttributeAction{Action: "update_attribute", Changes: AttributeChange{Key: &key}}
 	p, err := repo.ChangeWithImpact(ctx, org.ID, uuid.Nil, field.ID, action, "", true)

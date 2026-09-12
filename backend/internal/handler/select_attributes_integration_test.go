@@ -82,6 +82,9 @@ func TestSelectHTTPPermissionsAndRequiredInheritance(t *testing.T) {
 		return rec
 	}
 	create := `{"name":"Vendor","key":"vendor","data_type":"select","selection_mode":"single","options":[{"label":"Acme","value":"acme"}]}`
+	if response := request("POST", "/api/attributes", `{"name":"Empty","key":"empty","data_type":"select","selection_mode":"single","options":[]}`, "", admin); response.Code != http.StatusBadRequest {
+		t.Fatalf("empty select: %d %s", response.Code, response.Body)
+	}
 	if response := request("POST", "/api/attributes", create, "", nil); response.Code != 401 {
 		t.Fatalf("missing session: %d %s", response.Code, response.Body)
 	}

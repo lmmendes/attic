@@ -116,7 +116,7 @@ func (h *Handler) CreateAttribute(w http.ResponseWriter, r *http.Request) {
 	case domain.AttributeTypeString, domain.AttributeTypeNumber, domain.AttributeTypeBoolean, domain.AttributeTypeText, domain.AttributeTypeDate, domain.AttributeTypeSelect:
 		// Valid
 	default:
-		writeError(w, http.StatusBadRequest, "invalid data_type: must be one of string, number, boolean, text, date")
+		writeError(w, http.StatusBadRequest, "invalid data_type: must be one of string, number, boolean, text, date, select")
 		return
 	}
 

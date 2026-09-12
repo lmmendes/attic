@@ -1093,6 +1093,18 @@ components:
       type: array
       items:
         $ref: '#/components/schemas/AttributeOption'
+    AttributeOptionUpdate:
+      type: object
+      required: [id, label, value]
+      properties:
+        id: { type: string, format: uuid }
+        label: { type: string, minLength: 1, maxLength: 255 }
+        value: { type: string, minLength: 1, maxLength: 255 }
+        sort_order: { type: integer }
+    AttributeOptionsUpdate:
+      type: array
+      items:
+        $ref: '#/components/schemas/AttributeOptionUpdate'
     AttributeInput:
       type: object
       required: [name, key, data_type]
@@ -1134,7 +1146,7 @@ components:
         data_type: { type: string, enum: [string, text, number, boolean, date, select] }
         selection_mode: { type: string, enum: [single, multiple] }
         options:
-          $ref: '#/components/schemas/AttributeOptions'
+          $ref: '#/components/schemas/AttributeOptionsUpdate'
     OptionChanges:
       type: object
       properties:
