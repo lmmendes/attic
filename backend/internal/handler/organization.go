@@ -27,9 +27,13 @@ func (h *Handler) UpdateOrganizationFeatures(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	known := map[string]bool{"locations": true, "collections": true, "categories": true, "attributes": true, "conditions": true, "warranties": true, "plugins": true}
-	for key := range raw {
+	for key, value := range raw {
 		if !known[key] {
 			writeError(w, http.StatusBadRequest, "unknown feature: "+key)
+			return
+		}
+		if value == nil {
+			writeError(w, http.StatusBadRequest, "feature values must be booleans")
 			return
 		}
 	}

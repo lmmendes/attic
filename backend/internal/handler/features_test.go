@@ -132,10 +132,11 @@ func TestRejectDisabledAssetFields(t *testing.T) {
 	features := allFeaturesEnabled()
 	features.Categories = false
 	request := requestWithFeatures(features)
+	categoryID := uuid.NewString()
 
-	err := (&Handler{}).rejectDisabledAssetFields(request, nil, nil, nil, nil, []byte(`{"serial":"123"}`))
-	if _, ok := err.(featureDisabledError); !ok {
-		t.Fatalf("expected featureDisabledError, got %v", err)
+	err := (&Handler{}).rejectDisabledAssetFields(request, &categoryID, nil, nil, nil, nil)
+	if want := errFeatureDisabled("categories"); err != want {
+		t.Fatalf("expected %v, got %v", want, err)
 	}
 }
 
@@ -204,6 +205,26 @@ func TestUpdateOrganizationFeaturesRequiresCompleteMap(t *testing.T) {
 	}
 	if repo.updated != nil {
 		t.Fatal("incomplete feature map was persisted")
+	}
+}
+
+func TestUpdateOrganizationFeaturesRejectsNullValues(t *testing.T) {
+	repo := &mockOrganizationFeatureRepository{features: allFeaturesEnabled()}
+	h := handlerWithFeatureRepository(repo)
+	body := `{"locations":null,"collections":true,"categories":true,"attributes":true,"conditions":true,"warranties":true,"plugins":true}`
+	request := httptest.NewRequest(http.MethodPut, "/api/organization/features", strings.NewReader(body))
+	recorder := httptest.NewRecorder()
+
+	h.UpdateOrganizationFeatures(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, recorder.Code)
+	}
+	if recorder.Body.String() != "{\"error\":\"feature values must be booleans\"}\n" {
+		t.Fatalf("unexpected response: %s", recorder.Body.String())
+	}
+	if repo.updated != nil {
+		t.Fatal("feature map containing null was persisted")
 	}
 }
 
