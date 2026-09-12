@@ -18,7 +18,6 @@ const labels: Array<{ key: keyof OrganizationFeatures, label: string, descriptio
 onMounted(async () => {
   if (authLoading.value) await fetchSession()
   if (!isAdmin.value) return navigateTo('/')
-  await load()
 })
 
 async function save() {

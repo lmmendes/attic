@@ -36,11 +36,11 @@ describe('organization feature settings', () => {
     update.mockResolvedValue(features)
   })
 
-  it('loads and renders every organization feature', async () => {
+  it('renders loaded features without restarting the app feature gate', async () => {
     const wrapper = await mountSuspended(SettingsPage)
     await flushPromises()
 
-    expect(load).toHaveBeenCalledOnce()
+    expect(load).not.toHaveBeenCalled()
     for (const label of ['Locations', 'Collections', 'Categories & attributes', 'Conditions', 'Warranties', 'Plugins']) {
       expect(wrapper.text()).toContain(label)
     }
@@ -58,7 +58,7 @@ describe('organization feature settings', () => {
     await flushPromises()
 
     expect(fetchSession).toHaveBeenCalledOnce()
-    expect(load).toHaveBeenCalledOnce()
+    expect(load).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
@@ -97,7 +97,7 @@ describe('organization feature settings', () => {
     await saveButton.trigger('click')
     await flushPromises()
 
-    expect(load).toHaveBeenCalledTimes(2)
+    expect(load).toHaveBeenCalledOnce()
     expect(toast).toHaveBeenCalledWith({ title: 'Could not save settings', color: 'error' })
     wrapper.unmount()
   })
