@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/google/uuid"
@@ -18,8 +19,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic("failed to create test database: " + err.Error())
 	}
-	defer testDB.Close(ctx)
-	m.Run()
+	code := m.Run()
+	testDB.Close(ctx)
+	os.Exit(code)
 }
 
 func Test_OrganizationRepository_Create_Success(t *testing.T) {

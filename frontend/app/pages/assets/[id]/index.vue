@@ -43,6 +43,11 @@ watch(() => asset.value?.category_id, async (categoryId) => {
 function getAttributeValue(key: string): string {
   const value = asset.value?.attributes?.[key]
   if (value === undefined || value === null || value === '') return '-'
+  const definition = categoryWithAttrs.value?.attributes?.find(a => a.attribute?.key === key)?.attribute
+  if (definition?.data_type === 'select') {
+    const label = (v: unknown) => definition.options?.find(o => o.value === v)?.label || String(v)
+    return Array.isArray(value) ? value.map(label).join(', ') || '-' : label(value)
+  }
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   return String(value)
 }

@@ -785,6 +785,253 @@ paths:
         '204':
           description: Attachment deleted
 
+  /api/attributes:
+    get:
+      summary: List reusable organization attributes including select configuration
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttributeList'
+        '400':
+          description: Invalid field or option data
+        '403':
+          description: Administrator access required or plugin-owned field
+        '404':
+          description: Field or option not found in this organization
+        '409':
+          description: Collision or fresh impact preview required (code impact_preview_required)
+    post:
+      summary: Create a field and its initial options (administrator)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttributeInput'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attribute'
+        '400':
+          description: Invalid field or option data
+        '403':
+          description: Administrator access required or plugin-owned field
+        '404':
+          description: Field or option not found in this organization
+        '409':
+          description: Collision or fresh impact preview required (code impact_preview_required)
+
+  /api/attributes/{id}:
+    parameters:
+      - $ref: '#/components/parameters/id'
+    get:
+      summary: Read a field including its options
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attribute'
+        '400':
+          description: Invalid field or option data
+        '403':
+          description: Administrator access required or plugin-owned field
+        '404':
+          description: Field or option not found in this organization
+        '409':
+          description: Collision or fresh impact preview required (code impact_preview_required)
+    put:
+      summary: Apply a previewed field and complete option-draft change (administrator)
+      parameters:
+        - $ref: '#/components/parameters/ImpactToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttributeChanges'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attribute'
+        '400':
+          description: Invalid field or option data
+        '403':
+          description: Administrator access required or plugin-owned field
+        '404':
+          description: Field or option not found in this organization
+        '409':
+          description: Collision or fresh impact preview required (code impact_preview_required)
+    delete:
+      summary: Delete a field and remove its values from all assets (administrator)
+      parameters:
+        - $ref: '#/components/parameters/ImpactToken'
+      responses:
+        '204':
+          description: Success
+        '400':
+          description: Invalid field or option data
+        '403':
+          description: Administrator access required or plugin-owned field
+        '404':
+          description: Field or option not found in this organization
+        '409':
+          description: Collision or fresh impact preview required (code impact_preview_required)
+
+  /api/attributes/{id}/impact-preview:
+    parameters:
+      - $ref: '#/components/parameters/id'
+    post:
+      summary: Preview an exact field or option change (administrator)
+      description: Counts distinct assets including soft-deleted assets. The returned token binds the proposal and affected asset set for ten minutes. Refresh and reconfirm after an impact_preview_required conflict.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttributeImpactRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttributeImpact'
+        '400':
+          description: Invalid field or option data
+        '403':
+          description: Administrator access required or plugin-owned field
+        '404':
+          description: Field or option not found in this organization
+        '409':
+          description: Collision or fresh impact preview required (code impact_preview_required)
+
+  /api/attributes/{id}/options:
+    parameters:
+      - $ref: '#/components/parameters/id'
+    get:
+      summary: List options in display order
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttributeOptions'
+        '400':
+          description: Invalid field or option data
+        '403':
+          description: Administrator access required or plugin-owned field
+        '404':
+          description: Field or option not found in this organization
+        '409':
+          description: Collision or fresh impact preview required (code impact_preview_required)
+    post:
+      summary: Add an option (administrator)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttributeOptionInput'
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttributeOption'
+        '400':
+          description: Invalid field or option data
+        '403':
+          description: Administrator access required or plugin-owned field
+        '404':
+          description: Field or option not found in this organization
+        '409':
+          description: Collision or fresh impact preview required (code impact_preview_required)
+
+  /api/attributes/{id}/options/{option_id}:
+    parameters:
+      - $ref: '#/components/parameters/id'
+      - name: option_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      summary: Apply a previewed option label or value rename (administrator)
+      parameters:
+        - $ref: '#/components/parameters/ImpactToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OptionChanges'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attribute'
+        '400':
+          description: Invalid field or option data
+        '403':
+          description: Administrator access required or plugin-owned field
+        '404':
+          description: Field or option not found in this organization
+        '409':
+          description: Collision or fresh impact preview required (code impact_preview_required)
+    delete:
+      summary: Remove an option from every asset and delete it (administrator)
+      parameters:
+        - $ref: '#/components/parameters/ImpactToken'
+      responses:
+        '204':
+          description: Success
+        '400':
+          description: Invalid field or option data
+        '403':
+          description: Administrator access required or plugin-owned field
+        '404':
+          description: Field or option not found in this organization
+        '409':
+          description: Collision or fresh impact preview required (code impact_preview_required)
+
+  /api/attributes/{id}/options/order:
+    parameters:
+      - $ref: '#/components/parameters/id'
+    put:
+      summary: Reorder all options (administrator)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttributeOptionOrder'
+      responses:
+        '204':
+          description: Success
+        '400':
+          description: Invalid field or option data
+        '403':
+          description: Administrator access required or plugin-owned field
+        '404':
+          description: Field or option not found in this organization
+        '409':
+          description: Collision or fresh impact preview required (code impact_preview_required)
+
+
 components:
   securitySchemes:
     sessionCookie:
@@ -794,6 +1041,12 @@ components:
       description: OIDC session cookie set after a successful login
 
   parameters:
+    ImpactToken:
+      name: X-Impact-Token
+      in: header
+      required: true
+      description: Token from the exact impact preview, valid for ten minutes. Re-preview on conflict.
+      schema: { type: string }
     id:
       name: id
       in: path
@@ -823,6 +1076,123 @@ components:
                 type: string
 
   schemas:
+    AttributeOptionInput:
+      type: object
+      required: [label, value]
+      properties:
+        label: { type: string, minLength: 1, maxLength: 255 }
+        value: { type: string, minLength: 1, maxLength: 255 }
+    AttributeOption:
+      allOf:
+        - $ref: '#/components/schemas/AttributeOptionInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            sort_order: { type: integer }
+    AttributeOptions:
+      type: array
+      items:
+        $ref: '#/components/schemas/AttributeOption'
+    AttributeOptionUpdate:
+      type: object
+      required: [id, label, value]
+      properties:
+        id: { type: string, format: uuid }
+        label: { type: string, minLength: 1, maxLength: 255 }
+        value: { type: string, minLength: 1, maxLength: 255 }
+        sort_order: { type: integer }
+    AttributeOptionsUpdate:
+      type: array
+      items:
+        $ref: '#/components/schemas/AttributeOptionUpdate'
+    AttributeInput:
+      type: object
+      required: [name, key, data_type]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        key: { type: string, minLength: 1, maxLength: 100 }
+        data_type: { type: string, enum: [string, text, number, boolean, date, select] }
+        selection_mode:
+          type: string
+          enum: [single, multiple]
+          description: Only for select fields; defaults to single on creation.
+        options:
+          type: array
+          description: Initial options, only for select fields.
+          items:
+            $ref: '#/components/schemas/AttributeOptionInput'
+    Attribute:
+      allOf:
+        - $ref: '#/components/schemas/AttributeInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            organization_id: { type: string, format: uuid }
+            plugin_id: { type: string }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+            options:
+              $ref: '#/components/schemas/AttributeOptions'
+    AttributeList:
+      type: array
+      items:
+        $ref: '#/components/schemas/Attribute'
+    AttributeChanges:
+      type: object
+      description: Omitted values are preserved. Populated fields cannot change data type or selection mode.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        key: { type: string, minLength: 1, maxLength: 100 }
+        data_type: { type: string, enum: [string, text, number, boolean, date, select] }
+        selection_mode: { type: string, enum: [single, multiple] }
+        options:
+          $ref: '#/components/schemas/AttributeOptionsUpdate'
+    OptionChanges:
+      type: object
+      properties:
+        label: { type: string, minLength: 1, maxLength: 255 }
+        value: { type: string, minLength: 1, maxLength: 255 }
+    AttributeOptionOrder:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+    AttributeImpactRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [update_attribute, delete_attribute, update_option, delete_option]
+        option_id: { type: string, format: uuid }
+        changes:
+          anyOf:
+            - $ref: '#/components/schemas/AttributeChanges'
+            - $ref: '#/components/schemas/OptionChanges'
+    AttributeImpact:
+      type: object
+      required: [affected_assets, deleted_assets, required_fields_left_empty, current, proposed, confirmation_token]
+      properties:
+        affected_assets: { type: integer, minimum: 0 }
+        deleted_assets: { type: integer, minimum: 0 }
+        required_fields_left_empty: { type: integer, minimum: 0 }
+        current: { type: string }
+        proposed: { type: string }
+        confirmation_token: { type: string }
+    CategoryAttribute:
+      type: object
+      properties:
+        attribute_id: { type: string, format: uuid }
+        category_id: { type: string, format: uuid }
+        required: { type: boolean }
+        inherited: { type: boolean }
+        sort_order: { type: integer }
+        attribute:
+          $ref: '#/components/schemas/Attribute'
+
     User:
       type: object
       properties:
@@ -838,6 +1208,10 @@ components:
     Category:
       type: object
       properties:
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryAttribute'
         id:
           type: string
           format: uuid

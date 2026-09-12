@@ -299,6 +299,9 @@ func (r *AssetRepository) Create(ctx context.Context, a *domain.Asset) error {
 		return err
 	}
 	defer tx.Rollback(ctx)
+	if err = validateSelectAsset(ctx, tx, a); err != nil {
+		return err
+	}
 	query := `
 		INSERT INTO assets (id, organization_id, category_id, location_id, condition_id, collection_id,
 		                    name, description, quantity, attributes, purchase_at, purchase_price, purchase_note, notes,
@@ -334,6 +337,9 @@ func (r *AssetRepository) Update(ctx context.Context, a *domain.Asset) error {
 		return err
 	}
 	defer tx.Rollback(ctx)
+	if err = validateSelectAsset(ctx, tx, a); err != nil {
+		return err
+	}
 	query := `
 		UPDATE assets
 		SET category_id = $2, location_id = $3, condition_id = $4, collection_id = $5,
@@ -360,9 +366,24 @@ func (r *AssetRepository) Update(ctx context.Context, a *domain.Asset) error {
 }
 
 func (r *AssetRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `UPDATE assets SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
-	_, err := r.pool.Exec(ctx, query, id)
-	return err
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var org uuid.UUID
+	if err = tx.QueryRow(ctx, "SELECT organization_id FROM assets WHERE id=$1", id).Scan(&org); err == pgx.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	if err = lockAttributeWrites(ctx, tx, org); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, "UPDATE assets SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL", id); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *AssetRepository) SetTags(ctx context.Context, assetID uuid.UUID, tagIDs []uuid.UUID) error {

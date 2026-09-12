@@ -81,7 +81,7 @@ func (r *CategoryRepository) GetByIDWithInheritedAttributes(ctx context.Context,
 		)
 		SELECT ancestry.depth,
 		       ca.id, ca.category_id, ca.attribute_id, ca.required, ca.sort_order, ca.created_at,
-		       a.id, a.organization_id, a.plugin_id, a.name, a.key, a.data_type, a.created_at, a.updated_at
+		       a.id, a.organization_id, a.plugin_id, a.name, a.key, a.data_type, a.created_at, a.updated_at, COALESCE(a.selection_mode, ''), COALESCE((SELECT jsonb_agg(jsonb_build_object('id', o.id, 'label', o.label, 'value', o.value, 'sort_order', o.sort_order) ORDER BY o.sort_order, o.id) FROM attribute_options o WHERE o.attribute_id = a.id), '[]'::jsonb)
 		FROM ancestry
 		JOIN category_attributes ca ON ca.category_id = ancestry.id
 		JOIN attributes a ON a.id = ca.attribute_id AND a.deleted_at IS NULL
@@ -108,7 +108,7 @@ func (r *CategoryRepository) GetByIDWithInheritedAttributes(ctx context.Context,
 			&categoryAttribute.ID, &categoryAttribute.CategoryID, &categoryAttribute.AttributeID,
 			&categoryAttribute.Required, &categoryAttribute.SortOrder, &categoryAttribute.CreatedAt,
 			&attribute.ID, &attribute.OrganizationID, &attribute.PluginID, &attribute.Name,
-			&attribute.Key, &attribute.DataType, &attribute.CreatedAt, &attribute.UpdatedAt,
+			&attribute.Key, &attribute.DataType, &attribute.CreatedAt, &attribute.UpdatedAt, &attribute.SelectionMode, &attribute.Options,
 		); err != nil {
 			return nil, err
 		}
@@ -285,21 +285,45 @@ func (r *CategoryRepository) GetByPluginID(ctx context.Context, orgID uuid.UUID,
 }
 
 func (r *CategoryRepository) Update(ctx context.Context, c *domain.Category) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if err = lockAttributeWrites(ctx, tx, c.OrganizationID); err != nil {
+		return err
+	}
 	query := `
 		UPDATE categories
 		SET parent_id = $2, name = $3, description = $4, icon = $5
 		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING updated_at
 	`
-	return r.pool.QueryRow(ctx, query,
-		c.ID, c.ParentID, c.Name, c.Description, c.Icon,
-	).Scan(&c.UpdatedAt)
+	if err = tx.QueryRow(ctx, query, c.ID, c.ParentID, c.Name, c.Description, c.Icon).Scan(&c.UpdatedAt); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *CategoryRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `UPDATE categories SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
-	_, err := r.pool.Exec(ctx, query, id)
-	return err
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var org uuid.UUID
+	if err = tx.QueryRow(ctx, "SELECT organization_id FROM categories WHERE id=$1", id).Scan(&org); err == pgx.ErrNoRows {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	if err = lockAttributeWrites(ctx, tx, org); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, "UPDATE categories SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL", id); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *CategoryRepository) SetAttributes(ctx context.Context, categoryID uuid.UUID, assignments []domain.CategoryAttributeAssignment) error {
@@ -309,6 +333,13 @@ func (r *CategoryRepository) SetAttributes(ctx context.Context, categoryID uuid.
 	}
 	defer tx.Rollback(ctx)
 
+	var org uuid.UUID
+	if err = tx.QueryRow(ctx, "SELECT organization_id FROM categories WHERE id=$1", categoryID).Scan(&org); err != nil {
+		return err
+	}
+	if err = lockAttributeWrites(ctx, tx, org); err != nil {
+		return err
+	}
 	// Delete existing assignments
 	_, err = tx.Exec(ctx, `DELETE FROM category_attributes WHERE category_id = $1`, categoryID)
 	if err != nil {
@@ -318,12 +349,15 @@ func (r *CategoryRepository) SetAttributes(ctx context.Context, categoryID uuid.
 	// Insert new assignments
 	if len(assignments) > 0 {
 		for _, a := range assignments {
-			_, err = tx.Exec(ctx, `
+			result, insertErr := tx.Exec(ctx, `
 				INSERT INTO category_attributes (category_id, attribute_id, required, sort_order)
-				VALUES ($1, $2, $3, $4)
-			`, categoryID, a.AttributeID, a.Required, a.SortOrder)
-			if err != nil {
-				return err
+				SELECT $1, id, $3, $4 FROM attributes WHERE id=$2 AND organization_id=$5 AND deleted_at IS NULL
+            `, categoryID, a.AttributeID, a.Required, a.SortOrder, org)
+			if insertErr != nil {
+				return insertErr
+			}
+			if result.RowsAffected() != 1 {
+				return invalidAttribute("an assigned field was deleted or belongs to another organization")
 			}
 		}
 	}
@@ -370,7 +404,7 @@ func (r *CategoryRepository) GetAssetCounts(ctx context.Context, orgID uuid.UUID
 func (r *CategoryRepository) loadCategoryAttributes(ctx context.Context, categoriesByID map[uuid.UUID]*domain.Category, condition string, args ...any) error {
 	query := `
 		SELECT ca.id, ca.category_id, ca.attribute_id, ca.required, ca.sort_order, ca.created_at,
-		       a.id, a.organization_id, a.plugin_id, a.name, a.key, a.data_type, a.created_at, a.updated_at
+		       a.id, a.organization_id, a.plugin_id, a.name, a.key, a.data_type, a.created_at, a.updated_at, COALESCE(a.selection_mode, ''), COALESCE((SELECT jsonb_agg(jsonb_build_object('id', o.id, 'label', o.label, 'value', o.value, 'sort_order', o.sort_order) ORDER BY o.sort_order, o.id) FROM attribute_options o WHERE o.attribute_id = a.id), '[]'::jsonb)
 		FROM category_attributes ca
 		JOIN categories c ON c.id = ca.category_id
 		JOIN attributes a ON a.id = ca.attribute_id AND a.deleted_at IS NULL
@@ -388,7 +422,7 @@ func (r *CategoryRepository) loadCategoryAttributes(ctx context.Context, categor
 		var attribute domain.Attribute
 		if err := rows.Scan(
 			&categoryAttribute.ID, &categoryAttribute.CategoryID, &categoryAttribute.AttributeID, &categoryAttribute.Required, &categoryAttribute.SortOrder, &categoryAttribute.CreatedAt,
-			&attribute.ID, &attribute.OrganizationID, &attribute.PluginID, &attribute.Name, &attribute.Key, &attribute.DataType, &attribute.CreatedAt, &attribute.UpdatedAt,
+			&attribute.ID, &attribute.OrganizationID, &attribute.PluginID, &attribute.Name, &attribute.Key, &attribute.DataType, &attribute.CreatedAt, &attribute.UpdatedAt, &attribute.SelectionMode, &attribute.Options,
 		); err != nil {
 			return err
 		}

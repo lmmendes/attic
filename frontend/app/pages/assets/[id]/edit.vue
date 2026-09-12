@@ -38,7 +38,7 @@ const form = reactive({
   location_id: undefined as string | undefined,
   condition_id: undefined as string | undefined,
   quantity: 1,
-  attributes: {} as Record<string, string | number | boolean>,
+  attributes: {} as Record<string, string | number | boolean | string[] | undefined>,
   purchase_at: '',
   purchase_price: undefined as number | undefined,
   purchase_note: '',
@@ -95,7 +95,7 @@ watch(
         if (requestId !== categoryRequestId) return
         selectedCategory.value = category
         // Initialize attribute values for new category
-        const newAttributes: Record<string, string | number | boolean> = {}
+        const newAttributes: Record<string, string | number | boolean | string[] | undefined> = {}
         selectedCategory.value?.attributes?.forEach((ca) => {
           if (ca.attribute) {
             // Preserve existing value if key exists
@@ -119,8 +119,10 @@ watch(
   { immediate: true }
 )
 
-function getDefaultValue(dataType: string): string | number | boolean {
+function getDefaultValue(dataType: string): string | number | boolean | undefined {
   switch (dataType) {
+    case 'select':
+      return undefined
     case 'number':
       return 0
     case 'boolean':
@@ -566,9 +568,16 @@ async function submitForm() {
                       >*</span>
                     </label>
 
+                    <SelectAttributeInput
+                      v-if="ca.attribute.data_type === 'select'"
+                      :attribute="ca.attribute"
+                      :model-value="form.attributes[ca.attribute.key]"
+                      :required="ca.required"
+                      @update:model-value="form.attributes[ca.attribute.key] = $event"
+                    />
                     <!-- Boolean type: checkbox -->
                     <div
-                      v-if="ca.attribute.data_type === 'boolean'"
+                      v-else-if="ca.attribute.data_type === 'boolean'"
                       class="flex items-center gap-2 py-2"
                     >
                       <input

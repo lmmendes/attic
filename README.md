@@ -47,7 +47,7 @@ short-lived access token and keeps the token in memory only.
 ### Prerequisites
 
 - Docker & Docker Compose
-- Go 1.24+
+- Go 1.27+
 - Bun 1.1+
 - Make
 
@@ -123,7 +123,7 @@ For more details, visit [getattic.dev](https://getattic.dev).
 
 | Component | Technology |
 |-----------|------------|
-| Backend   | Go 1.24, Chi router, PostgreSQL |
+| Backend   | Go 1.27, Chi router, PostgreSQL |
 | Frontend  | Nuxt 4, Nuxt UI 4, Tailwind CSS |
 | Auth      | Local passwords or OIDC/SSO |
 | Storage   | S3-compatible (AWS S3, MinIO, LocalStack) |
