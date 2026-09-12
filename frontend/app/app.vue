@@ -22,8 +22,12 @@ useSeoMeta({
 })
 
 const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isAuthDisabled, isOIDCEnabled, changePassword } = useAuth()
-const { features, loaded: featuresLoaded, load: loadFeatures } = useFeatures()
+const { features, loaded: featuresLoaded, error: featureError, load: loadFeatures } = useFeatures()
 const config = useRuntimeConfig()
+
+async function retryFeatureLoad() {
+  await loadFeatures()
+}
 
 type AppInfo = {
   status: string
@@ -481,6 +485,25 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
             <div class="mx-auto flex min-h-full max-w-[1440px] flex-col">
               <div class="flex-1">
                 <NuxtPage v-if="featuresLoaded && currentRouteEnabled" />
+                <div
+                  v-else-if="featureError"
+                  role="alert"
+                  class="mx-auto max-w-lg rounded-2xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/60 dark:bg-red-950/20"
+                >
+                  <h2 class="font-extrabold text-mist-950 dark:text-white">
+                    Feature settings could not be loaded
+                  </h2>
+                  <p class="mt-2 text-sm text-muted">
+                    Try again before continuing to your inventory.
+                  </p>
+                  <UButton
+                    class="mt-4"
+                    icon="i-lucide-refresh-cw"
+                    @click="retryFeatureLoad"
+                  >
+                    Try again
+                  </UButton>
+                </div>
               </div>
 
               <footer class="shrink-0 pt-6 text-center text-xs font-medium text-muted dark:text-mist-400">

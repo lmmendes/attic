@@ -70,4 +70,18 @@ describe('organization feature settings', () => {
     }))
     wrapper.unmount()
   })
+
+  it('reloads server settings after a failed save', async () => {
+    features.locations = false
+    update.mockRejectedValueOnce(new Error('save failed'))
+    const wrapper = await mountSuspended(SettingsPage)
+    await flushPromises()
+    const saveButton = wrapper.findAll('button').find(button => button.text().includes('Save changes'))!
+    await saveButton.trigger('click')
+    await flushPromises()
+
+    expect(load).toHaveBeenCalledTimes(2)
+    expect(toast).toHaveBeenCalledWith({ title: 'Could not save settings', color: 'error' })
+    wrapper.unmount()
+  })
 })

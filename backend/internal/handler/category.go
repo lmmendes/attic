@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"errors"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -28,6 +30,66 @@ type UpdateCategoryRequest struct {
 	Description *string               `json:"description,omitempty"`
 	Icon        *string               `json:"icon,omitempty"`
 	Attributes  []AttributeAssignment `json:"attributes,omitempty"`
+}
+
+var errInvalidCategoryAttribute = errors.New("invalid category attribute")
+
+func validateCategoryAttributeOwnership(attribute *domain.Attribute, orgID uuid.UUID, pluginsEnabled bool) error {
+	if attribute == nil || attribute.OrganizationID != orgID {
+		return errInvalidCategoryAttribute
+	}
+	if !pluginsEnabled && attribute.PluginID != nil {
+		return errFeatureDisabled("plugins")
+	}
+	return nil
+}
+
+func (h *Handler) validateCategoryAttributeAssignments(ctx context.Context, attrs []AttributeAssignment, pluginsEnabled bool) ([]domain.CategoryAttributeAssignment, error) {
+	assignments, err := parseAttributeAssignments(attrs)
+	if err != nil {
+		return nil, errInvalidCategoryAttribute
+	}
+	if pluginsEnabled {
+		return assignments, nil
+	}
+
+	for _, assignment := range assignments {
+		attribute, err := h.repos.Attributes.GetByID(ctx, assignment.AttributeID)
+		if err != nil {
+			return nil, err
+		}
+		if err := validateCategoryAttributeOwnership(attribute, h.orgID, pluginsEnabled); err != nil {
+			return nil, err
+		}
+	}
+
+	return assignments, nil
+}
+
+func writeCategoryAttributeValidationError(w http.ResponseWriter, err error) {
+	var disabled featureDisabledError
+	switch {
+	case errors.As(err, &disabled):
+		writeError(w, http.StatusForbidden, err.Error())
+	case errors.Is(err, errInvalidCategoryAttribute):
+		writeError(w, http.StatusBadRequest, "invalid attribute_id in attributes")
+	default:
+		writeError(w, http.StatusInternalServerError, "failed to validate category attributes")
+	}
+}
+
+func preservePluginCategoryAssignments(assignments []domain.CategoryAttributeAssignment, existing []domain.CategoryAttribute) []domain.CategoryAttributeAssignment {
+	for _, current := range existing {
+		if current.Attribute == nil || current.Attribute.PluginID == nil {
+			continue
+		}
+		assignments = append(assignments, domain.CategoryAttributeAssignment{
+			AttributeID: current.AttributeID,
+			Required:    current.Required,
+			SortOrder:   current.SortOrder,
+		})
+	}
+	return assignments
 }
 
 func (h *Handler) ListCategories(w http.ResponseWriter, r *http.Request) {
@@ -187,6 +249,11 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "attributes feature is not enabled")
 		return
 	}
+	assignments, err := h.validateCategoryAttributeAssignments(r.Context(), req.Attributes, features.Plugins)
+	if err != nil {
+		writeCategoryAttributeValidationError(w, err)
+		return
+	}
 
 	cat := &domain.Category{
 		OrganizationID: h.orgID,
@@ -219,12 +286,7 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set attributes if provided
-	if len(req.Attributes) > 0 {
-		assignments, err := parseAttributeAssignments(req.Attributes)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "invalid attribute_id in attributes")
-			return
-		}
+	if len(assignments) > 0 {
 		if err := h.repos.Categories.SetAttributes(r.Context(), cat.ID, assignments); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to set category attributes")
 			return
@@ -275,6 +337,18 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var assignments []domain.CategoryAttributeAssignment
+	if features.Attributes {
+		assignments, err = h.validateCategoryAttributeAssignments(r.Context(), req.Attributes, features.Plugins)
+		if err != nil {
+			writeCategoryAttributeValidationError(w, err)
+			return
+		}
+		if !features.Plugins {
+			assignments = preservePluginCategoryAssignments(assignments, cat.Attributes)
+		}
+	}
+
 	cat.Name = req.Name
 	cat.Description = req.Description
 	cat.Icon = req.Icon
@@ -305,29 +379,6 @@ func (h *Handler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if features.Attributes {
-		assignments, err := parseAttributeAssignments(req.Attributes)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "invalid attribute_id in attributes")
-			return
-		}
-		if !features.Plugins {
-			assigned := make(map[uuid.UUID]struct{}, len(assignments))
-			for _, assignment := range assignments {
-				assigned[assignment.AttributeID] = struct{}{}
-			}
-			for _, existing := range cat.Attributes {
-				if existing.Attribute != nil && existing.Attribute.PluginID != nil {
-					if _, exists := assigned[existing.AttributeID]; exists {
-						continue
-					}
-					assignments = append(assignments, domain.CategoryAttributeAssignment{
-						AttributeID: existing.AttributeID,
-						Required:    existing.Required,
-						SortOrder:   existing.SortOrder,
-					})
-				}
-			}
-		}
 		if err := h.repos.Categories.SetAttributes(r.Context(), cat.ID, assignments); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to set category attributes")
 			return

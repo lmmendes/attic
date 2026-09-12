@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -706,6 +707,44 @@ func Test_DeleteCategory_PluginManagedCategory_ReturnsForbidden(t *testing.T) {
 
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("expected status 403 for plugin-managed category, got %d", rec.Code)
+	}
+}
+
+func TestValidateCategoryAttributeOwnershipRejectsPluginAttributeWhenPluginsDisabled(t *testing.T) {
+	orgID := uuid.New()
+	pluginID := "google_books"
+	attribute := &domain.Attribute{OrganizationID: orgID, PluginID: &pluginID}
+
+	err := validateCategoryAttributeOwnership(attribute, orgID, false)
+	var disabled featureDisabledError
+	if !errors.As(err, &disabled) {
+		t.Fatalf("expected featureDisabledError, got %v", err)
+	}
+}
+
+func TestPreservePluginCategoryAssignmentsKeepsStoredMetadata(t *testing.T) {
+	pluginID := "google_books"
+	pluginAttributeID := uuid.New()
+	requestAttributeID := uuid.New()
+	assignments := []domain.CategoryAttributeAssignment{{
+		AttributeID: requestAttributeID,
+		Required:    false,
+		SortOrder:   1,
+	}}
+	existing := []domain.CategoryAttribute{{
+		AttributeID: pluginAttributeID,
+		Required:    true,
+		SortOrder:   7,
+		Attribute:   &domain.Attribute{ID: pluginAttributeID, PluginID: &pluginID},
+	}}
+
+	assignments = preservePluginCategoryAssignments(assignments, existing)
+	if len(assignments) != 2 {
+		t.Fatalf("expected two assignments, got %d", len(assignments))
+	}
+	preserved := assignments[1]
+	if preserved.AttributeID != pluginAttributeID || !preserved.Required || preserved.SortOrder != 7 {
+		t.Fatalf("plugin assignment metadata was not preserved: %#v", preserved)
 	}
 }
 

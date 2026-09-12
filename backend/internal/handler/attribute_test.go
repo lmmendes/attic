@@ -662,3 +662,16 @@ func Test_DeleteAttribute_PluginOwnedAttribute_ReturnsForbidden(t *testing.T) {
 		t.Errorf("expected status 403 for plugin-owned attribute, got %d", rec.Code)
 	}
 }
+
+func TestReservedPluginAttributeKeyRequiresPluginOwnership(t *testing.T) {
+	attribute := &domain.Attribute{Key: "plugin.google_books.books.isbn"}
+	if !hasReservedPluginAttributeKey(attribute) {
+		t.Fatal("expected an unowned plugin-prefixed key to be reserved")
+	}
+
+	pluginID := "google_books"
+	attribute.PluginID = &pluginID
+	if hasReservedPluginAttributeKey(attribute) {
+		t.Fatal("expected a plugin-owned key to be accepted")
+	}
+}

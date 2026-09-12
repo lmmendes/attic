@@ -29,6 +29,7 @@ async function save() {
     })
     toast.add({ title: 'Settings saved', color: 'success' })
   } catch {
+    await load()
     toast.add({ title: 'Could not save settings', color: 'error' })
   } finally {
     saving.value = false

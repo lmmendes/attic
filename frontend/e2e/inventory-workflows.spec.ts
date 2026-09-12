@@ -18,8 +18,13 @@ test.describe.configure({ mode: 'serial' })
 test('creates attributes from category create and edit flows', async ({ page }) => {
   await signIn(page)
 
+  await expect(page.getByRole('link', { name: 'Categories', exact: true })).toBeVisible()
   await page.goto('/categories/new')
-  await page.getByPlaceholder('e.g. Rare Books').fill(categoryName)
+  await expect(page).toHaveURL(/\/categories\/new$/)
+  const categoryNameInput = page.getByPlaceholder('e.g. Rare Books')
+  await expect(categoryNameInput).toBeVisible()
+  await expect(categoryNameInput).toBeEnabled()
+  await categoryNameInput.fill(categoryName)
   await page.getByRole('button', { name: 'New Attribute' }).click()
   await expect(page).toHaveURL(/\/attributes\/new/)
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/categories/new')
@@ -52,21 +57,30 @@ test('creates attributes from category create and edit flows', async ({ page }) 
 test('applies feature settings to navigation and asset forms', async ({ page }) => {
   await signIn(page)
 
-  await page.goto('/settings')
-  const locations = page.getByRole('switch', { name: 'Enable Locations' })
-  await expect(locations).toBeChecked()
-  await locations.click()
-  await expect(locations).not.toBeChecked()
-  await page.getByRole('button', { name: 'Save changes' }).click()
-  await expect(page.getByText('Settings saved')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Locations' })).toHaveCount(0)
+  let restoreLocations = false
+  try {
+    await page.goto('/settings')
+    const locations = page.getByRole('switch', { name: 'Enable Locations' })
+    await expect(locations).toBeChecked()
+    restoreLocations = true
+    await locations.click()
+    await expect(locations).not.toBeChecked()
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect(page.getByText('Settings saved')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Locations' })).toHaveCount(0)
 
-  await page.goto('/assets/new')
-  await expect(page.getByLabel('Stored in')).toHaveCount(0)
-
-  await page.goto('/settings')
-  await locations.click()
-  await expect(locations).toBeChecked()
-  await page.getByRole('button', { name: 'Save changes' }).click()
-  await expect(page.getByText('Settings saved')).toBeVisible()
+    await page.goto('/assets/new')
+    await expect(page.getByLabel('Stored in')).toHaveCount(0)
+  } finally {
+    if (restoreLocations) {
+      await page.goto('/settings')
+      const locations = page.getByRole('switch', { name: 'Enable Locations' })
+      await expect(locations).toBeVisible()
+      if (!(await locations.isChecked())) {
+        await locations.click()
+        await page.getByRole('button', { name: 'Save changes' }).click()
+        await expect(page.getByText('Settings saved')).toBeVisible()
+      }
+    }
+  }
 })

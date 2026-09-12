@@ -152,6 +152,24 @@ type SearchResponse struct {
 	Results []domain.SearchResult `json:"results"`
 }
 
+func newPluginResponse(p domain.ImportPlugin, includeAttributes bool) PluginResponse {
+	attributes := []domain.PluginAttribute{}
+	if includeAttributes {
+		attributes = namespacedPluginAttributeDefinitions(p.ID(), p.Attributes())
+	}
+	return PluginResponse{
+		ID:                  p.ID(),
+		Name:                p.Name(),
+		Description:         p.Description(),
+		Enabled:             p.Enabled(),
+		DisabledReason:      p.DisabledReason(),
+		CategoryName:        p.CategoryName(),
+		CategoryDescription: p.CategoryDescription(),
+		SearchFields:        p.SearchFields(),
+		Attributes:          attributes,
+	}
+}
+
 // ImportRequest represents the request body for importing
 type ImportRequest struct {
 	ExternalID string `json:"external_id"`
@@ -164,6 +182,11 @@ type ImportResponse struct {
 
 // ListPlugins returns all available plugins
 func (h *PluginHandler) ListPlugins(w http.ResponseWriter, r *http.Request) {
+	features, err := h.organizationFeatures(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	}
 	plugins := h.registry.List()
 
 	response := PluginListResponse{
@@ -171,17 +194,7 @@ func (h *PluginHandler) ListPlugins(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, p := range plugins {
-		pr := PluginResponse{
-			ID:                  p.ID(),
-			Name:                p.Name(),
-			Description:         p.Description(),
-			Enabled:             p.Enabled(),
-			DisabledReason:      p.DisabledReason(),
-			CategoryName:        p.CategoryName(),
-			CategoryDescription: p.CategoryDescription(),
-			SearchFields:        p.SearchFields(),
-			Attributes:          namespacedPluginAttributeDefinitions(p.ID(), p.Attributes()),
-		}
+		pr := newPluginResponse(p, features.Attributes)
 
 		// Check if category exists for this plugin
 		cat, _ := h.repos.Categories.GetByPluginID(r.Context(), h.orgID, p.ID())
@@ -204,18 +217,13 @@ func (h *PluginHandler) GetPlugin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "plugin not found")
 		return
 	}
-
-	pr := PluginResponse{
-		ID:                  p.ID(),
-		Name:                p.Name(),
-		Description:         p.Description(),
-		Enabled:             p.Enabled(),
-		DisabledReason:      p.DisabledReason(),
-		CategoryName:        p.CategoryName(),
-		CategoryDescription: p.CategoryDescription(),
-		SearchFields:        p.SearchFields(),
-		Attributes:          namespacedPluginAttributeDefinitions(p.ID(), p.Attributes()),
+	features, err := h.organizationFeatures(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
 	}
+
+	pr := newPluginResponse(p, features.Attributes)
 
 	// Check if category exists for this plugin
 	cat, _ := h.repos.Categories.GetByPluginID(r.Context(), h.orgID, p.ID())

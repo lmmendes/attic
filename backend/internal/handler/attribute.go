@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/lmmendes/attic/internal/domain"
 )
@@ -17,6 +18,10 @@ type CreateAttributeRequest struct {
 type UpdateAttributeRequest struct {
 	Name     string                   `json:"name"`
 	DataType domain.AttributeDataType `json:"data_type"`
+}
+
+func hasReservedPluginAttributeKey(attribute *domain.Attribute) bool {
+	return strings.HasPrefix(attribute.Key, "plugin.") && attribute.PluginID == nil
 }
 
 // ListAttributes returns all attributes for the organization
@@ -108,6 +113,10 @@ func (h *Handler) CreateAttribute(w http.ResponseWriter, r *http.Request) {
 		Name:           req.Name,
 		Key:            req.Key,
 		DataType:       req.DataType,
+	}
+	if hasReservedPluginAttributeKey(attr) {
+		writeError(w, http.StatusBadRequest, "attribute keys beginning with plugin. are reserved for plugins")
+		return
 	}
 
 	if err := h.repos.Attributes.Create(r.Context(), attr); err != nil {

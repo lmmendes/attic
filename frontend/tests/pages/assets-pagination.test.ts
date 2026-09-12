@@ -6,6 +6,17 @@ import AssetsPage from '../../app/pages/assets/index.vue'
 const { api, routeQuery } = vi.hoisted(() => ({ api: vi.fn(), routeQuery: {} as Record<string, string> }))
 mockNuxtImport('useApi', () => api)
 mockNuxtImport('useRoute', () => () => ({ query: routeQuery }))
+mockNuxtImport('useFeatures', () => () => ({
+  features: ref({
+    locations: true,
+    collections: true,
+    categories: true,
+    attributes: true,
+    conditions: true,
+    warranties: true,
+    plugins: true
+  })
+}))
 
 const select = {
   props: ['modelValue', 'items'],
