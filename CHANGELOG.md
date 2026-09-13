@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.5.0](https://github.com/lmmendes/attic/compare/v2.4.0...v2.5.0) (2026-09-13)
+
+
+### Features
+
+* configurable single and multi-select attributes ([#84](https://github.com/lmmendes/attic/issues/84)) ([52cc3f9](https://github.com/lmmendes/attic/commit/52cc3f941818704d9116bfefd62f68e337a262b7))
+
+
+### Bug Fixes
+
+* **ui:** improve settings page dark mode readability ([#80](https://github.com/lmmendes/attic/issues/80)) ([5948429](https://github.com/lmmendes/attic/commit/5948429cc78aad36ad7b9bad5cd08e6edfb0be16))
+
 ## [2.4.0](https://github.com/lmmendes/attic/compare/v2.3.0...v2.4.0) (2026-09-12)
 
 
