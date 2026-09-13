@@ -1,5 +1,7 @@
 # Attic
 
+![GitHub Release](https://img.shields.io/github/v/release/lmmendes/attic) ![GitHub License](https://img.shields.io/github/license/lmmendes/attic) ![Docker Pulls](https://img.shields.io/docker/pulls/lmmendes/attic)
+
 > Self-hosted home inventory for everything you own.
 
 Attic is an open-source home inventory application for individuals and households. Catalog everything you own—from appliances and tools to electronics, books, games, and furniture—and keep its location, condition, purchase information, warranty, photos, receipts, and manuals together.
@@ -128,6 +130,21 @@ For more details, visit [getattic.dev](https://getattic.dev).
 | Auth      | Local passwords or OIDC/SSO |
 | Storage   | S3-compatible (AWS S3, MinIO, LocalStack) |
 
+## Contributors
+
+<a href="https://github.com/lmmendes/attic/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=lmmendes/attic" />
+</a>
+
+## Social
+
+<a href="https://www.star-history.com/?repos=lmmendes%2Fattic&type=date&logscale=&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=lmmendes/attic&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=lmmendes/attic&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=lmmendes/attic&type=date&legend=top-left" />
+ </picture>
+</a>
 
 ## License
 
