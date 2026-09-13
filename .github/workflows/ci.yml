@@ -101,7 +101,7 @@ jobs:
 
       - name: Upload browser test artifacts
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: browser-test-artifacts
           path: |
