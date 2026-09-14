@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { Collection, Category, Location, Condition, AssetsResponse, AssetFilters, Asset } from '~/types/api'
+import type { Collection, Category, Location, Condition, AssetsResponse, AssetFilters, Asset, Attribute } from '~/types/api'
 import { buildCategoryOptions } from '~/utils/categoryHierarchy'
+import { filterFailure, issueLabel } from '~/utils/assetFilters'
 
 const uncategorizedCategoryFilter = 'uncategorized'
 
@@ -35,21 +36,20 @@ const filters = reactive<AssetFilters>({
   limit: 24,
   offset: 0
 })
-
-watch(
-  () => [filters.category_id, filters.location_id, filters.condition_id],
-  () => { filters.offset = 0 },
-  { flush: 'sync' }
-)
-
-watch(() => route.query.category_id, (id) => {
-  filters.category_id = features.value.categories && typeof id === 'string' ? id : undefined
-})
+const {
+  criteria, expression, structured, selected, selectedId, modified, message, issues, busy, routeInvalid, savedLoading, revision,
+  savedFilters, savedError, refreshSaved, apply, clear, selectSaved, save, rename, remove
+} = useAssetFiltering(filters)
+const filterModal = useTemplateRef('filterModal')
+const renameOpen = ref(false)
+const renameName = ref('')
+const deleteOpen = ref(false)
 
 const queryString = computed(() => {
   const params = new URLSearchParams()
   if (features.value.collections && filters.collection_id) params.set('collection_id', filters.collection_id)
   if (filters.q) params.set('q', filters.q)
+  if (features.value.attributes && filters.attribute_q) params.set('attribute_q', filters.attribute_q)
   if (features.value.categories && filters.category_id) params.set('category_id', filters.category_id)
   if (features.value.locations && filters.location_id) params.set('location_id', filters.location_id)
   if (features.value.conditions && filters.condition_id) params.set('condition_id', filters.condition_id)
@@ -58,24 +58,42 @@ const queryString = computed(() => {
   return params.toString()
 })
 
-const { data: assetsResponse, status, error, refresh } = useApi<AssetsResponse>(
-  () => `/api/assets?${queryString.value}`
+const disabledCriterion = computed(() => Boolean(
+  (filters.attribute_q && !features.value.attributes) || (filters.category_id && !features.value.categories)
+  || (filters.location_id && !features.value.locations) || (filters.condition_id && !features.value.conditions)
+  || (filters.collection_id && !features.value.collections)
+))
+const blocked = computed(() => routeInvalid.value || savedLoading.value || disabledCriterion.value || !!(selected.value?.issues?.length && !modified.value))
+const structuredSearch = computed(() => structured.value || !!selectedId.value || !!expression.value)
+const { data: rawAssetsResponse, status, error, refresh } = useApi<AssetsResponse>(
+  () => structuredSearch.value ? '/api/assets/search' : `/api/assets?${queryString.value}`,
+  {
+    method: computed(() => structuredSearch.value ? 'POST' : 'GET'),
+    body: computed(() => structuredSearch.value ? { criteria: criteria.value, limit: filters.limit, offset: filters.offset } : undefined),
+    watch: false,
+    immediate: !blocked.value
+  }
 )
+const assetsResponse = computed(() => blocked.value || error.value ? null : rawAssetsResponse.value)
+const queryFailure = computed(() => error.value ? filterFailure(error.value) : undefined)
+watch([queryString, criteria, structuredSearch, blocked], () => {
+  if (!blocked.value) void refresh()
+}, { deep: true })
 
 const { data: collections } = useApi<Collection[]>('/api/collections', { immediate: features.value.collections })
 const collectionOptions = computed(() => collections.value?.map(c => ({ label: c.name, value: c.id, icon: c.icon })) || [])
-watch(() => route.query.collection_id, (id) => {
-  filters.collection_id = features.value.collections && typeof id === 'string' ? id : undefined
-  filters.offset = 0
-})
-watch(() => filters.collection_id, (id) => {
-  filters.offset = 0
-  if (id !== route.query.collection_id) router.replace({ query: { ...route.query, collection_id: id } })
-})
 
 const { data: categories } = useApi<Category[]>('/api/categories', { immediate: features.value.categories })
 const { data: locations } = useApi<Location[]>('/api/locations', { immediate: features.value.locations })
 const { data: conditions } = useApi<Condition[]>('/api/conditions', { immediate: features.value.conditions })
+const { data: attributes, error: attributesError, refresh: refreshAttributes } = useApi<Attribute[]>('/api/attributes', { immediate: features.value.attributes })
+const visibleAttributes = computed(() => features.value.attributes ? (attributes.value || []).filter(a => features.value.plugins || !a.plugin_id) : [])
+const advancedOptions = computed(() => ({
+  ...(features.value.collections ? { collections: collectionOptions.value } : {}),
+  ...(features.value.categories ? { category: categoryOptions.value } : {}),
+  ...(features.value.locations ? { location: locationOptions.value } : {}),
+  ...(features.value.conditions ? { condition: conditionOptions.value } : {})
+}))
 
 const categoryOptions = computed(() =>
   [
@@ -131,17 +149,11 @@ const conditionOptions = computed(() =>
 )
 
 const hasActiveFilters = computed(() => Boolean(
-  filters.collection_id || filters.q || filters.category_id || filters.location_id || filters.condition_id
+  filters.collection_id || filters.q || filters.attribute_q || filters.category_id || filters.location_id || filters.condition_id || expression.value || selectedId.value || routeInvalid.value
 ))
 
 function clearFilters() {
-  searchQuery.value = ''
-  filters.collection_id = undefined
-  filters.q = ''
-  filters.category_id = undefined
-  filters.location_id = undefined
-  filters.condition_id = undefined
-  filters.offset = 0
+  clear()
 }
 
 const page = computed({
@@ -174,15 +186,49 @@ function _getLocationPath(asset: Asset): string[] {
 }
 
 // Debounced search
-const searchQuery = ref('')
+const searchQuery = ref(filters.q || '')
+const attributeQuery = ref(filters.attribute_q || '')
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
+let attributeTimeout: ReturnType<typeof setTimeout> | null = null
 watch(searchQuery, (val: string) => {
   if (searchTimeout) clearTimeout(searchTimeout)
+  if (val === (filters.q || '')) return
   searchTimeout = setTimeout(() => {
     filters.q = val
     filters.offset = 0
   }, 300)
 })
+watch(attributeQuery, (val: string) => {
+  if (attributeTimeout) clearTimeout(attributeTimeout)
+  if (val === (filters.attribute_q || '')) return
+  attributeTimeout = setTimeout(() => {
+    filters.attribute_q = val
+    filters.offset = 0
+  }, 300)
+})
+watch(() => filters.q, (value) => {
+  searchQuery.value = value || ''
+}, { flush: 'sync' })
+watch(() => filters.attribute_q, (value) => {
+  attributeQuery.value = value || ''
+}, { flush: 'sync' })
+watch(revision, () => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  if (attributeTimeout) clearTimeout(attributeTimeout)
+  searchQuery.value = filters.q || ''
+  attributeQuery.value = filters.attribute_q || ''
+}, { flush: 'sync' })
+onBeforeUnmount(() => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  if (attributeTimeout) clearTimeout(attributeTimeout)
+})
+function openAdvanced() {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  if (attributeTimeout) clearTimeout(attributeTimeout)
+  filters.q = searchQuery.value
+  filters.attribute_q = attributeQuery.value
+  filterModal.value?.show()
+}
 </script>
 
 <template>
@@ -286,6 +332,191 @@ watch(searchQuery, (val: string) => {
       </div>
     </section>
 
+    <section
+      class="attic-panel space-y-3 rounded-[18px] p-3 sm:p-4"
+      aria-label="Attribute and saved filters"
+    >
+      <div class="flex flex-wrap items-center gap-2">
+        <UInput
+          v-if="features.attributes"
+          v-model="attributeQuery"
+          placeholder="Search attribute values"
+          aria-label="Search attribute values"
+          icon="i-lucide-search"
+          class="w-full sm:w-72"
+        />
+        <UButton
+          variant="outline"
+          :disabled="savedLoading"
+          @click="openAdvanced"
+        >
+          Advanced filter
+        </UButton>
+        <USelectMenu
+          :model-value="selectedId"
+          :items="(savedFilters || []).map(f => ({ label: f.name, value: f.id }))"
+          value-key="value"
+          placeholder="Saved filters"
+          aria-label="Saved filters"
+          class="w-full sm:w-56"
+          :disabled="busy || savedLoading"
+          @update:model-value="selectSaved($event)"
+        />
+        <span
+          v-if="selected"
+          class="text-sm"
+        >{{ selected.name }}<span v-if="modified"> (modified)</span></span>
+        <UButton
+          v-if="selected"
+          size="sm"
+          variant="ghost"
+          :disabled="busy"
+          @click="renameName = selected.name; renameOpen = true"
+        >
+          Rename
+        </UButton>
+        <UButton
+          v-if="selected"
+          size="sm"
+          variant="ghost"
+          color="error"
+          :disabled="busy"
+          @click="deleteOpen = true"
+        >
+          Delete filter
+        </UButton>
+      </div>
+      <p
+        v-if="features.attributes"
+        class="text-xs text-muted"
+      >
+        Contains matches across visible attribute values and select labels, ignoring case.
+      </p>
+      <p
+        v-if="message"
+        role="alert"
+        class="text-sm text-error"
+      >
+        {{ message }}
+      </p>
+      <ul
+        v-if="issues.length"
+        class="text-sm text-error"
+        aria-label="Saved filter issues"
+      >
+        <li
+          v-for="(issue, index) in issues"
+          :key="index"
+        >
+          {{ issueLabel(issue, criteria, visibleAttributes) }}: {{ issue.message }}
+        </li>
+      </ul>
+      <p
+        v-if="savedError"
+        role="alert"
+        class="text-sm text-error"
+      >
+        Could not load saved filters. <UButton
+          size="xs"
+          variant="link"
+          @click="refreshSaved()"
+        >
+          Retry saved filters
+        </UButton>
+      </p>
+      <p
+        v-if="attributesError"
+        role="alert"
+        class="text-sm text-error"
+      >
+        Could not load attribute definitions. <UButton
+          size="xs"
+          variant="link"
+          @click="refreshAttributes()"
+        >
+          Retry attributes
+        </UButton>
+      </p>
+    </section>
+
+    <AssetFilterModal
+      ref="filterModal"
+      :criteria="criteria"
+      :selected="selected"
+      :attributes="visibleAttributes"
+      :options="advancedOptions"
+      :features="features"
+      :issues="[...issues, ...(queryFailure?.issues || [])]"
+      :message="message || queryFailure?.message || ''"
+      :busy="busy"
+      :save="save"
+      @apply="apply"
+    />
+    <UModal
+      v-model:open="renameOpen"
+      title="Rename saved filter"
+      description="Only the name will change, including for filters that need repair."
+      :dismissible="!busy"
+      :close="!busy"
+    >
+      <template #body>
+        <UInput
+          v-model="renameName"
+          aria-label="New filter name"
+          class="w-full"
+        />
+        <p
+          v-if="message"
+          role="alert"
+          class="text-error"
+        >
+          {{ message }}
+        </p>
+      </template>
+      <template #footer>
+        <UButton
+          variant="ghost"
+          color="neutral"
+          :disabled="busy"
+          @click="renameOpen = false"
+        >
+          Cancel
+        </UButton>
+        <UButton
+          :loading="busy"
+          :disabled="!renameName.trim()"
+          @click="rename(renameName).then(ok => { if (ok) renameOpen = false })"
+        >
+          Rename
+        </UButton>
+      </template>
+    </UModal>
+    <UModal
+      v-model:open="deleteOpen"
+      title="Delete saved filter"
+      :description="`Delete ${selected?.name || 'this filter'}? Your current search will stay applied.`"
+      :dismissible="!busy"
+      :close="!busy"
+    >
+      <template #footer>
+        <UButton
+          variant="ghost"
+          color="neutral"
+          :disabled="busy"
+          @click="deleteOpen = false"
+        >
+          Cancel
+        </UButton>
+        <UButton
+          color="error"
+          :loading="busy"
+          @click="remove().then(ok => { if (ok) deleteOpen = false })"
+        >
+          Delete
+        </UButton>
+      </template>
+    </UModal>
+
     <!-- Assets Table -->
     <div class="flex-1">
       <div class="attic-panel overflow-hidden rounded-[20px]">
@@ -340,7 +571,7 @@ watch(searchQuery, (val: string) => {
             </thead>
             <tbody class="divide-y divide-mist-100 dark:divide-mist-800">
               <!-- Loading State -->
-              <tr v-if="status === 'pending'">
+              <tr v-if="status === 'pending' || savedLoading">
                 <td
                   colspan="7"
                   class="p-8 text-center"
@@ -356,7 +587,7 @@ watch(searchQuery, (val: string) => {
               </tr>
 
               <!-- Error State -->
-              <tr v-else-if="error">
+              <tr v-else-if="error || blocked">
                 <td
                   colspan="7"
                   class="p-10 text-center"
@@ -370,9 +601,21 @@ watch(searchQuery, (val: string) => {
                       Could not load assets
                     </p>
                     <p class="mt-1 text-sm text-muted">
-                      Check your connection and try again.
+                      {{ queryFailure?.message || message || 'Open Advanced filter to remove or repair unavailable criteria.' }}
                     </p>
+                    <ul
+                      v-if="queryFailure?.issues.length"
+                      class="mt-2 text-sm text-error"
+                    >
+                      <li
+                        v-for="(issue, index) in queryFailure.issues"
+                        :key="index"
+                      >
+                        {{ issueLabel(issue, criteria, visibleAttributes) }}: {{ issue.message }}
+                      </li>
+                    </ul>
                     <UButton
+                      v-if="!blocked"
                       class="mt-4"
                       variant="soft"
                       icon="i-lucide-refresh-cw"

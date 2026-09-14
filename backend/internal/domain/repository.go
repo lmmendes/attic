@@ -84,6 +84,8 @@ type AssetFilter struct {
 	TagIDs        []uuid.UUID
 	Query         string // Full-text search query
 	Attributes    map[string]any
+	Criteria      *FilterCriteria
+	Features      *OrganizationFeatures
 }
 
 // Pagination defines pagination parameters

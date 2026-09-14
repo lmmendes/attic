@@ -35,6 +35,7 @@ type Repositories struct {
 	Attachments   *repository.AttachmentRepository
 	AssetEvents   *repository.AssetEventRepository
 	Attributes    *repository.AttributeRepository
+	SavedFilters  *repository.SavedFilterRepository
 }
 
 // Handler holds dependencies for HTTP handlers

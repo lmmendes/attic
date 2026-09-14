@@ -21,6 +21,9 @@ Attic mirrors the way a home is organized with nested locations such as rooms, s
 - Full-text search across asset names and descriptions
 - Filter by category, location, and condition
 - Category filters include assets assigned to descendant categories
+- Search attribute values with case-insensitive substrings, including dropdown option labels
+- Build nested Match all (AND) / Match any (OR) filters with typed attribute comparisons and collection membership
+- Save named filters privately for reuse; even workspace administrators cannot access another user's saved filters
 
 **Smart Integrations**
 - Automated imports from Google Books, TMDB (movies and TV), BoardGameGeek, and IGDB (video games)
@@ -41,6 +44,52 @@ short-lived access token and keeps the token in memory only.
 - REST API with Swagger documentation
 - Local or S3-compatible storage for attachments
 - Dark mode with mobile-responsive UI
+
+## Asset filters
+
+Use **Search attribute values** on Assets for one search term, or open **Advanced filter**
+to combine rules and nested groups. Text supports equals/contains; numbers and dates
+support comparisons and inclusive ranges; booleans support true/false; dropdowns
+support any selected option, and multiple selections and collections also support all.
+Every attribute supports empty/not-empty checks. Missing values, null, empty strings,
+and empty arrays count as empty; zero and false do not.
+
+Quick search matches values and dropdown labels, not attribute names or internal option
+identifiers. `%`, `_`, and backslashes are literal characters. Only active, visible
+attributes participate. Quick search, existing page filters, and advanced rules combine
+with AND. Apply a draft immediately, save it as a new named filter, or explicitly update
+an existing saved filter. Saved criteria exclude pagination. Deleted references or
+incompatible attribute changes require repairing the affected rules before applying;
+renames preserve references through stable IDs.
+
+The API exposes `GET /api/assets?attribute_q=Commodore`, structured searches through
+`POST /api/assets/search`, and personal CRUD under `/api/saved-filters`. A structured
+search body is:
+
+```json
+{
+  "criteria": {
+    "version": 1,
+    "expression": {
+      "kind": "group",
+      "match": "all",
+      "children": [
+        { "kind": "rule", "field": "attribute_q", "operator": "contains", "value": "Commodore" },
+        { "kind": "rule", "field": "q", "operator": "search", "value": "computer" }
+      ]
+    }
+  },
+  "limit": 20,
+  "offset": 0
+}
+```
+
+Create a saved filter with `{"name":"Retro computers","criteria":{...}}`; update with
+`PUT /api/saved-filters/{id}` using the same shape. Omitting `criteria` on update only
+renames it, including when its rules need repair. GET/list responses include `issues`
+with rule paths for invalid saved definitions. Expressions allow five group levels,
+50 total rules, and 100 values per membership rule; JSON request bodies are limited to
+64 KiB. See the bundled OpenAPI document at `/api/docs` for the complete wire format.
 
 ## Quick Start
 

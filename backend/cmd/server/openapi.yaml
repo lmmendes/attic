@@ -429,6 +429,12 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: attribute_q
+          in: query
+          description: Case-insensitive literal substring across active visible attribute values and select option labels. Combined with other criteria using AND; percent, underscore and backslash are literal.
+          schema:
+            type: string
+            maxLength: 1000
         - name: category_id
           in: query
           description: Filter by a category UUID (including its descendants) or use `uncategorized` for assets without a category
@@ -483,6 +489,151 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Asset'
+
+  /api/assets/search:
+    post:
+      tags: [Assets]
+      summary: Search assets using structured criteria
+      description: Read-only search. Criteria are validated against current workspace references and enabled features before filtering and pagination. Maximum request body is 64 KiB; unknown properties and trailing JSON are rejected.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetSearchRequest'
+      responses:
+        '200':
+          description: Matching assets with total before pagination
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetList'
+        '400':
+          description: Invalid request or unavailable rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterError'
+        '401':
+          description: Authentication required
+
+  /api/saved-filters:
+    get:
+      tags: [Assets]
+      summary: List the current user's personal saved filters
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Personal filters, including issues for definitions needing repair
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SavedFilter'
+        '401':
+          description: Authentication required
+    post:
+      tags: [Assets]
+      summary: Create a personal saved filter
+      description: Ownership comes from authentication and the active workspace. Names need not be unique. Maximum request body is 64 KiB.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedFilterCreate'
+      responses:
+        '201':
+          description: Saved filter created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilter'
+        '400':
+          description: Invalid name, request or criteria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterError'
+        '401':
+          description: Authentication required
+
+  /api/saved-filters/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Assets]
+      summary: Get a personal saved filter
+      description: Another user's filter returns 404, including for administrators. Invalid saved rules are retained and returned with issues.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Saved filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilter'
+        '400':
+          description: Invalid ID
+        '401':
+          description: Authentication required
+        '404':
+          description: Filter not found for this user and workspace
+    put:
+      tags: [Assets]
+      summary: Rename or replace a personal saved filter
+      description: Name is required. Omit criteria to preserve the definition, including rules needing repair. Supplied criteria must validate. Maximum request body is 64 KiB.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedFilterUpdate'
+      responses:
+        '200':
+          description: Updated saved filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedFilter'
+        '400':
+          description: Invalid name, ID, request or criteria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterError'
+        '401':
+          description: Authentication required
+        '404':
+          description: Filter not found for this user and workspace
+    delete:
+      tags: [Assets]
+      summary: Delete a personal saved filter
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: Deleted
+        '400':
+          description: Invalid ID
+        '401':
+          description: Authentication required
+        '404':
+          description: Filter not found for this user and workspace
 
   /api/assets/{id}:
     get:
@@ -1076,6 +1227,193 @@ components:
                 type: string
 
   schemas:
+    FilterCriteria:
+      type: object
+      additionalProperties: false
+      required: [version]
+      description: All populated top-level criteria combine with AND. References must belong to the active workspace and be available under its feature settings. Criteria never include pagination.
+      properties:
+        version:
+          type: integer
+          enum: [1]
+        q:
+          type: string
+          description: Existing English full-text name/description search; maximum 1000 UTF-8 bytes.
+        attribute_q:
+          type: string
+          description: Literal case-insensitive attribute substring search, including select labels; maximum 1000 UTF-8 bytes.
+        category_id:
+          type: string
+          description: Category UUID including descendants, or uncategorized.
+        location_id:
+          type: string
+          format: uuid
+        condition_id:
+          type: string
+          format: uuid
+        collection_id:
+          type: string
+          format: uuid
+        expression:
+          $ref: '#/components/schemas/FilterNode'
+    FilterNode:
+      description: Recursive expression; at most five group levels and 50 total rules (including populated top-level criteria).
+      oneOf:
+        - $ref: '#/components/schemas/FilterGroup'
+        - $ref: '#/components/schemas/FilterRule'
+    FilterGroup:
+      type: object
+      additionalProperties: false
+      required: [kind, match, children]
+      properties:
+        kind:
+          type: string
+          enum: [group]
+        match:
+          type: string
+          enum: [all, any]
+          description: all is AND; any is OR.
+        children:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/FilterNode'
+    FilterRule:
+      type: object
+      additionalProperties: false
+      required: [kind, field, operator]
+      description: |
+        Attribute rules require attribute_id and the current data_type; select rules
+        also require selection_mode. References use stable IDs, including option IDs
+        in values. Strings/text support eq and contains (case-insensitive); numbers
+        and dates support eq/lt/lte/gt/gte/between (inclusive range with upper).
+        Dates use YYYY-MM-DD. Booleans use eq with a JSON boolean.
+        Selects support any; multiple selections additionally support all.
+        All attributes support empty/not_empty without a value: missing, null,
+        empty string or empty array count as empty; zero and false do not.
+        Collections support any/all; category/location/condition support any.
+        Category values may include uncategorized; category matching includes descendants.
+        q requires search and attribute_q requires contains, each with a string value.
+        Membership rules require values and no value/upper; scalar rules require
+        value and no values. Only between accepts upper. Malformed stored values do
+        not match typed comparisons. Text operands allow at most 1000 UTF-8 bytes.
+        Numeric operands preserve decimal precision and allow at most 1000 bytes
+        with an exponent between -1000 and 1000.
+      properties:
+        kind:
+          type: string
+          enum: [rule]
+        field:
+          type: string
+          enum: [attribute, collections, category, location, condition, q, attribute_q]
+        attribute_id:
+          type: string
+          format: uuid
+        data_type:
+          type: string
+          enum: [string, text, number, boolean, date, select]
+        selection_mode:
+          type: string
+          enum: [single, multiple]
+        operator:
+          type: string
+          enum: [eq, contains, lt, lte, gt, gte, between, any, all, empty, not_empty, search]
+        value:
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+        values:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: string
+        upper:
+          oneOf:
+            - type: string
+              format: date
+            - type: number
+    AssetSearchRequest:
+      type: object
+      additionalProperties: false
+      required: [criteria]
+      properties:
+        criteria:
+          $ref: '#/components/schemas/FilterCriteria'
+        limit:
+          type: integer
+          default: 20
+          description: Values outside 1 through 100 default to 20.
+        offset:
+          type: integer
+          default: 0
+          description: Negative values normalize to zero.
+    SavedFilterCreate:
+      type: object
+      additionalProperties: false
+      required: [name, criteria]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Trimmed before validation; must contain a non-whitespace character.
+        criteria:
+          $ref: '#/components/schemas/FilterCriteria'
+    SavedFilterUpdate:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Trimmed before validation; must contain a non-whitespace character.
+        criteria:
+          $ref: '#/components/schemas/FilterCriteria'
+    SavedFilter:
+      type: object
+      required: [id, name, criteria, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        criteria:
+          $ref: '#/components/schemas/FilterCriteria'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterIssue'
+    FilterIssue:
+      type: object
+      required: [path, message]
+      properties:
+        path:
+          type: string
+          example: expression.children[0]
+        message:
+          type: string
+    FilterError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterIssue'
     AttributeOptionInput:
       type: object
       required: [label, value]
