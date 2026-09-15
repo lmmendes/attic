@@ -44,6 +44,7 @@ const filterModal = useTemplateRef('filterModal')
 const renameOpen = ref(false)
 const renameName = ref('')
 const deleteOpen = ref(false)
+const advancedOpen = ref(Boolean(route.query.attribute_q || route.query.criteria || route.query.saved_filter_id))
 
 const queryString = computed(() => {
   const params = new URLSearchParams()
@@ -88,6 +89,24 @@ const { data: locations } = useApi<Location[]>('/api/locations', { immediate: fe
 const { data: conditions } = useApi<Condition[]>('/api/conditions', { immediate: features.value.conditions })
 const { data: attributes, error: attributesError, refresh: refreshAttributes } = useApi<Attribute[]>('/api/attributes', { immediate: features.value.attributes })
 const visibleAttributes = computed(() => features.value.attributes ? (attributes.value || []).filter(a => features.value.plugins || !a.plugin_id) : [])
+const selectableAttributes = computed(() => visibleAttributes.value
+  .filter(attribute => attribute.data_type === 'select')
+  .filter(attribute => attribute.options?.length)
+  .sort((left, right) => left.name.localeCompare(right.name)))
+const attributeOptions = computed(() => selectableAttributes.value.map(attribute => ({
+  label: attribute.name,
+  value: attribute.id,
+  icon: 'i-lucide-list-filter'
+})))
+const selectedAttributeId = ref<string>()
+const selectedAttribute = computed(() => selectableAttributes.value.find(attribute => attribute.id === selectedAttributeId.value))
+const attributeValueOptions = computed(() => (selectedAttribute.value?.options || [])
+  .map(option => ({
+    label: option.label,
+    value: option.label,
+    icon: 'i-lucide-tag'
+  }))
+  .sort((left, right) => left.label.localeCompare(right.label)))
 const advancedOptions = computed(() => ({
   ...(features.value.collections ? { collections: collectionOptions.value } : {}),
   ...(features.value.categories ? { category: categoryOptions.value } : {}),
@@ -154,6 +173,7 @@ const hasActiveFilters = computed(() => Boolean(
 
 function clearFilters() {
   clear()
+  selectedAttributeId.value = undefined
 }
 
 const page = computed({
@@ -187,9 +207,9 @@ function _getLocationPath(asset: Asset): string[] {
 
 // Debounced search
 const searchQuery = ref(filters.q || '')
-const attributeQuery = ref(filters.attribute_q || '')
+const selectedAttributeValue = ref<string | undefined>(filters.attribute_q || undefined)
+const attributeSearchTerm = ref(filters.attribute_q || '')
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
-let attributeTimeout: ReturnType<typeof setTimeout> | null = null
 watch(searchQuery, (val: string) => {
   if (searchTimeout) clearTimeout(searchTimeout)
   if (val === (filters.q || '')) return
@@ -198,35 +218,40 @@ watch(searchQuery, (val: string) => {
     filters.offset = 0
   }, 300)
 })
-watch(attributeQuery, (val: string) => {
-  if (attributeTimeout) clearTimeout(attributeTimeout)
-  if (val === (filters.attribute_q || '')) return
-  attributeTimeout = setTimeout(() => {
-    filters.attribute_q = val
-    filters.offset = 0
-  }, 300)
-})
 watch(() => filters.q, (value) => {
   searchQuery.value = value || ''
 }, { flush: 'sync' })
 watch(() => filters.attribute_q, (value) => {
-  attributeQuery.value = value || ''
+  selectedAttributeValue.value = value || undefined
+  attributeSearchTerm.value = value || ''
 }, { flush: 'sync' })
+watch([selectableAttributes, () => filters.attribute_q], ([definitions, value]) => {
+  if (!value) return
+  const matchingAttribute = definitions.find(attribute => attribute.options?.some(option => option.label === value))
+  selectedAttributeId.value = matchingAttribute?.id
+}, { immediate: true })
 watch(revision, () => {
   if (searchTimeout) clearTimeout(searchTimeout)
-  if (attributeTimeout) clearTimeout(attributeTimeout)
   searchQuery.value = filters.q || ''
-  attributeQuery.value = filters.attribute_q || ''
+  selectedAttributeValue.value = filters.attribute_q || undefined
+  attributeSearchTerm.value = filters.attribute_q || ''
 }, { flush: 'sync' })
 onBeforeUnmount(() => {
   if (searchTimeout) clearTimeout(searchTimeout)
-  if (attributeTimeout) clearTimeout(attributeTimeout)
 })
+function selectAttributeValue(value: string | undefined) {
+  selectedAttributeValue.value = value
+  filters.attribute_q = value
+  filters.offset = 0
+  attributeSearchTerm.value = value || ''
+}
+function selectAttribute(attributeId: string | undefined) {
+  selectedAttributeId.value = attributeId
+  selectAttributeValue(undefined)
+}
 function openAdvanced() {
   if (searchTimeout) clearTimeout(searchTimeout)
-  if (attributeTimeout) clearTimeout(attributeTimeout)
   filters.q = searchQuery.value
-  filters.attribute_q = attributeQuery.value
   filterModal.value?.show()
 }
 </script>
@@ -270,16 +295,30 @@ function openAdvanced() {
     <!-- Filters Bar -->
     <section class="attic-panel rounded-[18px] p-3 sm:p-4">
       <div class="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
-        <div
-          ref="searchContainer"
-          class="min-w-0 flex-1"
-        >
-          <UInput
-            v-model="searchQuery"
-            placeholder="Search by name, tag, or serial number..."
-            icon="i-lucide-search"
-            size="lg"
-            class="w-full"
+        <div class="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
+          <div
+            ref="searchContainer"
+            class="min-w-0 flex-1 sm:max-w-2xl"
+          >
+            <UInput
+              v-model="searchQuery"
+              placeholder="Search by name, tag, or serial number..."
+              icon="i-lucide-search"
+              size="lg"
+              class="w-full"
+            />
+          </div>
+          <USelectMenu
+            v-if="selectedId || savedFilters?.length"
+            :model-value="selectedId"
+            :items="(savedFilters || []).map(f => ({ label: f.name, value: f.id }))"
+            value-key="value"
+            placeholder="Saved searches"
+            aria-label="Saved searches"
+            icon="i-lucide-bookmark"
+            class="w-full shrink-0 sm:w-56"
+            :disabled="busy || savedLoading"
+            @update:model-value="selectSaved($event)"
           />
         </div>
         <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center 2xl:justify-end">
@@ -297,6 +336,7 @@ function openAdvanced() {
             v-model="filters.category_id"
             :items="categoryOptions"
             placeholder="Category"
+            aria-label="Filter by category"
             class="min-w-0 sm:w-40"
             value-key="value"
             icon="i-lucide-folder"
@@ -306,6 +346,7 @@ function openAdvanced() {
             v-model="filters.location_id"
             :items="locationOptions"
             placeholder="Location"
+            aria-label="Filter by location"
             class="min-w-0 sm:w-40"
             value-key="value"
             icon="i-lucide-map-pin"
@@ -315,10 +356,22 @@ function openAdvanced() {
             v-model="filters.condition_id"
             :items="conditionOptions"
             placeholder="Condition"
+            aria-label="Filter by condition"
             class="min-w-0 sm:w-36"
             value-key="value"
             icon="i-lucide-sparkles"
           />
+          <UButton
+            variant="link"
+            color="neutral"
+            class="justify-start px-1.5 font-semibold sm:justify-center"
+            :trailing-icon="advancedOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+            :aria-expanded="advancedOpen"
+            aria-controls="advanced-search"
+            @click="advancedOpen = !advancedOpen"
+          >
+            Advanced search
+          </UButton>
           <UButton
             v-if="hasActiveFilters"
             variant="ghost"
@@ -330,78 +383,115 @@ function openAdvanced() {
           </UButton>
         </div>
       </div>
-    </section>
-
-    <section
-      class="attic-panel space-y-3 rounded-[18px] p-3 sm:p-4"
-      aria-label="Attribute and saved filters"
-    >
-      <div class="flex flex-wrap items-center gap-2">
-        <UInput
-          v-if="features.attributes"
-          v-model="attributeQuery"
-          placeholder="Search attribute values"
-          aria-label="Search attribute values"
-          icon="i-lucide-search"
-          class="w-full sm:w-72"
-        />
-        <UButton
-          variant="outline"
-          :disabled="savedLoading"
-          @click="openAdvanced"
+      <div
+        v-if="advancedOpen"
+        id="advanced-search"
+        class="mt-4 border-t border-mist-100 pt-4 dark:border-mist-700"
+        aria-label="Advanced search"
+      >
+        <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 class="text-sm font-extrabold text-mist-950 dark:text-white">
+              Advanced search
+            </h2>
+            <p class="text-xs text-muted">
+              Choose an attribute and value, or combine detailed rules.
+            </p>
+          </div>
+          <UButton
+            variant="link"
+            class="w-fit px-0 font-semibold"
+            trailing-icon="i-lucide-arrow-right"
+            :disabled="savedLoading"
+            @click="openAdvanced"
+          >
+            Open search builder
+          </UButton>
+        </div>
+        <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div
+            v-if="features.attributes"
+            class="w-full space-y-1 sm:w-56"
+          >
+            <label
+              for="advanced-attribute"
+              class="block text-xs font-bold text-mist-700 dark:text-mist-200"
+            >Attribute</label>
+            <USelectMenu
+              id="advanced-attribute"
+              :model-value="selectedAttributeId"
+              :items="attributeOptions"
+              value-key="value"
+              placeholder="Choose attribute"
+              aria-label="Attribute"
+              class="w-full"
+              @update:model-value="selectAttribute"
+            />
+          </div>
+          <div
+            v-if="features.attributes"
+            class="w-full space-y-1 sm:w-72"
+          >
+            <label
+              for="advanced-attribute-value"
+              class="block text-xs font-bold text-mist-700 dark:text-mist-200"
+            >Value</label>
+            <UInputMenu
+              id="advanced-attribute-value"
+              v-model:search-term="attributeSearchTerm"
+              :model-value="selectedAttributeValue"
+              :items="attributeValueOptions"
+              value-key="value"
+              :placeholder="selectedAttributeId ? 'Choose value' : 'Choose an attribute first'"
+              aria-label="Attribute value"
+              icon="i-lucide-search"
+              class="w-full"
+              :disabled="!selectedAttributeId"
+              @update:model-value="selectAttributeValue"
+            />
+          </div>
+          <span
+            v-if="selected && modified"
+            class="rounded-md bg-warning/10 px-2 py-1 text-xs font-semibold text-warning"
+          >Modified</span>
+          <UButton
+            v-if="selected"
+            size="sm"
+            variant="ghost"
+            color="neutral"
+            :disabled="busy"
+            @click="renameName = selected.name; renameOpen = true"
+          >
+            Rename
+          </UButton>
+          <UButton
+            v-if="selected"
+            size="sm"
+            variant="ghost"
+            color="error"
+            :disabled="busy"
+            @click="deleteOpen = true"
+          >
+            Delete search
+          </UButton>
+        </div>
+        <p
+          v-if="features.attributes && !selectableAttributes.length && !attributesError"
+          class="mt-2 text-xs text-muted"
         >
-          Advanced filter
-        </UButton>
-        <USelectMenu
-          :model-value="selectedId"
-          :items="(savedFilters || []).map(f => ({ label: f.name, value: f.id }))"
-          value-key="value"
-          placeholder="Saved filters"
-          aria-label="Saved filters"
-          class="w-full sm:w-56"
-          :disabled="busy || savedLoading"
-          @update:model-value="selectSaved($event)"
-        />
-        <span
-          v-if="selected"
-          class="text-sm"
-        >{{ selected.name }}<span v-if="modified"> (modified)</span></span>
-        <UButton
-          v-if="selected"
-          size="sm"
-          variant="ghost"
-          :disabled="busy"
-          @click="renameName = selected.name; renameOpen = true"
-        >
-          Rename
-        </UButton>
-        <UButton
-          v-if="selected"
-          size="sm"
-          variant="ghost"
-          color="error"
-          :disabled="busy"
-          @click="deleteOpen = true"
-        >
-          Delete filter
-        </UButton>
+          No configured attribute values are available. Use the search builder for text, number, date, or boolean attributes.
+        </p>
       </div>
       <p
-        v-if="features.attributes"
-        class="text-xs text-muted"
-      >
-        Contains matches across visible attribute values and select labels, ignoring case.
-      </p>
-      <p
         v-if="message"
+        class="mt-3 text-sm text-error"
         role="alert"
-        class="text-sm text-error"
       >
         {{ message }}
       </p>
       <ul
         v-if="issues.length"
-        class="text-sm text-error"
+        class="mt-3 text-sm text-error"
         aria-label="Saved filter issues"
       >
         <li
@@ -413,8 +503,8 @@ function openAdvanced() {
       </ul>
       <p
         v-if="savedError"
+        class="mt-3 text-sm text-error"
         role="alert"
-        class="text-sm text-error"
       >
         Could not load saved filters. <UButton
           size="xs"
@@ -426,8 +516,8 @@ function openAdvanced() {
       </p>
       <p
         v-if="attributesError"
+        class="mt-3 text-sm text-error"
         role="alert"
-        class="text-sm text-error"
       >
         Could not load attribute definitions. <UButton
           size="xs"
@@ -601,7 +691,7 @@ function openAdvanced() {
                       Could not load assets
                     </p>
                     <p class="mt-1 text-sm text-muted">
-                      {{ queryFailure?.message || message || 'Open Advanced filter to remove or repair unavailable criteria.' }}
+                      {{ queryFailure?.message || message || 'Open Advanced search to remove or repair unavailable criteria.' }}
                     </p>
                     <ul
                       v-if="queryFailure?.issues.length"

@@ -76,7 +76,7 @@ export function useAssetFiltering(filters: AssetFilters) {
       if (replace) apply(saved.criteria)
       if (!modified.value) {
         issues.value = saved.issues || []
-        if (issues.value.length) message.value = 'This saved filter needs repair. Open Advanced filter to fix the listed rules.'
+        if (issues.value.length) message.value = 'This saved search needs repair. Open Advanced search to fix the listed rules.'
       }
     } catch (error) {
       if (request !== generation) return

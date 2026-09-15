@@ -82,8 +82,8 @@ defineExpose({ show })
 <template>
   <UModal
     v-model:open="open"
-    title="Advanced filter"
-    description="Combine rules with AND / OR. Saved filters are private to you."
+    title="Advanced search"
+    description="Combine rules with AND / OR. Saved searches are private to you."
     :dismissible="!busy"
     :close="!busy"
     :ui="{ content: 'sm:max-w-4xl' }"

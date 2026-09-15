@@ -19,7 +19,26 @@ async function seed(page: Page) {
   const vendorName = `Vendor ${suffix}`
   const key = `vendor_${suffix.replaceAll('-', '_')}`
   const vendor = await create('attributes', { name: vendorName, key, data_type: 'string' })
-  const category = await create('categories', { name: `Machines ${suffix}`, attributes: [{ attribute_id: vendor.id, required: false, sort_order: 0 }] })
+  const brandName = `Brand ${suffix}`
+  const brandKey = `brand_${suffix.replaceAll('-', '_')}`
+  const brandLabels = [`Commodore ${suffix}`, `Sinclair ${suffix}`]
+  const brand = await create('attributes', {
+    name: brandName,
+    key: brandKey,
+    data_type: 'select',
+    selection_mode: 'single',
+    options: [
+      { label: brandLabels[0], value: 'commodore' },
+      { label: brandLabels[1], value: 'sinclair' }
+    ]
+  })
+  const category = await create('categories', {
+    name: `Machines ${suffix}`,
+    attributes: [
+      { attribute_id: vendor.id, required: false, sort_order: 0 },
+      { attribute_id: brand.id, required: false, sort_order: 1 }
+    ]
+  })
   const collectionNames = [`Computers ${suffix}`, `Favorites ${suffix}`]
   const collections = []
   for (const name of collectionNames) collections.push(await create('collections', { name, icon: 'i-lucide-library' }))
@@ -27,12 +46,15 @@ async function seed(page: Page) {
   for (const [index, name] of names.entries()) {
     await create('assets', {
       name, quantity: 1, category_id: category.id,
-      attributes: { [key]: index === 2 ? `Sinclair ${suffix}` : `Commodore ${suffix}` },
+      attributes: {
+        [key]: index === 2 ? `Sinclair ${suffix}` : `Commodore ${suffix}`,
+        [brandKey]: index === 2 ? 'sinclair' : 'commodore'
+      },
       collection_ids: index === 0 ? collections.map(c => c.id) : [collections[index === 1 ? 0 : 1]!.id]
     })
   }
   await page.goto('/assets')
-  return { names, vendorName, collectionNames, suffix }
+  return { names, vendorName, brandName, brandLabels, collectionNames, suffix }
 }
 
 async function choose(page: Page, trigger: Locator, label: string) {
@@ -52,17 +74,21 @@ async function results(page: Page, names: string[], included: number[]) {
 test('attribute search and nested collection filters survive the saved-filter lifecycle', async ({ page }) => {
   test.setTimeout(120_000)
   const data = await seed(page)
-  const quick = page.getByRole('textbox', { name: 'Search attribute values' })
-  await quick.fill(`cOmMoDoRe ${data.suffix}`)
+  await page.getByRole('button', { name: 'Advanced search', exact: true }).click()
+  await choose(page, page.getByLabel('Attribute', { exact: true }), data.brandName)
+  const quick = page.getByRole('combobox', { name: 'Attribute value' })
+  await quick.fill(`Commodore ${data.suffix}`)
+  await results(page, data.names, [0, 1, 2])
+  await page.getByRole('option', { name: new RegExp(`^${data.brandLabels[0]}`) }).click()
   await results(page, data.names, [0, 1])
   await page.reload()
-  await expect(quick).toHaveValue(`cOmMoDoRe ${data.suffix}`)
+  await expect(quick).toHaveValue(data.brandLabels[0]!)
   await results(page, data.names, [0, 1])
   await page.getByRole('button', { name: 'Clear', exact: true }).click()
   await results(page, data.names, [0, 1, 2])
 
-  await page.getByRole('button', { name: 'Advanced filter', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Advanced filter', exact: true })
+  await page.getByRole('button', { name: 'Open search builder', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Advanced search', exact: true })
   await dialog.getByRole('button', { name: 'Add rules', exact: true }).click()
   const rules = dialog.getByRole('group', { name: 'Filter rule', exact: true })
   await choose(page, rules.nth(0).getByLabel('Rule field'), `Attribute: ${data.vendorName}`)
@@ -83,7 +109,7 @@ test('attribute search and nested collection filters survive the saved-filter li
   await expect(dialog).not.toBeVisible()
   await results(page, data.names, [0, 1])
 
-  await page.getByRole('button', { name: 'Advanced filter', exact: true }).click()
+  await page.getByRole('button', { name: 'Open search builder', exact: true }).click()
   await choose(page, rules.nth(1).getByLabel('Rule comparison'), 'Includes all')
   const filterName = `Retro ${data.suffix}`
   await dialog.getByLabel('Filter name', { exact: true }).fill(filterName)
@@ -92,43 +118,45 @@ test('attribute search and nested collection filters survive the saved-filter li
   await results(page, data.names, [0])
   await page.reload()
   await results(page, data.names, [0])
-  await expect(page.getByLabel('Saved filters', { exact: true })).toContainText(filterName)
+  await expect(page.getByLabel('Saved searches', { exact: true })).toContainText(filterName)
 
-  await page.getByRole('button', { name: 'Advanced filter', exact: true }).click()
+  await page.getByRole('button', { name: 'Open search builder', exact: true }).click()
   await choose(page, rules.nth(1).getByLabel('Rule comparison'), 'Includes any')
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   await results(page, data.names, [0])
-  await page.getByRole('button', { name: 'Advanced filter', exact: true }).click()
+  await page.getByRole('button', { name: 'Open search builder', exact: true }).click()
   await expect(rules.nth(1).getByLabel('Rule comparison')).toContainText('Includes all')
   await choose(page, rules.nth(1).getByLabel('Rule comparison'), 'Includes any')
   await dialog.getByRole('button', { name: 'Apply', exact: true }).click()
   await results(page, data.names, [0, 1])
   await expect(page.getByText('(modified)', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Clear', exact: true }).click()
-  await choose(page, page.getByLabel('Saved filters', { exact: true }), filterName)
+  await choose(page, page.getByLabel('Saved searches', { exact: true }), filterName)
   await results(page, data.names, [0])
-  await page.getByRole('button', { name: 'Advanced filter', exact: true }).click()
+  await page.getByRole('button', { name: 'Open search builder', exact: true }).click()
   await choose(page, rules.nth(1).getByLabel('Rule comparison'), 'Includes any')
   await dialog.getByRole('button', { name: 'Update saved filter', exact: true }).click()
   await expect(dialog).not.toBeVisible()
   await page.reload()
   await results(page, data.names, [0, 1])
   await expect(page.getByText('(modified)', { exact: true })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Delete filter', exact: true }).click()
+  await page.getByRole('button', { name: 'Delete search', exact: true }).click()
   await page.getByRole('dialog', { name: 'Delete saved filter' }).getByRole('button', { name: 'Delete', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Delete filter', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Delete search', exact: true })).toHaveCount(0)
   await page.reload()
-  await page.getByLabel('Saved filters', { exact: true }).click()
-  await expect(page.getByRole('option', { name: filterName, exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('Saved searches', { exact: true })).toHaveCount(0)
 })
 
 test('mobile filter dialog fits the viewport and supports keyboard dismissal and apply', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const data = await seed(page)
-  const advanced = page.getByRole('button', { name: 'Advanced filter', exact: true })
+  const advanced = page.getByRole('button', { name: 'Advanced search', exact: true })
   await advanced.focus()
   await page.keyboard.press('Enter')
-  const dialog = page.getByRole('dialog', { name: 'Advanced filter', exact: true })
+  const builder = page.getByRole('button', { name: 'Open search builder', exact: true })
+  await builder.focus()
+  await page.keyboard.press('Enter')
+  const dialog = page.getByRole('dialog', { name: 'Advanced search', exact: true })
   await expect(dialog).toBeVisible()
   await dialog.getByRole('button', { name: 'Add rules', exact: true }).click()
   await dialog.getByRole('button', { name: 'Add group', exact: true }).click()
@@ -144,7 +172,7 @@ test('mobile filter dialog fits the viewport and supports keyboard dismissal and
   }
   await page.keyboard.press('Escape')
   await expect(dialog).not.toBeVisible()
-  await expect(advanced).toBeFocused()
+  await expect(builder).toBeFocused()
   await page.keyboard.press('Enter')
   await dialog.getByRole('button', { name: 'Add rules', exact: true }).click()
   await dialog.getByLabel('Rule value', { exact: true }).fill(data.names[0]!)

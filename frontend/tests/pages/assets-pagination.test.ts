@@ -46,7 +46,7 @@ describe('Inventory pagination', () => {
     const wrapper = await mountPage()
     const getUrl = api.mock.calls.find(([url]) => typeof url === 'function')![0] as () => string
     expect(getUrl()).toContain('category_id=selected')
-    expect((wrapper.findAll('select')[1]!.element as HTMLSelectElement).value).toBe('selected')
+    expect((wrapper.get('select[aria-label="Filter by category"]').element as HTMLSelectElement).value).toBe('selected')
     wrapper.unmount()
   })
 
@@ -62,14 +62,18 @@ describe('Inventory pagination', () => {
     wrapper.unmount()
   })
 
-  it.each([1, 2, 3])('resets offset when filter %i changes on a later page', async (index) => {
+  it.each([
+    ['category', 'category_id'],
+    ['location', 'location_id'],
+    ['condition', 'condition_id']
+  ])('resets offset when the %s filter changes on a later page', async (label, queryKey) => {
     const wrapper = await mountPage()
     await wrapper.get('button[aria-label="Page 10"]').trigger('click')
     const getUrl = api.mock.calls.find(([url]) => typeof url === 'function')![0] as () => string
     expect(getUrl()).toContain('offset=216')
-    await wrapper.findAll('select')[index]!.setValue('selected')
+    await wrapper.get(`select[aria-label="Filter by ${label}"]`).setValue('selected')
     expect(getUrl()).toContain('offset=0')
-    expect(getUrl()).toContain(`${['', 'category_id', 'location_id', 'condition_id'][index]}=selected`)
+    expect(getUrl()).toContain(`${queryKey}=selected`)
     expect(wrapper.get('[aria-current="page"]').text()).toBe('1')
     wrapper.unmount()
   })
