@@ -180,11 +180,12 @@ func TestSelectAttributeOptionsAreSavedAsOneBatch(t *testing.T) {
 	if err = assets.Create(ctx, asset); err != nil {
 		t.Fatal(err)
 	}
-	newOptionID := uuid.New()
+	clientGeneratedID := uuid.New()
 	options := []domain.AttributeOption{
 		{ID: field.Options[1].ID, Label: "Apple macOS", Value: "apple_macos"},
 		{ID: field.Options[0].ID, Label: "GNU/Linux", Value: "linux"},
-		{ID: newOptionID, Label: "FreeBSD", Value: "freebsd"},
+		{Label: "FreeBSD", Value: "freebsd"},
+		{ID: clientGeneratedID, Label: "OpenBSD", Value: "openbsd"},
 	}
 	newKey := "operating_system"
 	action := AttributeAction{Action: "update_attribute", Changes: AttributeChange{Key: &newKey, Options: &options}}
@@ -202,7 +203,7 @@ func TestSelectAttributeOptionsAreSavedAsOneBatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(loaded.Options) != 3 || loaded.Options[0].ID != field.Options[1].ID || loaded.Options[0].Label != "Apple macOS" || loaded.Options[2].ID != newOptionID {
+	if len(loaded.Options) != 4 || loaded.Options[0].ID != field.Options[1].ID || loaded.Options[0].Label != "Apple macOS" || loaded.Options[2].ID == uuid.Nil || loaded.Options[3].ID == uuid.Nil || loaded.Options[3].ID == clientGeneratedID {
 		t.Fatalf("options not replaced atomically: %+v", loaded.Options)
 	}
 	updated, err := assets.GetByID(ctx, asset.ID)

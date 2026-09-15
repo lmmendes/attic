@@ -295,7 +295,7 @@ function apiErrorMessage(error: unknown, fallback: string): string {
             />
           </UFormField>
           <fieldset>
-            <legend class="mb-2 text-sm font-semibold">
+            <legend class="mb-2 text-sm font-medium text-default">
               Icon
             </legend>
             <div class="flex flex-wrap gap-2">

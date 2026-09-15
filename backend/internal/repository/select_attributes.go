@@ -293,9 +293,17 @@ func (r *AttributeRepository) ChangeWithImpact(ctx context.Context, org, user, i
 				return nil, invalidAttribute("options require a select field")
 			}
 			next.Options = append([]domain.AttributeOption(nil), (*action.Changes.Options)...)
+			existing := map[uuid.UUID]bool{}
+			for _, option := range a.Options {
+				existing[option.ID] = true
+			}
 			seen := map[uuid.UUID]bool{}
 			for i := range next.Options {
-				if next.Options[i].ID == uuid.Nil || seen[next.Options[i].ID] {
+				// Preserve IDs for existing options; assign all new persistent IDs here.
+				if next.Options[i].ID == uuid.Nil || !existing[next.Options[i].ID] {
+					next.Options[i].ID = uuid.New()
+				}
+				if seen[next.Options[i].ID] {
 					return nil, invalidAttribute("every option must have a unique ID")
 				}
 				seen[next.Options[i].ID] = true

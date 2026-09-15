@@ -5,7 +5,7 @@ import { within, waitFor } from '@testing-library/vue'
 import userEvent from '@testing-library/user-event'
 import SelectAttributeInput from '../../app/components/SelectAttributeInput.vue'
 import AttributeOptionsEditor from '../../app/components/AttributeOptionsEditor.vue'
-import type { Attribute, AttributeOption } from '../../app/types/api'
+import type { Attribute, AttributeOptionDraft } from '../../app/types/api'
 
 const cleanup: Array<() => void> = []
 afterEach(() => {
@@ -56,7 +56,7 @@ describe('select field inputs', () => {
     const harness = defineComponent({
       components: { AttributeOptionsEditor },
       setup() {
-        const options = ref<AttributeOption[]>([])
+        const options = ref<AttributeOptionDraft[]>([])
         return { options }
       },
       template: '<div><AttributeOptionsEditor v-model="options" /><output aria-label="Configured values">{{ options.map(o => o.value).join(",") }}</output></div>'
@@ -83,12 +83,40 @@ describe('select field inputs', () => {
     expect(page.queryByRole('dialog')).toBeNull()
   })
 
+  it('uses a local draft ID when browser UUID generation is unavailable', async () => {
+    const randomUUID = globalThis.crypto.randomUUID
+    Object.defineProperty(globalThis.crypto, 'randomUUID', { configurable: true, value: undefined })
+
+    try {
+      const harness = defineComponent({
+        components: { AttributeOptionsEditor },
+        setup() {
+          const options = ref<AttributeOptionDraft[]>([])
+          return { options }
+        },
+        template: '<div><AttributeOptionsEditor v-model="options" /><output aria-label="Draft state">{{ options.map(o => `${o.draftId}:${o.id || "server-assigned"}`).join(",") }}</output></div>'
+      })
+      const wrapper = await mountSuspended(harness, { attachTo: document.body })
+      cleanup.push(() => wrapper.unmount())
+      const page = within(document.body)
+      const user = userEvent.setup()
+
+      await user.type(page.getByRole('textbox', { name: 'New option label' }), 'Plain HTTP option')
+      await user.click(page.getByRole('button', { name: 'Add option' }))
+
+      await waitFor(() => expect(page.getByLabelText('Draft state').textContent).toMatch(/^attribute-option-draft-\d+:server-assigned$/))
+      expect(page.getByRole('textbox', { name: 'Label for Plain HTTP option' })).toBeTruthy()
+    } finally {
+      Object.defineProperty(globalThis.crypto, 'randomUUID', { configurable: true, value: randomUUID })
+    }
+  })
+
   it('keeps edits to existing options in the attribute draft', async () => {
     const harness = defineComponent({
       components: { AttributeOptionsEditor },
       setup() {
-        const options = ref<AttributeOption[]>([
-          { id: 'existing', label: 'Original', value: 'original', sort_order: 0 }
+        const options = ref<AttributeOptionDraft[]>([
+          { id: 'existing', draftId: 'persisted-existing', label: 'Original', value: 'original', sort_order: 0 }
         ])
         return { options }
       },

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { AttributeOption } from '~/types/api'
+import type { AttributeOptionDraft } from '~/types/api'
+import { createAttributeOptionDraft } from '~/utils/attributeOptions'
 
-const options = defineModel<AttributeOption[]>({ default: () => [] })
+const options = defineModel<AttributeOptionDraft[]>({ default: () => [] })
 const newLabel = ref('')
 const newValue = ref('')
 const editedValue = ref(false)
@@ -10,22 +11,22 @@ watch(newLabel, (label) => {
   if (!editedValue.value) newValue.value = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
 })
 watch(options, (items) => {
-  for (const o of items) drafts[o.id] = { label: o.label, value: o.value }
+  for (const o of items) drafts[o.draftId] = { label: o.label, value: o.value }
 }, { immediate: true, deep: true })
 function addOption() {
   if (!newLabel.value.trim() || !newValue.value.trim()) return
-  const option = { id: crypto.randomUUID(), label: newLabel.value.trim(), value: newValue.value.trim(), sort_order: options.value.length }
+  const option = createAttributeOptionDraft({ label: newLabel.value.trim(), value: newValue.value.trim(), sort_order: options.value.length })
   options.value = [...options.value, option]
   newLabel.value = ''
   newValue.value = ''
   editedValue.value = false
 }
-function editOption(option: AttributeOption, field: 'label' | 'value', value: string | number) {
-  drafts[option.id]![field] = String(value)
-  options.value = options.value.map(o => o.id === option.id ? { ...o, [field]: String(value) } : o)
+function editOption(option: AttributeOptionDraft, field: 'label' | 'value', value: string | number) {
+  drafts[option.draftId]![field] = String(value)
+  options.value = options.value.map(o => o.draftId === option.draftId ? { ...o, [field]: String(value) } : o)
 }
-function deleteOption(option: AttributeOption) {
-  options.value = options.value.filter(o => o.id !== option.id)
+function deleteOption(option: AttributeOptionDraft) {
+  options.value = options.value.filter(o => o.draftId !== option.draftId)
 }
 function move(index: number, direction: number) {
   const items = [...options.value]
@@ -38,7 +39,7 @@ function move(index: number, direction: number) {
 
 <template>
   <section class="space-y-4">
-    <h2 class="font-semibold">
+    <h2 class="font-semibold text-mist-950 dark:text-white">
       Options
     </h2>
     <p class="text-sm text-muted">
@@ -46,21 +47,21 @@ function move(index: number, direction: number) {
     </p>
     <div
       v-for="(option, index) in options"
-      :key="option.id"
+      :key="option.draftId"
       class="space-y-2 rounded-lg border border-default p-3"
     >
       <div
-        v-if="drafts[option.id]"
+        v-if="drafts[option.draftId]"
         class="grid gap-2 sm:grid-cols-2"
       >
         <UInput
-          :model-value="drafts[option.id]!.label"
+          :model-value="drafts[option.draftId]!.label"
           :aria-label="`Label for ${option.label}`"
           placeholder="Label"
           @update:model-value="editOption(option, 'label', $event)"
         />
         <UInput
-          :model-value="drafts[option.id]!.value"
+          :model-value="drafts[option.draftId]!.value"
           :aria-label="`Stored value for ${option.label}`"
           placeholder="Stored value"
           @update:model-value="editOption(option, 'value', $event)"

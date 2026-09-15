@@ -18,11 +18,19 @@ export interface OrganizationFeatures {
 
 export type AttributeDataType = 'string' | 'number' | 'boolean' | 'text' | 'date' | 'select'
 
-export interface AttributeOption {
-  id: string
+export interface AttributeOptionInput {
+  id?: string
   label: string
   value: string
   sort_order: number
+}
+
+export interface AttributeOption extends AttributeOptionInput {
+  id: string
+}
+
+export interface AttributeOptionDraft extends AttributeOptionInput {
+  draftId: string
 }
 
 export interface Attribute {
