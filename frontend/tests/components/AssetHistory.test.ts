@@ -78,7 +78,7 @@ describe('AssetHistory', () => {
     const wrapper = await mountHistory()
     await wrapper.findAll('button').find(button => button.text() === 'Add event')!.trigger('click')
 
-    expect(wrapper.get('legend').classes()).toEqual(expect.arrayContaining(['text-mist-950', 'dark:text-white']))
+    expect(wrapper.get('legend').classes()).toEqual(expect.arrayContaining(['font-medium', 'text-default']))
     wrapper.unmount()
   })
 
