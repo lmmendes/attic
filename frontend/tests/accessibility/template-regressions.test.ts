@@ -103,4 +103,14 @@ describe('accessibility template regressions', () => {
   it('reserves a fixed action column so field types align across plugin and custom rows', () => {
     expect(readAppFile('pages/attributes/index.vue')).toContain('sm:grid-cols-[minmax(0,1.25fr)_minmax(150px,.7fr)_8rem]')
   })
+
+  it('keeps select attribute controls readable in dark mode', () => {
+    expect(readAppFile('components/AttributeOptionsEditor.vue')).toContain('class="font-semibold text-mist-950 dark:text-white"')
+
+    for (const file of ['pages/attributes/new.vue', 'pages/attributes/[id]/edit.vue']) {
+      const source = readAppFile(file)
+      expect(source, file).toContain('class="block font-semibold text-mist-950 dark:text-white"')
+      expect(source, file).toContain('class="rounded-lg border border-default bg-default p-2 text-mist-950 dark:text-white"')
+    }
+  })
 })

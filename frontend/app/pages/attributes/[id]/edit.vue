@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { Attribute } from '~/types/api'
+import type { Attribute, AttributeOptionDraft } from '~/types/api'
+import { attributeOptionPayload, createAttributeOptionDrafts } from '~/utils/attributeOptions'
 
 definePageMeta({
   middleware: ['auth', 'admin']
@@ -20,7 +21,7 @@ const form = reactive({
   key: '',
   data_type: 'string',
   selection_mode: 'single' as 'single' | 'multiple',
-  options: [] as import('~/types/api').AttributeOption[]
+  options: [] as AttributeOptionDraft[]
 })
 
 // Populate form when attribute loads
@@ -30,7 +31,7 @@ watch(attribute, (attr) => {
     form.key = attr.key
     form.data_type = attr.data_type
     form.selection_mode = attr.selection_mode || 'single'
-    form.options = attr.options || []
+    form.options = createAttributeOptionDrafts(attr.options || [])
   }
 }, { immediate: true })
 
@@ -108,7 +109,7 @@ async function saveAttribute() {
       name: form.name,
       key: form.key,
       data_type: form.data_type,
-      ...(form.data_type === 'select' ? { selection_mode: form.selection_mode, options: form.options } : {})
+      ...(form.data_type === 'select' ? { selection_mode: form.selection_mode, options: attributeOptionPayload(form.options) } : {})
     }, deletedOptionCount
     }, async () => {
       toast.add({ title: 'Attribute updated successfully', color: 'success' })
@@ -254,12 +255,12 @@ function cancel() {
             >
               <label
                 for="selection-mode"
-                class="block font-semibold"
+                class="block font-semibold text-mist-950 dark:text-white"
               >Selection mode</label>
               <select
                 id="selection-mode"
                 v-model="form.selection_mode"
-                class="rounded-lg border border-default bg-default p-2"
+                class="rounded-lg border border-default bg-default p-2 text-mist-950 dark:text-white"
               >
                 <option value="single">
                   Single

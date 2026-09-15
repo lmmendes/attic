@@ -74,6 +74,14 @@ describe('AssetHistory', () => {
     wrapper.unmount()
   })
 
+  it('keeps the icon field label readable in dark mode', async () => {
+    const wrapper = await mountHistory()
+    await wrapper.findAll('button').find(button => button.text() === 'Add event')!.trigger('click')
+
+    expect(wrapper.get('legend').classes()).toEqual(expect.arrayContaining(['font-medium', 'text-default']))
+    wrapper.unmount()
+  })
+
   it('updates an event with pre-filled values', async () => {
     const wrapper = await mountHistory()
     await wrapper.get('button[aria-label="Actions for Repaired"]').trigger('keydown', { key: 'Enter' })
