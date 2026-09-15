@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.1](https://github.com/lmmendes/attic/compare/v2.5.0...v2.5.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **ui:** repair select options and dark mode labels ([#92](https://github.com/lmmendes/attic/issues/92)) ([c6283b8](https://github.com/lmmendes/attic/commit/c6283b8755704ca1457f20ecbb871e6fbba52719))
+
 ## [2.5.0](https://github.com/lmmendes/attic/compare/v2.4.0...v2.5.0) (2026-09-13)
 
 
