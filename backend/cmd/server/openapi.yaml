@@ -1362,6 +1362,10 @@ components:
           description: Trimmed before validation; must contain a non-whitespace character.
         criteria:
           $ref: '#/components/schemas/FilterCriteria'
+        pinned:
+          type: boolean
+          default: false
+          description: Show this saved search as a desktop sidebar shortcut. Each user may pin at most five searches.
     SavedFilterUpdate:
       type: object
       additionalProperties: false
@@ -1374,15 +1378,20 @@ components:
           description: Trimmed before validation; must contain a non-whitespace character.
         criteria:
           $ref: '#/components/schemas/FilterCriteria'
+        pinned:
+          type: boolean
+          description: Show or hide this saved search as a desktop sidebar shortcut. Each user may pin at most five searches.
     SavedFilter:
       type: object
-      required: [id, name, criteria, created_at, updated_at]
+      required: [id, name, pinned, criteria, created_at, updated_at]
       properties:
         id:
           type: string
           format: uuid
         name:
           type: string
+        pinned:
+          type: boolean
         criteria:
           $ref: '#/components/schemas/FilterCriteria'
         created_at:

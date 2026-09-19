@@ -153,6 +153,21 @@ export function useAssetFiltering(filters: AssetFilters) {
       return false
     } finally { busy.value = false }
   }
+  async function togglePin() {
+    if (!selected.value || busy.value) return false
+    busy.value = true
+    message.value = ''
+    try {
+      selected.value = await apiFetch<SavedFilter>(`/api/saved-filters/${selected.value.id}`, {
+        method: 'PUT', body: JSON.stringify({ name: selected.value.name, pinned: !selected.value.pinned })
+      })
+      await refreshSaved()
+      return true
+    } catch (error) {
+      failure(error)
+      return false
+    } finally { busy.value = false }
+  }
   async function remove() {
     if (!selected.value || busy.value) return false
     busy.value = true
@@ -167,5 +182,5 @@ export function useAssetFiltering(filters: AssetFilters) {
       return false
     } finally { busy.value = false }
   }
-  return { criteria, expression, structured, selected, selectedId, modified, message, issues, busy, routeInvalid, savedLoading, revision, savedFilters, savedError, refreshSaved, apply, clear, selectSaved, save, rename, remove }
+  return { criteria, expression, structured, selected, selectedId, modified, message, issues, busy, routeInvalid, savedLoading, revision, savedFilters, savedError, refreshSaved, apply, clear, selectSaved, save, rename, togglePin, remove }
 }

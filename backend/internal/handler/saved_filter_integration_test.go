@@ -91,10 +91,10 @@ func TestSavedFilterHTTPIntegration(t *testing.T) {
 		t.Fatal("GET query/paging mismatch")
 	}
 	request("POST", "/api/saved-filters", `{"name":"Private","criteria":{"version":1}}`, nil, 401)
-	response = request("POST", "/api/saved-filters", encode(map[string]any{"name": " Private ", "criteria": criteria}), owner, 201)
+	response = request("POST", "/api/saved-filters", encode(map[string]any{"name": " Private ", "pinned": true, "criteria": criteria}), owner, 201)
 	var saved domain.SavedFilter
 	must(json.Unmarshal(response.Body.Bytes(), &saved))
-	if saved.Name != "Private" || saved.CreatedAt.IsZero() {
+	if saved.Name != "Private" || !saved.Pinned || saved.CreatedAt.IsZero() {
 		t.Fatal("create response")
 	}
 	path := "/api/saved-filters/" + saved.ID.String()
@@ -110,8 +110,18 @@ func TestSavedFilterHTTPIntegration(t *testing.T) {
 	request("PUT", path, `{"name":"Renamed"}`, owner, 200)
 	response = request("GET", path, "", owner, 200)
 	must(json.Unmarshal(response.Body.Bytes(), &saved))
-	if saved.Name != "Renamed" || saved.Criteria.Expression.AttributeID != attr.ID.String() {
+	if saved.Name != "Renamed" || !saved.Pinned || saved.Criteria.Expression.AttributeID != attr.ID.String() {
 		t.Fatal("rename lost criteria")
+	}
+	for i := 0; i < 4; i++ {
+		request("POST", "/api/saved-filters", encode(map[string]any{"name": "Pinned " + string(rune('A'+i)), "pinned": true, "criteria": domain.FilterCriteria{Version: 1}}), owner, 201)
+	}
+	request("POST", "/api/saved-filters", `{"name":"Too many","pinned":true,"criteria":{"version":1}}`, owner, 400)
+	request("PUT", path, `{"name":"Renamed","pinned":false}`, owner, 200)
+	response = request("GET", path, "", owner, 200)
+	must(json.Unmarshal(response.Body.Bytes(), &saved))
+	if saved.Pinned {
+		t.Fatal("unpin was not persisted")
 	}
 	for _, body := range []string{`{"criteria":{"version":1},"unknown":true}`, `{"criteria":{"version":1}} {}`, `{"criteria":{"version":2}}`, `{"criteria":{"version":1,"expression":{"kind":"group","match":"all","children":[]}}}`, `{"criteria":{"version":1,"attribute_q":"` + strings.Repeat("x", 1001) + `"}}`, strings.Repeat(" ", 65537) + `{}`} {
 		request("POST", "/api/assets/search", body, owner, 400)

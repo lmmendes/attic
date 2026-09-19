@@ -223,6 +223,7 @@ export interface FilterIssue {
 export interface SavedFilter {
   id: string
   name: string
+  pinned: boolean
   criteria: FilterCriteria
   created_at: string
   updated_at: string

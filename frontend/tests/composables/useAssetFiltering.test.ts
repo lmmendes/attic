@@ -12,7 +12,7 @@ mockNuxtImport('useRoute', () => () => route)
 mockNuxtImport('useRouter', () => () => ({ replace }))
 const mocks = { fetch, api, replace, route }
 
-const saved: SavedFilter = { id: 'saved-1', name: 'Retro', criteria: { version: 1, q: 'retro', category_id: 'old-category' }, created_at: '', updated_at: '' }
+const saved: SavedFilter = { id: 'saved-1', name: 'Retro', pinned: false, criteria: { version: 1, q: 'retro', category_id: 'old-category' }, created_at: '', updated_at: '' }
 let state: ReturnType<typeof useAssetFiltering>
 let filters: AssetFilters
 async function setup(query: Record<string, string> = {}) {
@@ -93,6 +93,22 @@ describe('personal asset filters', () => {
     expect(state.selectedId.value).toBeUndefined()
     expect(state.criteria.value).toEqual(saved.criteria)
     expect(state.structured.value).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('pins and unpins the selected saved search', async () => {
+    const wrapper = await setup()
+    mocks.fetch.mockResolvedValueOnce(saved)
+    await state.selectSaved(saved.id)
+    mocks.fetch.mockResolvedValueOnce({ ...saved, pinned: true })
+    expect(await state.togglePin()).toBe(true)
+    expect(mocks.fetch).toHaveBeenLastCalledWith('/api/saved-filters/saved-1', {
+      method: 'PUT', body: JSON.stringify({ name: 'Retro', pinned: true })
+    })
+    expect(state.selected.value?.pinned).toBe(true)
+    mocks.fetch.mockResolvedValueOnce({ ...saved, pinned: false })
+    expect(await state.togglePin()).toBe(true)
+    expect(state.selected.value?.pinned).toBe(false)
     wrapper.unmount()
   })
 

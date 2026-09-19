@@ -37,15 +37,20 @@ func TestSavedFilterPersistence(t *testing.T) {
 	repo := NewSavedFilterRepository(testDB.Pool)
 	var criteria domain.FilterCriteria
 	must(json.Unmarshal([]byte(`{"version":1,"q":"retro","attribute_q":"Commodore","expression":{"kind":"group","match":"and","children":[{"kind":"rule","field":"attribute","attribute_id":"f78bff63-88bd-454b-b228-83b07e9cd417","operator":"equals","value":"Commodore"},{"kind":"group","match":"or","children":[{"kind":"rule","field":"collection","operator":"any","values":["b7e50fc4-92ba-4377-909d-1eb0a7735621","0396dd40-c60e-4855-8be8-d53c80653682"]}]}]}}`), &criteria))
-	filter := &domain.SavedFilter{OrganizationID: org.ID, UserID: owner.ID, Name: "Favorites", Criteria: criteria}
+	filter := &domain.SavedFilter{OrganizationID: org.ID, UserID: owner.ID, Name: "Favorites", Pinned: true, Criteria: criteria}
 	must(repo.Create(ctx, filter))
 	if filter.ID == uuid.Nil || filter.CreatedAt.IsZero() || !filter.CreatedAt.Equal(filter.UpdatedAt) {
 		t.Fatalf("invalid generated identity or timestamps: %+v", filter)
 	}
 	loaded, err := repo.GetByID(ctx, org.ID, owner.ID, filter.ID)
 	must(err)
-	if loaded == nil || !reflect.DeepEqual(loaded.Criteria, criteria) || loaded.Name != filter.Name || loaded.OrganizationID != org.ID || loaded.UserID != owner.ID || !loaded.CreatedAt.Equal(filter.CreatedAt) || !loaded.UpdatedAt.Equal(filter.UpdatedAt) {
+	if loaded == nil || !loaded.Pinned || !reflect.DeepEqual(loaded.Criteria, criteria) || loaded.Name != filter.Name || loaded.OrganizationID != org.ID || loaded.UserID != owner.ID || !loaded.CreatedAt.Equal(filter.CreatedAt) || !loaded.UpdatedAt.Equal(filter.UpdatedAt) {
 		t.Fatalf("round trip mismatch: %+v", loaded)
+	}
+	pinned, err := repo.CountPinned(ctx, org.ID, owner.ID)
+	must(err)
+	if pinned != 1 {
+		t.Fatalf("expected one pinned filter, got %d", pinned)
 	}
 	var storedJSON []byte
 	must(testDB.Pool.QueryRow(ctx, `SELECT criteria FROM saved_filters WHERE id = $1`, filter.ID).Scan(&storedJSON))
@@ -95,6 +100,7 @@ func TestSavedFilterPersistence(t *testing.T) {
 	must(err)
 	createdAt, updatedAt := loaded.CreatedAt, loaded.UpdatedAt
 	loaded.Name = "Renamed"
+	loaded.Pinned = false
 	must(json.Unmarshal([]byte(`{"version":2}`), &loaded.Criteria))
 	must(repo.Update(ctx, loaded))
 	if !loaded.UpdatedAt.After(updatedAt) {
@@ -102,7 +108,7 @@ func TestSavedFilterPersistence(t *testing.T) {
 	}
 	reloaded, err := repo.GetByID(ctx, org.ID, owner.ID, filter.ID)
 	must(err)
-	if reloaded == nil || reloaded.Name != "Renamed" || !reflect.DeepEqual(reloaded.Criteria, loaded.Criteria) || !reloaded.CreatedAt.Equal(createdAt) || !reloaded.UpdatedAt.Equal(loaded.UpdatedAt) {
+	if reloaded == nil || reloaded.Pinned || reloaded.Name != "Renamed" || !reflect.DeepEqual(reloaded.Criteria, loaded.Criteria) || !reloaded.CreatedAt.Equal(createdAt) || !reloaded.UpdatedAt.Equal(loaded.UpdatedAt) {
 		t.Fatalf("update not persisted correctly: %+v", reloaded)
 	}
 	duplicate := &domain.SavedFilter{ID: uuid.New(), OrganizationID: org.ID, UserID: owner.ID, Name: "Renamed", Criteria: criteria}

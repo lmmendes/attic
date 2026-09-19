@@ -43,6 +43,7 @@ type SavedFilter struct {
 	OrganizationID uuid.UUID      `json:"-"`
 	UserID         uuid.UUID      `json:"-"`
 	Name           string         `json:"name"`
+	Pinned         bool           `json:"pinned"`
 	Criteria       FilterCriteria `json:"criteria"`
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`

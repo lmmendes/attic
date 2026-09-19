@@ -38,7 +38,7 @@ const filters = reactive<AssetFilters>({
 })
 const {
   criteria, expression, structured, selected, selectedId, modified, message, issues, busy, routeInvalid, savedLoading, revision,
-  savedFilters, savedError, refreshSaved, apply, clear, selectSaved, save, rename, remove
+  savedFilters, savedError, refreshSaved, apply, clear, selectSaved, save, rename, togglePin, remove
 } = useAssetFiltering(filters)
 const filterModal = useTemplateRef('filterModal')
 const renameOpen = ref(false)
@@ -50,6 +50,11 @@ const savedSearchActions = computed(() => {
   const name = selected.value.name
   return [
     [{ label: `Saved search: ${name}`, type: 'label' as const }],
+    [{
+      label: selected.value.pinned ? 'Unpin from sidebar' : 'Pin to sidebar',
+      icon: selected.value.pinned ? 'i-lucide-pin-off' : 'i-lucide-pin',
+      onSelect: () => togglePin()
+    }],
     [{
       label: `Edit “${name}”`,
       icon: 'i-lucide-sliders-horizontal',
@@ -376,7 +381,7 @@ function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
         </div>
         <div
           v-if="selectedId || savedFilters?.length"
-          class="flex w-full shrink-0 gap-1 lg:w-80"
+          class="flex w-full shrink-0 gap-1 lg:w-80 2xl:w-auto"
         >
           <USelectMenu
             :model-value="selectedId"
@@ -385,7 +390,7 @@ function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
             placeholder="Saved searches"
             aria-label="Saved searches"
             icon="i-lucide-bookmark"
-            class="min-w-0 flex-1"
+            class="min-w-0 flex-1 2xl:w-64"
             :disabled="busy || savedLoading"
             @update:model-value="selectSaved($event)"
           />
@@ -403,8 +408,11 @@ function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
               color="neutral"
               variant="outline"
               :aria-label="`Manage saved search ${selected.name}`"
+              :title="`Manage saved search ${selected.name}`"
               :disabled="busy"
-            />
+            >
+              <span class="hidden 2xl:inline">Manage</span>
+            </UButton>
           </UDropdownMenu>
         </div>
         <UButton

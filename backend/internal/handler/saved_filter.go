@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/lmmendes/attic/internal/auth"
 	"github.com/lmmendes/attic/internal/domain"
@@ -23,6 +24,7 @@ type assetSearchRequest struct {
 
 type savedFilterRequest struct {
 	Name     string                 `json:"name"`
+	Pinned   *bool                  `json:"pinned,omitempty"`
 	Criteria *domain.FilterCriteria `json:"criteria,omitempty"`
 }
 
@@ -112,6 +114,12 @@ func (h *Handler) CreateSavedFilter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item := domain.SavedFilter{OrganizationID: h.orgID, UserID: u.ID, Name: req.Name, Criteria: *req.Criteria}
+	if req.Pinned != nil {
+		item.Pinned = *req.Pinned
+	}
+	if item.Pinned && !h.savedFilterPinAvailable(r, w, item.UserID) {
+		return
+	}
 	if err := h.validateCriteria(r, item.Criteria); err != nil {
 		writeFilterError(w, err)
 		return
@@ -133,6 +141,12 @@ func (h *Handler) UpdateSavedFilter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item.Name = req.Name
+	if req.Pinned != nil && *req.Pinned != item.Pinned {
+		if *req.Pinned && !h.savedFilterPinAvailable(r, w, item.UserID) {
+			return
+		}
+		item.Pinned = *req.Pinned
+	}
 	if req.Criteria != nil {
 		if err := h.validateCriteria(r, *req.Criteria); err != nil {
 			writeFilterError(w, err)
@@ -149,6 +163,19 @@ func (h *Handler) UpdateSavedFilter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, item)
+}
+
+func (h *Handler) savedFilterPinAvailable(r *http.Request, w http.ResponseWriter, userID uuid.UUID) bool {
+	count, err := h.repos.SavedFilters.CountPinned(r.Context(), h.orgID, userID)
+	if err != nil {
+		writeFilterError(w, err)
+		return false
+	}
+	if count >= 5 {
+		writeError(w, http.StatusBadRequest, "pin at most 5 saved searches")
+		return false
+	}
+	return true
 }
 
 func (h *Handler) DeleteSavedFilter(w http.ResponseWriter, r *http.Request) {

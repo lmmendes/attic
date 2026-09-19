@@ -23,7 +23,7 @@ Attic mirrors the way a home is organized with nested locations such as rooms, s
 - Category filters include assets assigned to descendant categories
 - Search attribute values with case-insensitive substrings, including dropdown option labels
 - Build nested Match all (AND) / Match any (OR) filters with typed attribute comparisons and collection membership
-- Save named filters privately for reuse; even workspace administrators cannot access another user's saved filters
+- Save named filters privately for reuse, and pin up to five as one-click desktop sidebar shortcuts; even workspace administrators cannot access another user's saved filters
 
 **Smart Integrations**
 - Automated imports from Google Books, TMDB (movies and TV), BoardGameGeek, and IGDB (video games)
