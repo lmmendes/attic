@@ -106,7 +106,7 @@ defineExpose({ show })
             :key="row.key"
             class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-default p-2"
           >
-            <span class="min-w-0 break-words text-sm"><strong>{{ row.label }}:</strong> {{ row.value }} <span
+            <span class="min-w-0 break-words text-sm text-default"><strong>{{ row.label }}:</strong> {{ row.value }} <span
               v-if="row.unavailable"
               class="text-error"
             >(unavailable)</span></span>

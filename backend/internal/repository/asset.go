@@ -169,7 +169,7 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 		argNum++
 	}
 	if filter.Query != "" {
-		conditions = append(conditions, fmt.Sprintf("a.search_vector @@ plainto_tsquery('english', $%d)", argNum))
+		conditions = append(conditions, fmt.Sprintf("a.search_vector @@ attic_prefix_tsquery($%d)", argNum))
 		args = append(args, filter.Query)
 		argNum++
 	}

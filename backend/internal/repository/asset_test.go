@@ -381,6 +381,8 @@ func Test_AssetRepository_Search_FullText(t *testing.T) {
 	desc2 := "Samsung tablet for reading"
 	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, Name: "iPhone 15 Pro", Description: &desc1, Quantity: 1})
 	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, Name: "Galaxy Tab", Description: &desc2, Quantity: 1})
+	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, Name: "PS5", Quantity: 1})
+	repo.Create(ctx, &domain.Asset{OrganizationID: org.ID, CategoryID: &cat.ID, Name: "PS6", Quantity: 1})
 
 	assets, total, err := repo.Search(ctx, org.ID, "iPhone", domain.Pagination{Limit: 100})
 	if err != nil {
@@ -392,6 +394,24 @@ func Test_AssetRepository_Search_FullText(t *testing.T) {
 	}
 	if len(assets) != 1 {
 		t.Error("expected to find iPhone")
+	}
+
+	assets, total, err = repo.Search(ctx, org.ID, "ps", domain.Pagination{Limit: 100})
+	if err != nil {
+		t.Fatalf("failed to search by prefix: %v", err)
+	}
+	if total != 2 || len(assets) != 2 {
+		t.Errorf("expected prefix 'ps' to find PS5 and PS6, got rows=%d total=%d", len(assets), total)
+	}
+
+	criteria := domain.FilterCriteria{Version: 1, Query: "ps"}
+	features := domain.OrganizationFeatures{}
+	assets, total, err = repo.List(ctx, org.ID, domain.AssetFilter{Criteria: &criteria, Features: &features}, domain.Pagination{Limit: 100})
+	if err != nil {
+		t.Fatalf("failed to search by prefix with structured filters: %v", err)
+	}
+	if total != 2 || len(assets) != 2 {
+		t.Errorf("expected structured prefix 'ps' to find PS5 and PS6, got rows=%d total=%d", len(assets), total)
 	}
 }
 

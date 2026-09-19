@@ -191,7 +191,7 @@ function add(group = false) {
           step="any"
           aria-label="Rule value"
           placeholder="Value"
-          class="min-w-0 flex-1 rounded-md border border-default bg-default p-2"
+          class="min-w-0 flex-1 rounded-md border border-default bg-default p-2 text-default"
           @input="setScalar($event)"
         >
         <input
@@ -201,7 +201,7 @@ function add(group = false) {
           step="any"
           aria-label="Upper bound"
           placeholder="Upper bound"
-          class="min-w-0 flex-1 rounded-md border border-default bg-default p-2"
+          class="min-w-0 flex-1 rounded-md border border-default bg-default p-2 text-default"
           @input="setScalar($event, true)"
         >
       </template>

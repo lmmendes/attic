@@ -172,7 +172,7 @@ func (c *filterCompiler) node(n domain.FilterNode, path string, depth int) strin
 			return c.issue(path, "Enter search text (up to 1000 bytes)")
 		}
 		if n.Field == "q" && n.Operator == "search" {
-			return "a.search_vector @@ plainto_tsquery('english'," + c.param(s) + ")"
+			return "a.search_vector @@ attic_prefix_tsquery(" + c.param(s) + ")"
 		}
 		if n.Field == "attribute_q" && n.Operator == "contains" {
 			if !c.features.Attributes {
