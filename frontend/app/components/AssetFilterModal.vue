@@ -15,6 +15,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ apply: [criteria: FilterCriteria] }>()
 const open = ref(false)
+const mode = ref<'advanced' | 'edit'>('advanced')
 const draft = ref<FilterCriteria>({ version: 1 })
 const name = ref('')
 const localIssues = ref<FilterIssue[]>([])
@@ -31,7 +32,9 @@ function removeTop(key: typeof criteriaKeys[number]) {
   Reflect.deleteProperty(draft.value, key)
   localIssues.value = localIssues.value.filter(issue => normalizeIssuePath(issue.path) !== key)
 }
-function show() {
+const title = computed(() => mode.value === 'edit' ? 'Edit saved search' : 'Advanced search')
+function show(nextMode: 'advanced' | 'edit' = 'advanced') {
+  mode.value = nextMode
   draft.value = copyCriteria(props.criteria)
   name.value = props.selected?.name || ''
   localIssues.value = []
@@ -82,7 +85,7 @@ defineExpose({ show })
 <template>
   <UModal
     v-model:open="open"
-    title="Advanced search"
+    :title="title"
     description="Combine rules with AND / OR. Saved searches are private to you."
     :dismissible="!busy"
     :close="!busy"

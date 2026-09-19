@@ -45,6 +45,32 @@ const renameOpen = ref(false)
 const renameName = ref('')
 const deleteOpen = ref(false)
 const advancedOpen = ref(Boolean(route.query.attribute_q || route.query.criteria || route.query.saved_filter_id))
+const savedSearchActions = computed(() => {
+  if (!selected.value) return []
+  const name = selected.value.name
+  return [
+    [{ label: `Saved search: ${name}`, type: 'label' as const }],
+    [{
+      label: `Edit “${name}”`,
+      icon: 'i-lucide-sliders-horizontal',
+      onSelect: () => openAdvanced('edit')
+    }],
+    [{
+      label: `Rename “${name}”`,
+      icon: 'i-lucide-pencil',
+      onSelect: () => {
+        renameName.value = name
+        renameOpen.value = true
+      }
+    }],
+    [{
+      label: `Delete “${name}”`,
+      icon: 'i-lucide-trash-2',
+      color: 'error' as const,
+      onSelect: () => { deleteOpen.value = true }
+    }]
+  ]
+})
 
 const queryString = computed(() => {
   const params = new URLSearchParams()
@@ -249,10 +275,10 @@ function selectAttribute(attributeId: string | undefined) {
   selectedAttributeId.value = attributeId
   selectAttributeValue(undefined)
 }
-function openAdvanced() {
+function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
   if (searchTimeout) clearTimeout(searchTimeout)
   filters.q = searchQuery.value
-  filterModal.value?.show()
+  filterModal.value?.show(mode)
 }
 </script>
 
@@ -308,18 +334,39 @@ function openAdvanced() {
               class="w-full"
             />
           </div>
-          <USelectMenu
+          <div
             v-if="selectedId || savedFilters?.length"
-            :model-value="selectedId"
-            :items="(savedFilters || []).map(f => ({ label: f.name, value: f.id }))"
-            value-key="value"
-            placeholder="Saved searches"
-            aria-label="Saved searches"
-            icon="i-lucide-bookmark"
-            class="w-full shrink-0 sm:w-56"
-            :disabled="busy || savedLoading"
-            @update:model-value="selectSaved($event)"
-          />
+            class="flex w-full shrink-0 gap-1 sm:w-80"
+          >
+            <USelectMenu
+              :model-value="selectedId"
+              :items="(savedFilters || []).map(f => ({ label: f.name, value: f.id }))"
+              value-key="value"
+              placeholder="Saved searches"
+              aria-label="Saved searches"
+              icon="i-lucide-bookmark"
+              class="min-w-0 flex-1"
+              :disabled="busy || savedLoading"
+              @update:model-value="selectSaved($event)"
+            />
+            <span
+              v-if="selected && modified"
+              class="self-center rounded-md bg-warning/10 px-2 py-1 text-xs font-semibold text-warning"
+            >Modified</span>
+            <UDropdownMenu
+              v-if="selected"
+              :items="savedSearchActions"
+              :content="{ align: 'end' }"
+            >
+              <UButton
+                icon="i-lucide-ellipsis"
+                color="neutral"
+                variant="outline"
+                :aria-label="`Manage saved search ${selected.name}`"
+                :disabled="busy"
+              />
+            </UDropdownMenu>
+          </div>
         </div>
         <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center 2xl:justify-end">
           <USelectMenu
@@ -403,7 +450,7 @@ function openAdvanced() {
             class="w-fit px-0 font-semibold"
             trailing-icon="i-lucide-arrow-right"
             :disabled="savedLoading"
-            @click="openAdvanced"
+            @click="openAdvanced()"
           >
             Open search builder
           </UButton>
@@ -450,30 +497,6 @@ function openAdvanced() {
               @update:model-value="selectAttributeValue"
             />
           </div>
-          <span
-            v-if="selected && modified"
-            class="rounded-md bg-warning/10 px-2 py-1 text-xs font-semibold text-warning"
-          >Modified</span>
-          <UButton
-            v-if="selected"
-            size="sm"
-            variant="ghost"
-            color="neutral"
-            :disabled="busy"
-            @click="renameName = selected.name; renameOpen = true"
-          >
-            Rename
-          </UButton>
-          <UButton
-            v-if="selected"
-            size="sm"
-            variant="ghost"
-            color="error"
-            :disabled="busy"
-            @click="deleteOpen = true"
-          >
-            Delete search
-          </UButton>
         </div>
         <p
           v-if="features.attributes && !selectableAttributes.length && !attributesError"
@@ -544,8 +567,8 @@ function openAdvanced() {
     />
     <UModal
       v-model:open="renameOpen"
-      title="Rename saved filter"
-      description="Only the name will change, including for filters that need repair."
+      title="Rename saved search"
+      description="Only the name will change, including for searches that need repair."
       :dismissible="!busy"
       :close="!busy"
     >
@@ -583,7 +606,7 @@ function openAdvanced() {
     </UModal>
     <UModal
       v-model:open="deleteOpen"
-      title="Delete saved filter"
+      title="Delete saved search"
       :description="`Delete ${selected?.name || 'this filter'}? Your current search will stay applied.`"
       :dismissible="!busy"
       :close="!busy"

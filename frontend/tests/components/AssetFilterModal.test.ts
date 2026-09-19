@@ -5,17 +5,17 @@ import AssetFilterModal from '../../app/components/AssetFilterModal.vue'
 import type { FilterCriteria, OrganizationFeatures } from '../../app/types/api'
 
 const features: OrganizationFeatures = { attributes: true, categories: true, collections: true, locations: true, conditions: true, plugins: true, warranties: true }
-const modal = { props: ['open'], template: '<div v-if="open"><slot name="body" /><slot name="footer" /></div>' }
+const modal = { props: ['open', 'title'], template: '<div v-if="open"><h1>{{ title }}</h1><slot name="body" /><slot name="footer" /></div>' }
 const input = { props: ['modelValue'], emits: ['update:modelValue'], template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)">' }
 
-async function setup(criteria: FilterCriteria, enabled = features) {
+async function setup(criteria: FilterCriteria, enabled = features, mode: 'advanced' | 'edit' = 'advanced') {
   const save = vi.fn().mockResolvedValue(true)
   const apply = vi.fn()
   const wrapper = await mountSuspended(defineComponent({
     setup() {
       const editor = ref<InstanceType<typeof AssetFilterModal>>()
       return () => h('div', [
-        h('button', { 'aria-label': 'Open filter', 'onClick': () => editor.value?.show() }, 'Open filter'),
+        h('button', { 'aria-label': 'Open filter', 'onClick': () => editor.value?.show(mode) }, 'Open filter'),
         h(AssetFilterModal, { ref: editor, criteria, attributes: [], options: {}, features: enabled, issues: [], message: '', busy: false, save, onApply: apply })
       ])
     }
@@ -27,6 +27,12 @@ async function setup(criteria: FilterCriteria, enabled = features) {
 }
 
 describe('advanced filter drafts', () => {
+  it('identifies the builder as editing when opened from a saved search action', async () => {
+    const { wrapper } = await setup({ version: 1, q: 'retro' }, features, 'edit')
+    expect(wrapper.get('h1').text()).toBe('Edit saved search')
+    wrapper.unmount()
+  })
+
   it('does not change applied criteria when editing or cancelling a draft', async () => {
     const criteria: FilterCriteria = { version: 1, q: 'original' }
     const { wrapper, apply } = await setup(criteria)
