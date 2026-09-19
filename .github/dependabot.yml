@@ -14,7 +14,7 @@ updates:
           - "*"
 
   - package-ecosystem: "gomod"
-    directory: "/"
+    directory: "/backend"
     schedule:
       interval: "weekly"
     labels:
@@ -26,7 +26,7 @@ updates:
           - "*"
 
   - package-ecosystem: "bun"
-    directory: "/"
+    directory: "/frontend"
     schedule:
       interval: "weekly"
     labels:
