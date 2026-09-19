@@ -44,6 +44,7 @@ describe('Inventory pagination', () => {
   it('applies the category from a library card link', async () => {
     routeQuery.category_id = 'selected'
     const wrapper = await mountPage()
+    await wrapper.get('button[aria-label="Filters"]').trigger('click')
     const getUrl = api.mock.calls.find(([url]) => typeof url === 'function')![0] as () => string
     expect(getUrl()).toContain('category_id=selected')
     expect((wrapper.get('select[aria-label="Filter by category"]').element as HTMLSelectElement).value).toBe('selected')
@@ -71,6 +72,7 @@ describe('Inventory pagination', () => {
     await wrapper.get('button[aria-label="Page 10"]').trigger('click')
     const getUrl = api.mock.calls.find(([url]) => typeof url === 'function')![0] as () => string
     expect(getUrl()).toContain('offset=216')
+    await wrapper.get('button[aria-label="Filters"]').trigger('click')
     await wrapper.get(`select[aria-label="Filter by ${label}"]`).setValue('selected')
     expect(getUrl()).toContain('offset=0')
     expect(getUrl()).toContain(`${queryKey}=selected`)
