@@ -104,9 +104,21 @@ export interface Collection {
   updated_at: string
 }
 
+export interface Tag {
+  id: string
+  organization_id: string
+  name: string
+  description?: string
+  asset_count: number
+  created_at: string
+  updated_at: string
+}
+
 export interface Asset {
   collection_ids?: string[]
   collections?: Collection[]
+  tag_ids?: string[]
+  tags?: Tag[]
   id: string
   organization_id: string
   category_id?: string
@@ -194,13 +206,15 @@ export interface AssetFilters {
   category_id?: string
   location_id?: string
   condition_id?: string
+  tag_ids?: string[]
+  tag_match?: 'any' | 'all'
   limit?: number
   offset?: number
 }
 
 export interface FilterRule {
   kind: 'rule'
-  field: 'attribute' | 'collections' | 'category' | 'location' | 'condition' | 'q' | 'attribute_q'
+  field: 'attribute' | 'collections' | 'tags' | 'category' | 'location' | 'condition' | 'q' | 'attribute_q'
   attribute_id?: string
   data_type?: AttributeDataType
   selection_mode?: 'single' | 'multiple'

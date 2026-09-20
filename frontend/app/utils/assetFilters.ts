@@ -13,6 +13,7 @@ export function issueLabel(issue: FilterIssue, criteria: FilterCriteria, attribu
   const path = normalizeIssuePath(issue.path)
   const key = criteriaKeys.find(key => path === key || path.startsWith(`${key}.`))
   if (key) return criteriaLabels[key]
+  if (path === 'tag_ids' || path === 'tag_match') return 'Tags'
   if (!path.startsWith('expression')) return 'Filter'
   const indices = [...path.matchAll(/children\.(\d+)/g)].map(match => Number(match[1]))
   let node = criteria.expression
@@ -20,7 +21,7 @@ export function issueLabel(issue: FilterIssue, criteria: FilterCriteria, attribu
   const label = node?.kind === 'rule'
     ? node.field === 'attribute'
       ? attributes.find(a => a.id === node.attribute_id)?.name || 'Attribute'
-      : ({ collections: 'Collections', category: 'Category', location: 'Location', condition: 'Condition', q: 'Name / description', attribute_q: 'Attribute values' })[node.field]
+      : ({ collections: 'Collections', tags: 'Tags', category: 'Category', location: 'Location', condition: 'Condition', q: 'Name / description', attribute_q: 'Attribute values' })[node.field]
     : 'Group'
   return `${label}${indices.length ? ` (rule ${indices.map(i => i + 1).join('.')})` : ''}`
 }
@@ -28,6 +29,8 @@ export function issueLabel(issue: FilterIssue, criteria: FilterCriteria, attribu
 export function copyCriteria(value: FilterCriteria): FilterCriteria {
   const result: FilterCriteria = { version: value.version }
   for (const key of criteriaKeys) if (value[key]) result[key] = value[key]
+  if (value.tag_ids?.length) result.tag_ids = [...value.tag_ids]
+  if (value.tag_match) result.tag_match = value.tag_match
   if (value.expression) result.expression = JSON.parse(JSON.stringify(value.expression))
   return result
 }
@@ -44,6 +47,8 @@ export function readCriteria(query: Record<string, unknown>): { criteria: Filter
       const parsed = JSON.parse(query.criteria)
       if (!parsed || parsed.version !== 1) throw new Error('Unsupported filter version')
       for (const key of criteriaKeys) if (parsed[key] !== undefined && typeof parsed[key] !== 'string') throw new Error('Invalid criteria')
+      if (parsed.tag_ids !== undefined && (!Array.isArray(parsed.tag_ids) || parsed.tag_ids.length > 50 || parsed.tag_ids.some((id: unknown) => typeof id !== 'string'))) throw new Error('Invalid criteria')
+      if (parsed.tag_match !== undefined && !['any', 'all'].includes(parsed.tag_match)) throw new Error('Invalid criteria')
       if (parsed.expression && !isNode(parsed.expression)) throw new Error('Invalid expression')
       criteria = copyCriteria(parsed)
     } catch {
@@ -51,6 +56,16 @@ export function readCriteria(query: Record<string, unknown>): { criteria: Filter
     }
   }
   for (const key of criteriaKeys) if (typeof query[key] === 'string') criteria[key] = query[key] as string
+  const rawTagIDs = query.tag_id
+  const tagIDs = typeof rawTagIDs === 'string' ? [rawTagIDs] : Array.isArray(rawTagIDs) ? rawTagIDs.filter((id): id is string => typeof id === 'string') : []
+  if (tagIDs.length) {
+    if (tagIDs.length > 50) return { criteria: { version: 1 }, error: 'This filter URL is invalid. Clear the filters or open a saved filter.' }
+    if (query.tag_match !== undefined && !['any', 'all'].includes(query.tag_match as string)) return { criteria: { version: 1 }, error: 'This filter URL is invalid. Clear the filters or open a saved filter.' }
+    criteria.tag_ids = [...new Set(tagIDs)]
+    criteria.tag_match = query.tag_match === 'all' ? 'all' : 'any'
+  } else if (query.tag_match !== undefined) {
+    return { criteria: { version: 1 }, error: 'This filter URL is invalid. Clear the filters or open a saved filter.' }
+  }
   return { criteria }
 }
 
@@ -58,7 +73,7 @@ function isNode(value: unknown, depth = 1, budget = { rules: 0 }): value is Filt
   if (!value || typeof value !== 'object') return false
   const node = value as FilterNode
   if (node.kind === 'group') return depth <= 5 && ['all', 'any'].includes(node.match) && Array.isArray(node.children) && node.children.length <= 50 && node.children.every(child => isNode(child, depth + 1, budget))
-  return node.kind === 'rule' && ++budget.rules <= 50 && ['attribute', 'collections', 'category', 'location', 'condition', 'q', 'attribute_q'].includes(node.field)
+  return node.kind === 'rule' && ++budget.rules <= 50 && ['attribute', 'collections', 'tags', 'category', 'location', 'condition', 'q', 'attribute_q'].includes(node.field)
     && typeof node.operator === 'string'
     && (node.attribute_id === undefined || typeof node.attribute_id === 'string')
     && (node.value === undefined || ['string', 'number', 'boolean'].includes(typeof node.value))
@@ -70,6 +85,7 @@ export function ruleOperators(rule: FilterRule): string[] {
   if (rule.field === 'q') return ['search']
   if (rule.field === 'attribute_q') return ['contains']
   if (rule.field === 'collections') return ['any', 'all']
+  if (rule.field === 'tags') return ['any', 'all']
   if (rule.field !== 'attribute') return ['any']
   const empty = ['empty', 'not_empty']
   if (rule.data_type === 'select') return [...(rule.selection_mode === 'multiple' ? ['any', 'all'] : ['any']), ...empty]

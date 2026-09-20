@@ -20,6 +20,8 @@ export function useAssetFiltering(filters: AssetFilters) {
   const criteria = computed<FilterCriteria>(() => {
     const value: FilterCriteria = { version: version.value, expression: expression.value }
     for (const key of criteriaKeys) if (filters[key]) value[key] = filters[key]
+    if (filters.tag_ids?.length) value.tag_ids = [...filters.tag_ids]
+    if (filters.tag_match) value.tag_match = filters.tag_match
     return copyCriteria(value)
   })
   const modified = computed(() => !!selected.value && !criteriaEqual(criteria.value, selected.value.criteria))
@@ -30,6 +32,8 @@ export function useAssetFiltering(filters: AssetFilters) {
   function assign(next: FilterCriteria) {
     version.value = next.version
     for (const key of criteriaKeys) filters[key] = next[key]
+    filters.tag_ids = next.tag_ids ? [...next.tag_ids] : undefined
+    filters.tag_match = next.tag_ids?.length ? next.tag_match || 'any' : undefined
     expression.value = copyCriteria(next).expression
     filters.offset = 0
     revision.value++
@@ -57,7 +61,11 @@ export function useAssetFiltering(filters: AssetFilters) {
   function writeRoute() {
     const query = { ...route.query }
     for (const key of criteriaKeys) Reflect.deleteProperty(query, key)
+    delete query.tag_id
+    delete query.tag_match
     for (const key of criteriaKeys) if (criteria.value[key]) query[key] = criteria.value[key]
+    if (criteria.value.tag_ids?.length) query.tag_id = [...criteria.value.tag_ids]
+    if (criteria.value.tag_ids?.length) query.tag_match = criteria.value.tag_match || 'any'
     if (structured.value || selectedId.value || expression.value) query.criteria = JSON.stringify(criteria.value)
     else delete query.criteria
     if (selectedId.value) query.saved_filter_id = selectedId.value
@@ -110,7 +118,7 @@ export function useAssetFiltering(filters: AssetFilters) {
     const id = typeof route.query.saved_filter_id === 'string' ? route.query.saved_filter_id : undefined
     selectedId.value = id
     selected.value = undefined
-    const explicitCriteria = typeof route.query.criteria === 'string' || criteriaKeys.some(key => typeof route.query[key] === 'string')
+    const explicitCriteria = typeof route.query.criteria === 'string' || criteriaKeys.some(key => typeof route.query[key] === 'string') || route.query.tag_id !== undefined
     if (id && !parsed.error) void loadSaved(id, !explicitCriteria)
     restoring = false
   }

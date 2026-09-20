@@ -21,14 +21,28 @@ const name = ref('')
 const localIssues = ref<FilterIssue[]>([])
 const nameError = ref('')
 const allIssues = computed(() => [...localIssues.value, ...props.issues])
-const topRows = computed(() => criteriaKeys.filter(key => draft.value[key]).map((key) => {
-  const value = draft.value[key]!
-  const field = key === 'collection_id' ? 'collections' : key.replace('_id', '')
-  const option = props.options[field]?.find(option => option.value === value)
-  const unavailable = key === 'q' ? false : key === 'attribute_q' ? !props.features.attributes : !option
-  return { key, label: criteriaLabels[key], value: option?.label || value, unavailable }
-}))
-function removeTop(key: typeof criteriaKeys[number]) {
+type TopRow = { key: typeof criteriaKeys[number] | 'tag_ids', label: string, value: string, unavailable: boolean }
+const topRows = computed<TopRow[]>(() => {
+  const rows: TopRow[] = criteriaKeys.filter(key => draft.value[key]).map((key) => {
+    const value = draft.value[key]!
+    const field = key === 'collection_id' ? 'collections' : key.replace('_id', '')
+    const option = props.options[field]?.find(option => option.value === value)
+    const unavailable = key === 'q' ? false : key === 'attribute_q' ? !props.features.attributes : !option
+    return { key, label: criteriaLabels[key], value: option?.label || value, unavailable }
+  })
+  if (draft.value.tag_ids?.length) {
+    const tags = draft.value.tag_ids.map(id => props.options.tags?.find(option => option.value === id))
+    rows.push({ key: 'tag_ids', label: 'Tags', value: tags.map((tag, index) => tag?.label || draft.value.tag_ids![index]).join(', '), unavailable: tags.some(tag => !tag) })
+  }
+  return rows
+})
+function removeTop(key: typeof criteriaKeys[number] | 'tag_ids') {
+  if (key === 'tag_ids') {
+    delete draft.value.tag_ids
+    delete draft.value.tag_match
+    localIssues.value = localIssues.value.filter(issue => !['tag_ids', 'tag_match'].includes(normalizeIssuePath(issue.path)))
+    return
+  }
   Reflect.deleteProperty(draft.value, key)
   localIssues.value = localIssues.value.filter(issue => normalizeIssuePath(issue.path) !== key)
 }
@@ -123,7 +137,7 @@ defineExpose({ show })
               Remove
             </UButton>
             <p
-              v-for="(issue, index) in allIssues.filter(issue => normalizeIssuePath(issue.path).split('.')[0] === row.key)"
+              v-for="(issue, index) in allIssues.filter(issue => normalizeIssuePath(issue.path).split('.')[0] === row.key || (row.key === 'tag_ids' && normalizeIssuePath(issue.path) === 'tag_match'))"
               :key="index"
               class="w-full text-sm text-error"
             >

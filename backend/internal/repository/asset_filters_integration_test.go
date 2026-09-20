@@ -94,6 +94,22 @@ func TestAssetFiltersSQL(t *testing.T) {
 		n := domain.FilterNode{Kind: "rule", Field: "collections", Operator: op, Values: []string{c1.String(), c2.String()}}
 		t.Run("collections/"+op, func(t *testing.T) { check(t, domain.FilterCriteria{Version: 1, Expression: &n}, want) })
 	}
+	t1, t2 := uuid.New(), uuid.New()
+	exec(`INSERT INTO tags(id,organization_id,name) VALUES($1,$3,'Vintage'),($2,$3,'Portable')`, t1, t2, org.ID)
+	exec(`INSERT INTO asset_tags(asset_id,tag_id) SELECT id,$2 FROM assets WHERE organization_id=$1 AND name IN ('Asset 0','Asset 1')`, org.ID, t1)
+	exec(`INSERT INTO asset_tags(asset_id,tag_id) SELECT id,$2 FROM assets WHERE organization_id=$1 AND name='Asset 0'`, org.ID, t2)
+	for op, want := range map[string]int{"any": 2, "all": 1} {
+		n := domain.FilterNode{Kind: "rule", Field: "tags", Operator: op, Values: []string{t1.String(), t2.String()}}
+		t.Run("tags/"+op, func(t *testing.T) { check(t, domain.FilterCriteria{Version: 1, Expression: &n}, want) })
+	}
+	check(t, domain.FilterCriteria{Version: 1, TagIDs: []string{t1.String(), t2.String()}, TagMatch: "all"}, 1)
+	check(t, domain.FilterCriteria{Version: 1, Query: "vint"}, 2)
+	{
+		rows, total, err := repo.List(ctx, org.ID, domain.AssetFilter{TagIDs: []uuid.UUID{t1, t2}, TagMatch: "all"}, domain.Pagination{Limit: 100})
+		if err != nil || total != 1 || len(rows) != 1 {
+			t.Fatalf("direct all-tag filter: rows=%d total=%d err=%v", len(rows), total, err)
+		}
+	}
 	nested := domain.FilterNode{Kind: "group", Match: "all", Children: []domain.FilterNode{rule("n", "gte", float64(0)), {Kind: "group", Match: "any", Children: []domain.FilterNode{rule("b", "eq", false), rule("s", "eq", "absent")}}}}
 	check(t, domain.FilterCriteria{Version: 1, Expression: &nested}, 1)
 	c := domain.FilterCriteria{Version: 1, AttributeQuery: "memo"}

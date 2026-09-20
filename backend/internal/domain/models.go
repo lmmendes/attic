@@ -178,6 +178,7 @@ type Asset struct {
 	CollectionID     *uuid.UUID      `json:"-"` // Legacy storage field; new memberships use asset_collections.
 	CollectionIDs    []uuid.UUID     `json:"collection_ids"`
 	Collections      []Collection    `json:"collections"`
+	TagIDs           []uuid.UUID     `json:"tag_ids"`
 	MainAttachmentID *uuid.UUID      `json:"main_attachment_id,omitempty"`
 	Name             string          `json:"name"`
 	Description      *string         `json:"description,omitempty"`
@@ -200,6 +201,7 @@ type Asset struct {
 	Tags           []Tag       `json:"tags,omitempty"`
 	Warranty       *Warranty   `json:"warranty,omitempty"`
 	MainAttachment *Attachment `json:"main_attachment,omitempty"`
+	NewTagNames    []string    `json:"-"`
 }
 
 // Tag represents a free-form tag
@@ -207,7 +209,10 @@ type Tag struct {
 	ID             uuid.UUID `json:"id"`
 	OrganizationID uuid.UUID `json:"organization_id"`
 	Name           string    `json:"name"`
+	Description    *string   `json:"description,omitempty"`
 	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	AssetCount     int       `json:"asset_count"`
 }
 
 // Warranty represents warranty information for an asset

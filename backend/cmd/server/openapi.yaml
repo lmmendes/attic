@@ -21,6 +21,8 @@ tags:
     description: Asset condition management
   - name: Assets
     description: Asset management
+  - name: Tags
+    description: Shared asset tag management
   - name: Asset Events
     description: User-managed asset history events
   - name: Warranties
@@ -411,6 +413,72 @@ paths:
         '404':
           description: Collection not found in this workspace
 
+  /api/tags:
+    get:
+      tags: [Tags]
+      summary: List shared tags with active asset counts
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Tag' } }
+    post:
+      tags: [Tags]
+      summary: Create a shared tag
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TagInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tag' }
+        '409': { description: A tag with this name already exists, case-insensitively }
+
+  /api/tags/{id}:
+    parameters:
+      - $ref: '#/components/parameters/id'
+    get:
+      tags: [Tags]
+      summary: Get a shared tag
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tag' }
+        '404': { description: Tag not found in this workspace }
+    put:
+      tags: [Tags]
+      summary: Rename or describe a shared tag
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TagInput' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tag' }
+        '409': { description: A tag with this name already exists, case-insensitively }
+    delete:
+      tags: [Tags]
+      summary: Delete a tag and detach it from assets
+      security: [{ sessionCookie: [] }]
+      responses:
+        '204': { description: Deleted without deleting assets }
+        '404': { description: Tag not found in this workspace }
+
   /api/assets:
     get:
       tags: [Assets]
@@ -429,6 +497,16 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: tag_id
+          in: query
+          description: Repeat to filter by multiple shared tag UUIDs.
+          schema: { type: array, maxItems: 50, items: { type: string, format: uuid } }
+          style: form
+          explode: true
+        - name: tag_match
+          in: query
+          description: Match any selected tag by default, or require all selected tags.
+          schema: { type: string, enum: [any, all], default: any }
         - name: attribute_q
           in: query
           description: Case-insensitive literal substring across active visible attribute values and select option labels. Combined with other criteria using AND; percent, underscore and backslash are literal.
@@ -1254,6 +1332,14 @@ components:
         collection_id:
           type: string
           format: uuid
+        tag_ids:
+          type: array
+          maxItems: 50
+          items: { type: string, format: uuid }
+        tag_match:
+          type: string
+          enum: [any, all]
+          default: any
         expression:
           $ref: '#/components/schemas/FilterNode'
     FilterNode:
@@ -1292,7 +1378,7 @@ components:
         Selects support any; multiple selections additionally support all.
         All attributes support empty/not_empty without a value: missing, null,
         empty string or empty array count as empty; zero and false do not.
-        Collections support any/all; category/location/condition support any.
+        Collections and tags support any/all; category/location/condition support any.
         Category values may include uncategorized; category matching includes descendants.
         q requires search and attribute_q requires contains, each with a string value.
         Membership rules require values and no value/upper; scalar rules require
@@ -1306,7 +1392,7 @@ components:
           enum: [rule]
         field:
           type: string
-          enum: [attribute, collections, category, location, condition, q, attribute_q]
+          enum: [attribute, collections, tags, category, location, condition, q, attribute_q]
         attribute_id:
           type: string
           format: uuid
@@ -1715,6 +1801,25 @@ components:
               type: string
               format: date-time
 
+    TagInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, nullable: true, maxLength: 2000 }
+    Tag:
+      allOf:
+        - $ref: '#/components/schemas/TagInput'
+        - type: object
+          required: [id, organization_id, name, asset_count, created_at, updated_at]
+          properties:
+            id: { type: string, format: uuid }
+            organization_id: { type: string, format: uuid }
+            asset_count: { type: integer, minimum: 0 }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
     Asset:
       type: object
       properties:
@@ -1728,6 +1833,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Collection'
+        tag_ids:
+          type: array
+          items: { type: string, format: uuid }
+        tags:
+          type: array
+          items: { $ref: '#/components/schemas/Tag' }
         id:
           type: string
           format: uuid
@@ -1782,6 +1893,16 @@ components:
           items:
             type: string
             format: uuid
+        tag_ids:
+          type: array
+          maxItems: 50
+          description: Existing tag UUIDs. On update, omission with new_tag_names also omitted preserves assignments; explicit empty arrays clear them.
+          items: { type: string, format: uuid }
+        new_tag_names:
+          type: array
+          maxItems: 50
+          description: New names created atomically with the asset save; combined unique assignments may not exceed 50.
+          items: { type: string, minLength: 1, maxLength: 100 }
         name:
           type: string
         description:

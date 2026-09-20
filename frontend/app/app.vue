@@ -133,6 +133,7 @@ const baseNavigation = [
   { label: 'All Assets', to: '/assets', icon: 'i-lucide-package' },
   { label: 'Locations', to: '/locations', icon: 'i-lucide-map-pin' },
   { label: 'Collections', to: '/collections', icon: 'i-lucide-library' },
+  { label: 'Tags', to: '/tags', icon: 'i-lucide-tags' },
   { label: 'Categories', to: '/categories', icon: 'i-lucide-tag' }
 ]
 

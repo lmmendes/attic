@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Collection, Category, Location, Condition, AssetsResponse, AssetFilters, Asset, Attribute } from '~/types/api'
+import type { Collection, Category, Location, Condition, AssetsResponse, AssetFilters, Asset, Attribute, Tag } from '~/types/api'
 import { buildCategoryOptions } from '~/utils/categoryHierarchy'
 import { filterFailure, issueLabel } from '~/utils/assetFilters'
 
@@ -33,6 +33,8 @@ const filters = reactive<AssetFilters>({
   category_id: features.value.categories && typeof route.query.category_id === 'string' ? route.query.category_id : undefined,
   location_id: features.value.locations && typeof route.query.location_id === 'string' ? route.query.location_id : undefined,
   condition_id: undefined,
+  tag_ids: [],
+  tag_match: 'any',
   limit: 24,
   offset: 0
 })
@@ -85,6 +87,8 @@ const queryString = computed(() => {
   if (features.value.categories && filters.category_id) params.set('category_id', filters.category_id)
   if (features.value.locations && filters.location_id) params.set('location_id', filters.location_id)
   if (features.value.conditions && filters.condition_id) params.set('condition_id', filters.condition_id)
+  for (const id of filters.tag_ids || []) params.append('tag_id', id)
+  if (filters.tag_ids?.length) params.set('tag_match', filters.tag_match || 'any')
   params.set('limit', String(filters.limit))
   params.set('offset', String(filters.offset))
   return params.toString()
@@ -118,6 +122,8 @@ const collectionOptions = computed(() => collections.value?.map(c => ({ label: c
 const { data: categories } = useApi<Category[]>('/api/categories', { immediate: features.value.categories })
 const { data: locations } = useApi<Location[]>('/api/locations', { immediate: features.value.locations })
 const { data: conditions } = useApi<Condition[]>('/api/conditions', { immediate: features.value.conditions })
+const { data: tags } = useApi<Tag[]>('/api/tags')
+const tagOptions = computed(() => (tags.value || []).map(tag => ({ label: tag.name, value: tag.id })))
 const { data: attributes, error: attributesError, refresh: refreshAttributes } = useApi<Attribute[]>('/api/attributes', { immediate: features.value.attributes })
 const visibleAttributes = computed(() => features.value.attributes ? (attributes.value || []).filter(a => features.value.plugins || !a.plugin_id) : [])
 const selectableAttributes = computed(() => visibleAttributes.value
@@ -139,6 +145,7 @@ const attributeValueOptions = computed(() => (selectedAttribute.value?.options |
   }))
   .sort((left, right) => left.label.localeCompare(right.label)))
 const advancedOptions = computed(() => ({
+  tags: tagOptions.value,
   ...(features.value.collections ? { collections: collectionOptions.value } : {}),
   ...(features.value.categories ? { category: categoryOptions.value } : {}),
   ...(features.value.locations ? { location: locationOptions.value } : {}),
@@ -198,7 +205,7 @@ const conditionOptions = computed(() =>
   conditions.value?.map(c => ({ label: c.label, value: c.id })) || []
 )
 
-type ActiveFilterKey = 'collection_id' | 'category_id' | 'location_id' | 'condition_id' | 'attribute_q' | 'expression'
+type ActiveFilterKey = 'collection_id' | 'category_id' | 'location_id' | 'condition_id' | 'attribute_q' | 'tag_ids' | 'expression'
 
 const activeFilterChips = computed<{ key: ActiveFilterKey, label: string }[]>(() => {
   const chips: { key: ActiveFilterKey, label: string }[] = []
@@ -216,6 +223,10 @@ const activeFilterChips = computed<{ key: ActiveFilterKey, label: string }[]>(()
   }
   if (filters.location_id) chips.push({ key: 'location_id', label: `Location: ${optionName(locations.value, filters.location_id)}` })
   if (filters.condition_id) chips.push({ key: 'condition_id', label: `Condition: ${optionName(conditions.value, filters.condition_id)}` })
+  if (filters.tag_ids?.length) {
+    const names = filters.tag_ids.map(id => optionName(tags.value, id)).join(', ')
+    chips.push({ key: 'tag_ids', label: `Tags (${filters.tag_match || 'any'}): ${names}` })
+  }
   if (filters.attribute_q) {
     const attribute = selectableAttributes.value.find(item => item.options?.some(option => option.label === filters.attribute_q))
     chips.push({ key: 'attribute_q', label: `${attribute?.name || 'Attribute'}: ${filters.attribute_q}` })
@@ -235,12 +246,18 @@ function removeActiveFilter(key: ActiveFilterKey) {
     selectAttributeValue(undefined)
     return
   }
+  if (key === 'tag_ids') {
+    filters.tag_ids = []
+    filters.tag_match = 'any'
+    filters.offset = 0
+    return
+  }
   filters[key] = undefined
   filters.offset = 0
 }
 
 const hasActiveFilters = computed(() => Boolean(
-  filters.collection_id || filters.q || filters.attribute_q || filters.category_id || filters.location_id || filters.condition_id || expression.value || selectedId.value || routeInvalid.value
+  filters.collection_id || filters.q || filters.attribute_q || filters.category_id || filters.location_id || filters.condition_id || filters.tag_ids?.length || expression.value || selectedId.value || routeInvalid.value
 ))
 
 function clearFilters() {
@@ -494,6 +511,24 @@ function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
             value-key="value"
             placeholder="Collection"
             aria-label="Filter by collection"
+            class="min-w-0"
+          />
+          <USelectMenu
+            v-model="filters.tag_ids"
+            :items="tagOptions"
+            multiple
+            value-key="value"
+            placeholder="Tags"
+            aria-label="Filter by tags"
+            class="min-w-0"
+            icon="i-lucide-tags"
+          />
+          <USelect
+            v-if="(filters.tag_ids?.length || 0) > 1"
+            v-model="filters.tag_match"
+            :items="[{ label: 'Match any tag', value: 'any' }, { label: 'Match all tags', value: 'all' }]"
+            value-key="value"
+            aria-label="Tag matching"
             class="min-w-0"
           />
           <USelectMenu
@@ -880,6 +915,18 @@ function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
                       :to="{ path: '/assets', query: { ...route.query, collection_id: collection.id } }"
                       class="rounded-md bg-attic-50 px-2 py-1 text-xs font-semibold text-attic-600 hover:underline dark:bg-attic-500/10 dark:text-attic-300"
                     >{{ collection.name }}</NuxtLink>
+                  </div>
+                  <div
+                    v-if="asset.tags?.length"
+                    class="mt-2 flex flex-wrap gap-1.5"
+                    aria-label="Tags"
+                  >
+                    <NuxtLink
+                      v-for="tag in asset.tags"
+                      :key="tag.id"
+                      :to="{ path: '/assets', query: { tag_id: tag.id } }"
+                      class="rounded-md bg-mist-100 px-2 py-1 text-xs font-semibold text-mist-700 hover:underline dark:bg-mist-700 dark:text-mist-200"
+                    >{{ tag.name }}</NuxtLink>
                   </div>
                 </td>
                 <td

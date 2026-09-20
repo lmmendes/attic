@@ -130,6 +130,7 @@ func main() {
 		AssetEvents:   repository.NewAssetEventRepository(db.Pool),
 		Attributes:    repository.NewAttributeRepository(db.Pool),
 		SavedFilters:  repository.NewSavedFilterRepository(db.Pool),
+		Tags:          repository.NewTagRepository(db.Pool),
 	}
 
 	// Resolve default organization from database
@@ -387,6 +388,14 @@ func main() {
 			r.Get("/{id}", h.GetSavedFilter)
 			r.Put("/{id}", h.UpdateSavedFilter)
 			r.Delete("/{id}", h.DeleteSavedFilter)
+		})
+
+		r.Route("/tags", func(r chi.Router) {
+			r.Get("/", h.ListTags)
+			r.Post("/", h.CreateTag)
+			r.Get("/{id}", h.GetTag)
+			r.Put("/{id}", h.UpdateTag)
+			r.Delete("/{id}", h.DeleteTag)
 		})
 
 		// Assets

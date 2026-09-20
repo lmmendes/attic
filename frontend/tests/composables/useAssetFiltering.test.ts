@@ -5,7 +5,7 @@ import { defineComponent, h, nextTick, reactive, ref } from 'vue'
 import { useAssetFiltering } from '../../app/composables/useAssetFiltering'
 import type { AssetFilters, SavedFilter } from '../../app/types/api'
 
-const { fetch, api, replace, route } = vi.hoisted(() => ({ fetch: vi.fn(), api: vi.fn(), replace: vi.fn(), route: { query: {} as Record<string, string> } }))
+const { fetch, api, replace, route } = vi.hoisted(() => ({ fetch: vi.fn(), api: vi.fn(), replace: vi.fn(), route: { query: {} as Record<string, string | string[]> } }))
 mockNuxtImport('useApiFetch', () => () => fetch)
 mockNuxtImport('useApi', () => api)
 mockNuxtImport('useRoute', () => () => route)
@@ -15,7 +15,7 @@ const mocks = { fetch, api, replace, route }
 const saved: SavedFilter = { id: 'saved-1', name: 'Retro', pinned: false, criteria: { version: 1, q: 'retro', category_id: 'old-category' }, created_at: '', updated_at: '' }
 let state: ReturnType<typeof useAssetFiltering>
 let filters: AssetFilters
-async function setup(query: Record<string, string> = {}) {
+async function setup(query: Record<string, string | string[]> = {}) {
   route.query = reactive(query)
   const wrapper = mount(defineComponent({
     setup() {
@@ -74,6 +74,15 @@ describe('personal asset filters', () => {
     expect(filters.offset).toBe(96)
     filters.q = 'reset paging'
     expect(filters.offset).toBe(0)
+    wrapper.unmount()
+  })
+
+  it('roundtrips multi-tag filters through the route', async () => {
+    const wrapper = await setup({ tag_id: ['one', 'two'], tag_match: 'all' })
+    expect(state.criteria.value).toEqual({ version: 1, tag_ids: ['one', 'two'], tag_match: 'all' })
+    state.clear()
+    await nextTick()
+    expect(mocks.replace.mock.calls.at(-1)![0].query).not.toHaveProperty('tag_id')
     wrapper.unmount()
   })
 

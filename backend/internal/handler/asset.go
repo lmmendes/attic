@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/lmmendes/attic/internal/domain"
@@ -20,6 +21,8 @@ const uncategorizedCategoryFilter = "uncategorized"
 
 type CreateAssetRequest struct {
 	CollectionIDs []string        `json:"collection_ids,omitempty"`
+	TagIDs        *[]string       `json:"tag_ids,omitempty"`
+	NewTagNames   *[]string       `json:"new_tag_names,omitempty"`
 	CategoryID    *string         `json:"category_id,omitempty"`
 	LocationID    *string         `json:"location_id,omitempty"`
 	ConditionID   *string         `json:"condition_id,omitempty"`
@@ -35,6 +38,8 @@ type CreateAssetRequest struct {
 
 type UpdateAssetRequest struct {
 	CollectionIDs []string        `json:"collection_ids,omitempty"`
+	TagIDs        *[]string       `json:"tag_ids,omitempty"`
+	NewTagNames   *[]string       `json:"new_tag_names,omitempty"`
 	CategoryID    *string         `json:"category_id,omitempty"`
 	LocationID    *string         `json:"location_id,omitempty"`
 	ConditionID   *string         `json:"condition_id,omitempty"`
@@ -107,6 +112,30 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 
 	filter := domain.AssetFilter{
 		Query: q.Get("q"),
+	}
+	seenTagIDs := map[uuid.UUID]bool{}
+	for _, value := range q["tag_id"] {
+		id, err := uuid.Parse(value)
+		if err != nil || id == uuid.Nil {
+			writeError(w, http.StatusBadRequest, "invalid tag ID")
+			return
+		}
+		if !seenTagIDs[id] {
+			filter.TagIDs = append(filter.TagIDs, id)
+			seenTagIDs[id] = true
+		}
+	}
+	if len(filter.TagIDs) > 50 {
+		writeError(w, http.StatusBadRequest, "filter by at most 50 tags")
+		return
+	}
+	filter.TagMatch = q.Get("tag_match")
+	if filter.TagMatch == "" {
+		filter.TagMatch = "any"
+	}
+	if filter.TagMatch != "any" && filter.TagMatch != "all" {
+		writeError(w, http.StatusBadRequest, "tag_match must be any or all")
+		return
 	}
 
 	if catID := q.Get("category_id"); catID != "" {
@@ -236,6 +265,11 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	tagIDs, newTagNames, tagsProvided, err := parseTagAssignment(req.TagIDs, req.NewTagNames)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if err := h.rejectDisabledAssetFields(r, req.CategoryID, req.LocationID, req.ConditionID, collectionIDs, req.Attributes); err != nil {
 		if _, ok := err.(featureDisabledError); ok {
 			writeError(w, http.StatusForbidden, err.Error())
@@ -302,6 +336,9 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	asset.Notes = req.Notes
 
 	asset.CollectionIDs = collectionIDs
+	if tagsProvided {
+		asset.TagIDs, asset.NewTagNames = tagIDs, newTagNames
+	}
 	if err := h.repos.Assets.Create(r.Context(), asset); err != nil {
 		var attributeErr *repository.AttributeError
 		if errors.As(err, &attributeErr) {
@@ -309,6 +346,10 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, repository.ErrInvalidCollections) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if errors.Is(err, repository.ErrInvalidTags) {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -347,6 +388,11 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	collectionIDs, err := parseCollectionIDs(req.CollectionIDs)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tagIDs, newTagNames, tagsProvided, err := parseTagAssignment(req.TagIDs, req.NewTagNames)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -449,6 +495,9 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 	if features.Collections {
 		asset.CollectionIDs = collectionIDs
 	}
+	if tagsProvided {
+		asset.TagIDs, asset.NewTagNames = tagIDs, newTagNames
+	}
 
 	if err := h.repos.Assets.Update(r.Context(), asset); err != nil {
 		var attributeErr *repository.AttributeError
@@ -460,11 +509,54 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		if errors.Is(err, repository.ErrInvalidTags) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "failed to update asset")
 		return
 	}
 
 	writeJSON(w, http.StatusOK, asset)
+}
+
+func parseTagAssignment(idValues, nameValues *[]string) ([]uuid.UUID, []string, bool, error) {
+	if idValues == nil && nameValues == nil {
+		return nil, nil, false, nil
+	}
+	ids := []uuid.UUID{}
+	seenIDs := map[uuid.UUID]bool{}
+	if idValues != nil {
+		for _, value := range *idValues {
+			id, err := uuid.Parse(value)
+			if err != nil || id == uuid.Nil {
+				return nil, nil, true, errors.New("invalid tag ID")
+			}
+			if !seenIDs[id] {
+				ids = append(ids, id)
+				seenIDs[id] = true
+			}
+		}
+	}
+	names := []string{}
+	seenNames := map[string]bool{}
+	if nameValues != nil {
+		for _, value := range *nameValues {
+			name := strings.TrimSpace(value)
+			key := strings.ToLower(name)
+			if name == "" || utf8.RuneCountInString(name) > 100 {
+				return nil, nil, true, errors.New("tag names must contain 1 to 100 characters")
+			}
+			if !seenNames[key] {
+				names = append(names, name)
+				seenNames[key] = true
+			}
+		}
+	}
+	if len(ids)+len(names) > 50 {
+		return nil, nil, true, errors.New("assign at most 50 tags")
+	}
+	return ids, names, true, nil
 }
 
 func shouldPreserveHiddenPluginCategory(features *domain.OrganizationFeatures, requestedCategoryID *string, existingCategory *domain.Category) bool {
