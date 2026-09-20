@@ -45,6 +45,7 @@ const ownIssues = computed(() => props.issues.filter((issue) => {
   return path === own || (path.startsWith(`${own}.`) && !path.slice(own.length).startsWith('.children'))
 }))
 function chooseField(value: string) {
+  if (!fields.value.some(field => field.value === value)) return
   if (value === selectedField.value && !stale.value) return
   const attr = props.attributes.find(a => `attribute:${a.id}` === value)
   emit('update:modelValue', attr ? newAttributeRule(attr) : { kind: 'rule', field: value as FilterRule['field'], operator: value === 'q' ? 'search' : value === 'attribute_q' ? 'contains' : 'any' })

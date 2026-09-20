@@ -51,4 +51,12 @@ describe('filter rule editing', () => {
     expect(node.value).toMatchObject({ value: 'Amiga' })
     wrapper.unmount()
   })
+
+  it('does not replace a stale rule with an unavailable field value', async () => {
+    const stale: FilterNode = { kind: 'rule', field: 'attribute', attribute_id: 'missing', data_type: 'string', operator: 'eq', value: 'Commodore' }
+    const { node, wrapper } = await setup(stale)
+    await wrapper.get('select[aria-label="Rule field"]').setValue('attribute:missing')
+    expect(node.value).toEqual(stale)
+    wrapper.unmount()
+  })
 })
