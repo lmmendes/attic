@@ -134,7 +134,7 @@ const baseNavigation = [
   { label: 'Locations', to: '/locations', icon: 'i-lucide-map-pin' },
   { label: 'Collections', to: '/collections', icon: 'i-lucide-library' },
   { label: 'Tags', to: '/tags', icon: 'i-lucide-tags' },
-  { label: 'Categories', to: '/categories', icon: 'i-lucide-tag' }
+  { label: 'Categories', to: '/categories', icon: 'i-lucide-shapes' }
 ]
 
 const secondaryNavigation = [
