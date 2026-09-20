@@ -1809,16 +1809,17 @@ components:
         name: { type: string, minLength: 1, maxLength: 100 }
         description: { type: string, nullable: true, maxLength: 2000 }
     Tag:
-      allOf:
-        - $ref: '#/components/schemas/TagInput'
-        - type: object
-          required: [id, organization_id, name, asset_count, created_at, updated_at]
-          properties:
-            id: { type: string, format: uuid }
-            organization_id: { type: string, format: uuid }
-            asset_count: { type: integer, minimum: 0 }
-            created_at: { type: string, format: date-time }
-            updated_at: { type: string, format: date-time }
+      type: object
+      additionalProperties: false
+      required: [id, organization_id, name, asset_count, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, nullable: true, maxLength: 2000 }
+        asset_count: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
 
     Asset:
       type: object

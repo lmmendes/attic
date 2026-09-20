@@ -63,7 +63,8 @@ async function remove() {
     toast.add({ title: 'Tag deleted. Your assets are safe.', color: 'success' })
     await refresh()
   } catch (err) {
-    formError.value = (err as { data?: { error?: string } })?.data?.error || 'Could not delete tag. Please try again.'
+    const message = (err as { data?: { error?: string } })?.data?.error || 'Could not delete tag. Please try again.'
+    toast.add({ title: message, color: 'error' })
   } finally { busy.value = false }
 }
 </script>

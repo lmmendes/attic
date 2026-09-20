@@ -344,6 +344,7 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	asset.Notes = req.Notes
 
 	asset.CollectionIDs = collectionIDs
+	asset.TagIDs = []uuid.UUID{}
 	if tagsProvided {
 		asset.TagIDs, asset.NewTagNames = tagIDs, newTagNames
 	}
