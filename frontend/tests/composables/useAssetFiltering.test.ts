@@ -137,6 +137,31 @@ describe('personal asset filters', () => {
     wrapper.unmount()
   })
 
+  it('preserves an unsupported saved version so the repair flow can reject it', async () => {
+    mocks.fetch.mockResolvedValue({ ...saved, criteria: { version: 2, q: 'future' } })
+    const wrapper = await setup({ saved_filter_id: saved.id })
+    await nextTick()
+    expect(state.criteria.value).toEqual({ version: 2, q: 'future' })
+    wrapper.unmount()
+  })
+
+  it('does not restore a selection cleared while a pin request is pending', async () => {
+    const wrapper = await setup()
+    mocks.fetch.mockResolvedValueOnce(saved)
+    await state.selectSaved(saved.id)
+    let resolve!: (value: SavedFilter) => void
+    mocks.fetch.mockReturnValueOnce(new Promise<SavedFilter>((done) => {
+      resolve = done
+    }))
+    const pinning = state.togglePin()
+    state.clear()
+    resolve({ ...saved, pinned: true })
+    expect(await pinning).toBe(false)
+    expect(state.selected.value).toBeUndefined()
+    expect(state.selectedId.value).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('shows repair issues when reloading unchanged explicit saved criteria', async () => {
     const issues = [{ path: 'category_id', message: 'Category was deleted' }]
     mocks.fetch.mockResolvedValue({ ...saved, issues })

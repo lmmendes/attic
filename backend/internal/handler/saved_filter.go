@@ -9,7 +9,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/lmmendes/attic/internal/auth"
 	"github.com/lmmendes/attic/internal/domain"
@@ -117,9 +116,6 @@ func (h *Handler) CreateSavedFilter(w http.ResponseWriter, r *http.Request) {
 	if req.Pinned != nil {
 		item.Pinned = *req.Pinned
 	}
-	if item.Pinned && !h.savedFilterPinAvailable(r, w, item.UserID) {
-		return
-	}
 	if err := h.validateCriteria(r, item.Criteria); err != nil {
 		writeFilterError(w, err)
 		return
@@ -142,9 +138,6 @@ func (h *Handler) UpdateSavedFilter(w http.ResponseWriter, r *http.Request) {
 	}
 	item.Name = req.Name
 	if req.Pinned != nil && *req.Pinned != item.Pinned {
-		if *req.Pinned && !h.savedFilterPinAvailable(r, w, item.UserID) {
-			return
-		}
 		item.Pinned = *req.Pinned
 	}
 	if req.Criteria != nil {
@@ -163,19 +156,6 @@ func (h *Handler) UpdateSavedFilter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, item)
-}
-
-func (h *Handler) savedFilterPinAvailable(r *http.Request, w http.ResponseWriter, userID uuid.UUID) bool {
-	count, err := h.repos.SavedFilters.CountPinned(r.Context(), h.orgID, userID)
-	if err != nil {
-		writeFilterError(w, err)
-		return false
-	}
-	if count >= 5 {
-		writeError(w, http.StatusBadRequest, "pin at most 5 saved searches")
-		return false
-	}
-	return true
 }
 
 func (h *Handler) DeleteSavedFilter(w http.ResponseWriter, r *http.Request) {
@@ -257,6 +237,10 @@ func validFilterName(w http.ResponseWriter, name *string) bool {
 }
 
 func writeFilterError(w http.ResponseWriter, err error) {
+	if errors.Is(err, repository.ErrPinnedFilterLimit) {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	var invalid *repository.FilterError
 	if errors.As(err, &invalid) {
 		writeJSON(w, 400, map[string]any{"error": invalid.Error(), "issues": invalid.Issues})

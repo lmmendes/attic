@@ -14,6 +14,8 @@ import (
 
 type SavedFilterRepository struct{ pool *pgxpool.Pool }
 
+var ErrPinnedFilterLimit = errors.New("pin at most 5 saved searches")
+
 func NewSavedFilterRepository(pool *pgxpool.Pool) *SavedFilterRepository {
 	return &SavedFilterRepository{pool: pool}
 }
@@ -57,9 +59,20 @@ func (r *SavedFilterRepository) Create(ctx context.Context, filter *domain.Saved
 	if filter.ID == uuid.Nil {
 		filter.ID = uuid.New()
 	}
-	return r.pool.QueryRow(ctx, `INSERT INTO saved_filters (id, organization_id, user_id, name, pinned, criteria)
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck -- safe after commit
+	if err := validatePinnedFilterLimit(ctx, tx, filter); err != nil {
+		return err
+	}
+	if err := tx.QueryRow(ctx, `INSERT INTO saved_filters (id, organization_id, user_id, name, pinned, criteria)
 		VALUES ($1, $2, $3, $4, $5, $6) RETURNING created_at, updated_at`,
-		filter.ID, filter.OrganizationID, filter.UserID, filter.Name, filter.Pinned, criteria).Scan(&filter.CreatedAt, &filter.UpdatedAt)
+		filter.ID, filter.OrganizationID, filter.UserID, filter.Name, filter.Pinned, criteria).Scan(&filter.CreatedAt, &filter.UpdatedAt); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *SavedFilterRepository) Update(ctx context.Context, filter *domain.SavedFilter) error {
@@ -67,9 +80,35 @@ func (r *SavedFilterRepository) Update(ctx context.Context, filter *domain.Saved
 	if err != nil {
 		return err
 	}
-	return r.pool.QueryRow(ctx, `UPDATE saved_filters SET name = $4, pinned = $5, criteria = $6
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck -- safe after commit
+	if err := validatePinnedFilterLimit(ctx, tx, filter); err != nil {
+		return err
+	}
+	if err := tx.QueryRow(ctx, `UPDATE saved_filters SET name = $4, pinned = $5, criteria = $6
 		WHERE organization_id = $1 AND user_id = $2 AND id = $3 RETURNING updated_at`,
-		filter.OrganizationID, filter.UserID, filter.ID, filter.Name, filter.Pinned, criteria).Scan(&filter.UpdatedAt)
+		filter.OrganizationID, filter.UserID, filter.ID, filter.Name, filter.Pinned, criteria).Scan(&filter.UpdatedAt); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func validatePinnedFilterLimit(ctx context.Context, tx pgx.Tx, filter *domain.SavedFilter) error {
+	_, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 941))`, filter.OrganizationID.String()+":"+filter.UserID.String())
+	if err != nil || !filter.Pinned {
+		return err
+	}
+	var count int
+	err = tx.QueryRow(ctx, `SELECT COUNT(*) FROM saved_filters
+		WHERE organization_id = $1 AND user_id = $2 AND pinned AND id <> $3`,
+		filter.OrganizationID, filter.UserID, filter.ID).Scan(&count)
+	if err == nil && count >= 5 {
+		return ErrPinnedFilterLimit
+	}
+	return err
 }
 
 func (r *SavedFilterRepository) CountPinned(ctx context.Context, org, user uuid.UUID) (int, error) {

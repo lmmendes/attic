@@ -26,7 +26,7 @@ export function issueLabel(issue: FilterIssue, criteria: FilterCriteria, attribu
 }
 
 export function copyCriteria(value: FilterCriteria): FilterCriteria {
-  const result: FilterCriteria = { version: 1 }
+  const result: FilterCriteria = { version: value.version }
   for (const key of criteriaKeys) if (value[key]) result[key] = value[key]
   if (value.expression) result.expression = JSON.parse(JSON.stringify(value.expression))
   return result

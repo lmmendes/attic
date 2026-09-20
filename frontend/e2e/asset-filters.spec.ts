@@ -71,8 +71,11 @@ async function results(page: Page, names: string[], included: number[]) {
   }
 }
 
-test('attribute search and nested collection filters survive the saved-filter lifecycle', async ({ page }) => {
+test.beforeEach(() => {
   test.setTimeout(120_000)
+})
+
+test('attribute search and nested collection filters survive the saved-filter lifecycle', async ({ page }) => {
   const data = await seed(page)
   await page.getByRole('button', { name: 'Filters', exact: true }).click()
   await choose(page, page.getByLabel('Attribute', { exact: true }), data.brandName)

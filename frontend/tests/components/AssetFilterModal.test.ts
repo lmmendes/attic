@@ -66,4 +66,15 @@ describe('advanced filter drafts', () => {
     expect(save).toHaveBeenCalledWith('My filter', { version: 1, q: 'retro', attribute_q: 'blue' }, false)
     wrapper.unmount()
   })
+
+  it('rejects unsupported criteria versions before applying or saving', async () => {
+    const { wrapper, save, apply } = await setup({ version: 2, q: 'future' })
+    await wrapper.get('input[aria-label="Filter name"]').setValue('Future filter')
+    await wrapper.findAll('button').find(b => b.text() === 'Apply')!.trigger('click')
+    await wrapper.findAll('button').find(b => b.text() === 'Save as new')!.trigger('click')
+    expect(wrapper.text()).toContain('Filter version 2 is not supported.')
+    expect(apply).not.toHaveBeenCalled()
+    expect(save).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
 })

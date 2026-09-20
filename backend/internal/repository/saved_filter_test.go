@@ -6,6 +6,7 @@ import (
 	"errors"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -154,5 +155,62 @@ func TestSavedFilterPersistence(t *testing.T) {
 		if err := repo.Create(ctx, invalid); err == nil {
 			t.Fatal("missing organization/user foreign key accepted")
 		}
+	}
+}
+
+func TestSavedFilterPinnedLimitConcurrent(t *testing.T) {
+	ctx := context.Background()
+	if err := testDB.TruncateAll(ctx); err != nil {
+		t.Fatal(err)
+	}
+	fixtures := testutil.NewFixtures(testDB.Pool)
+	org, err := fixtures.CreateOrganization(ctx, "Concurrent pins")
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := fixtures.CreateUser(ctx, org.ID, "pins@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSavedFilterRepository(testDB.Pool)
+	start := make(chan struct{})
+	errs := make(chan error, 6)
+	var ready sync.WaitGroup
+	ready.Add(6)
+	for i := 0; i < 6; i++ {
+		go func(i int) {
+			ready.Done()
+			<-start
+			errs <- repo.Create(ctx, &domain.SavedFilter{
+				OrganizationID: org.ID,
+				UserID:         owner.ID,
+				Name:           "Pinned " + string(rune('A'+i)),
+				Pinned:         true,
+				Criteria:       domain.FilterCriteria{Version: 1},
+			})
+		}(i)
+	}
+	ready.Wait()
+	close(start)
+	var created, rejected int
+	for range 6 {
+		switch err := <-errs; {
+		case err == nil:
+			created++
+		case errors.Is(err, ErrPinnedFilterLimit):
+			rejected++
+		default:
+			t.Fatalf("unexpected create error: %v", err)
+		}
+	}
+	if created != 5 || rejected != 1 {
+		t.Fatalf("created %d and rejected %d; want 5 and 1", created, rejected)
+	}
+	pinned, err := repo.CountPinned(ctx, org.ID, owner.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pinned != 5 {
+		t.Fatalf("persisted %d pinned filters; want 5", pinned)
 	}
 }

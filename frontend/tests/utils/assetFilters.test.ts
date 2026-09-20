@@ -16,6 +16,10 @@ describe('asset filter definitions', () => {
     expect(criteriaEqual(draft, criteria)).toBe(false)
   })
 
+  it('preserves criteria versions while copying', () => {
+    expect(copyCriteria({ version: 2, q: 'future' })).toEqual({ version: 2, q: 'future' })
+  })
+
   it('allows linked collection overrides while preserving a structured expression', () => {
     const criteria = { version: 1, collection_id: 'old', expression: { kind: 'rule', field: 'q', operator: 'search', value: 'a' } }
     expect(readCriteria({ criteria: JSON.stringify(criteria), collection_id: 'new' }).criteria).toEqual({ ...criteria, collection_id: 'new' })

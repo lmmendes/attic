@@ -15,9 +15,10 @@ export function useAssetFiltering(filters: AssetFilters) {
   const routeInvalid = ref(false)
   const savedLoading = ref(false)
   const revision = ref(0)
+  const version = ref(1)
   const { data: savedFilters, error: savedError, refresh: refreshSaved } = useApi<SavedFilter[]>('/api/saved-filters')
   const criteria = computed<FilterCriteria>(() => {
-    const value: FilterCriteria = { version: 1, expression: expression.value }
+    const value: FilterCriteria = { version: version.value, expression: expression.value }
     for (const key of criteriaKeys) if (filters[key]) value[key] = filters[key]
     return copyCriteria(value)
   })
@@ -27,6 +28,7 @@ export function useAssetFiltering(filters: AssetFilters) {
   let writtenQuery = ''
 
   function assign(next: FilterCriteria) {
+    version.value = next.version
     for (const key of criteriaKeys) filters[key] = next[key]
     expression.value = copyCriteria(next).expression
     filters.offset = 0
@@ -155,12 +157,15 @@ export function useAssetFiltering(filters: AssetFilters) {
   }
   async function togglePin() {
     if (!selected.value || busy.value) return false
+    const current = selected.value
     busy.value = true
     message.value = ''
     try {
-      selected.value = await apiFetch<SavedFilter>(`/api/saved-filters/${selected.value.id}`, {
-        method: 'PUT', body: JSON.stringify({ name: selected.value.name, pinned: !selected.value.pinned })
+      const saved = await apiFetch<SavedFilter>(`/api/saved-filters/${current.id}`, {
+        method: 'PUT', body: JSON.stringify({ name: current.name, pinned: !current.pinned })
       })
+      if (selected.value !== current) return false
+      selected.value = saved
       await refreshSaved()
       return true
     } catch (error) {

@@ -211,7 +211,7 @@ export interface FilterGroup {
 export type FilterNode = FilterGroup | FilterRule
 
 export interface FilterCriteria extends Omit<AssetFilters, 'limit' | 'offset'> {
-  version: 1
+  version: number
   expression?: FilterNode
 }
 

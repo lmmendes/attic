@@ -43,6 +43,9 @@ function show(nextMode: 'advanced' | 'edit' = 'advanced') {
 }
 function validate() {
   localIssues.value = validateExpression(draft.value.expression)
+  if (draft.value.version !== 1) {
+    localIssues.value.push({ path: 'version', message: `Filter version ${draft.value.version} is not supported.` })
+  }
   if (countRules(draft.value.expression) + topRows.value.length > 50) {
     localIssues.value.push({ path: 'expression', message: 'Use at most 50 rules, including current page criteria.' })
   }
