@@ -25,7 +25,7 @@ func TestAssetFiltersSQL(t *testing.T) {
 	org, err := f.CreateOrganization(ctx, "Filters")
 	must(err)
 	repo := NewAssetRepository(testDB.Pool)
-	features := domain.OrganizationFeatures{Attributes: true, Categories: true, Collections: true, Locations: true, Conditions: true, Plugins: true}
+	features := domain.OrganizationFeatures{Attributes: true, Categories: true, Collections: true, Tags: true, Locations: true, Conditions: true, Plugins: true}
 	attrs := map[string]*domain.Attribute{}
 	for key, typ := range map[string]domain.AttributeDataType{"s": "string", "t": "text", "n": "number", "b": "boolean", "d": "date"} {
 		a, err := f.CreateAttribute(ctx, org.ID, key, key, typ)
@@ -104,6 +104,16 @@ func TestAssetFiltersSQL(t *testing.T) {
 	}
 	check(t, domain.FilterCriteria{Version: 1, TagIDs: []string{t1.String(), t2.String()}, TagMatch: "all"}, 1)
 	check(t, domain.FilterCriteria{Version: 1, Query: "vint"}, 2)
+	features.Tags = false
+	tagRule := domain.FilterNode{Kind: "rule", Field: "tags", Operator: "any", Values: []string{t1.String()}}
+	if _, _, err := repo.CompileCriteria(ctx, org.ID, domain.FilterCriteria{Version: 1, Expression: &tagRule}, features, 1); err == nil {
+		t.Fatal("disabled tags rule was accepted")
+	}
+	rows, total, err := repo.List(ctx, org.ID, domain.AssetFilter{Query: "vint", Features: &features}, domain.Pagination{Limit: 100})
+	if err != nil || total != 0 || len(rows) != 0 {
+		t.Fatalf("disabled tags affected search: rows=%d total=%d err=%v", len(rows), total, err)
+	}
+	features.Tags = true
 	{
 		rows, total, err := repo.List(ctx, org.ID, domain.AssetFilter{TagIDs: []uuid.UUID{t1, t2}, TagMatch: "all"}, domain.Pagination{Limit: 100})
 		if err != nil || total != 1 || len(rows) != 1 {
@@ -113,7 +123,7 @@ func TestAssetFiltersSQL(t *testing.T) {
 	nested := domain.FilterNode{Kind: "group", Match: "all", Children: []domain.FilterNode{rule("n", "gte", float64(0)), {Kind: "group", Match: "any", Children: []domain.FilterNode{rule("b", "eq", false), rule("s", "eq", "absent")}}}}
 	check(t, domain.FilterCriteria{Version: 1, Expression: &nested}, 1)
 	c := domain.FilterCriteria{Version: 1, AttributeQuery: "memo"}
-	rows, total, err := repo.List(ctx, org.ID, domain.AssetFilter{Criteria: &c, Features: &features}, domain.Pagination{Limit: 1, Offset: 1})
+	rows, total, err = repo.List(ctx, org.ID, domain.AssetFilter{Criteria: &c, Features: &features}, domain.Pagination{Limit: 1, Offset: 1})
 	must(err)
 	if total != 2 || len(rows) != 1 {
 		t.Fatalf("paging rows=%d total=%d", len(rows), total)

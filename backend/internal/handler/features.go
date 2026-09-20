@@ -59,6 +59,8 @@ func (h *Handler) featureEnabled(r *http.Request, name string) (bool, error) {
 		return f.Locations, nil
 	case "collections":
 		return f.Collections, nil
+	case "tags":
+		return f.Tags, nil
 	case "categories":
 		return f.Categories, nil
 	case "attributes":
@@ -93,7 +95,7 @@ func (h *Handler) RequireFeature(name string) func(http.Handler) http.Handler {
 	}
 }
 
-func (h *Handler) rejectDisabledAssetFields(r *http.Request, categoryID *string, locationID *string, conditionID *string, collectionIDs []uuid.UUID, attributes []byte) error {
+func (h *Handler) rejectDisabledAssetFields(r *http.Request, categoryID *string, locationID *string, conditionID *string, collectionIDs []uuid.UUID, tagsProvided bool, attributes []byte) error {
 	f, err := h.features(r)
 	if err != nil {
 		return err
@@ -109,6 +111,9 @@ func (h *Handler) rejectDisabledAssetFields(r *http.Request, categoryID *string,
 	}
 	if !f.Collections && len(collectionIDs) > 0 {
 		return errFeatureDisabled("collections")
+	}
+	if !f.Tags && tagsProvided {
+		return errFeatureDisabled("tags")
 	}
 	if !f.Attributes && len(attributes) > 0 && string(attributes) != "null" && string(attributes) != "{}" {
 		return errFeatureDisabled("attributes")
@@ -171,6 +176,9 @@ func (h *Handler) sanitizeAsset(r *http.Request, asset *domain.Asset) error {
 	}
 	if !f.Collections {
 		asset.CollectionIDs, asset.Collections = nil, nil
+	}
+	if !f.Tags {
+		asset.TagIDs, asset.Tags = nil, nil
 	}
 	if !f.Categories {
 		asset.CategoryID, asset.Category = nil, nil

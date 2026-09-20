@@ -489,7 +489,7 @@ function getShortId(): string {
           </UButton>
         </div>
         <div
-          v-if="asset.tags?.length"
+          v-if="features.tags && asset.tags?.length"
           class="flex flex-wrap gap-2"
           aria-label="Tags"
         >

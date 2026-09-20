@@ -21,7 +21,7 @@ const { data: asset, status: assetStatus, clear: clearAsset } = useApi<Asset>(
 const { data: categories } = useApi<Category[]>('/api/categories', { immediate: features.value.categories })
 const { data: locations } = useApi<Location[]>('/api/locations', { immediate: features.value.locations })
 const { data: conditions } = useApi<Condition[]>('/api/conditions', { immediate: features.value.conditions })
-const { data: tags } = useApi<Tag[]>('/api/tags')
+const { data: tags } = useApi<Tag[]>('/api/tags', { immediate: features.value.tags })
 
 const detailsOpen = ref(false)
 const purchaseOpen = ref(false)
@@ -221,7 +221,7 @@ async function submitForm() {
       category_id: features.value.categories ? form.category_id : undefined,
       location_id: features.value.locations ? form.location_id || undefined : undefined,
       collection_ids: features.value.collections ? form.collection_ids : undefined,
-      ...tagAssignment(form.tag_names, tags.value || []),
+      ...(features.value.tags ? tagAssignment(form.tag_names, tags.value || []) : {}),
       condition_id: features.value.conditions ? form.condition_id || undefined : undefined,
       quantity: form.quantity,
       attributes: features.value.categories && Object.keys(form.attributes).length > 0
@@ -439,6 +439,7 @@ async function submitForm() {
               v-model="form.collection_ids"
             />
             <AssetTagsField
+              v-if="features.tags"
               v-model="form.tag_names"
               :tags="tags || []"
             />

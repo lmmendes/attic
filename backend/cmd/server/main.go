@@ -391,6 +391,7 @@ func main() {
 		})
 
 		r.Route("/tags", func(r chi.Router) {
+			r.Use(h.RequireFeature("tags"))
 			r.Get("/", h.ListTags)
 			r.Post("/", h.CreateTag)
 			r.Get("/{id}", h.GetTag)

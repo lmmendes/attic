@@ -65,7 +65,7 @@ func Test_OrganizationRepository_Create_DefaultsAllFeaturesEnabled(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !features.Locations || !features.Collections || !features.Categories || !features.Attributes ||
+	if !features.Locations || !features.Collections || !features.Tags || !features.Categories || !features.Attributes ||
 		!features.Conditions || !features.Warranties || !features.Plugins {
 		t.Fatalf("expected all features enabled, got %+v", features)
 	}
@@ -82,7 +82,7 @@ func Test_OrganizationRepository_UpdateFeatures_ReplacesCompleteMap(t *testing.T
 		t.Fatal(err)
 	}
 	want := &domain.OrganizationFeatures{
-		Locations: true, Collections: false, Categories: true, Attributes: false,
+		Locations: true, Collections: false, Tags: false, Categories: true, Attributes: false,
 		Conditions: true, Warranties: false, Plugins: false,
 	}
 	if err := repo.UpdateFeatures(ctx, org.ID, want); err != nil {

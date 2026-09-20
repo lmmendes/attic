@@ -87,8 +87,10 @@ const queryString = computed(() => {
   if (features.value.categories && filters.category_id) params.set('category_id', filters.category_id)
   if (features.value.locations && filters.location_id) params.set('location_id', filters.location_id)
   if (features.value.conditions && filters.condition_id) params.set('condition_id', filters.condition_id)
-  for (const id of filters.tag_ids || []) params.append('tag_id', id)
-  if (filters.tag_ids?.length) params.set('tag_match', filters.tag_match || 'any')
+  if (features.value.tags) {
+    for (const id of filters.tag_ids || []) params.append('tag_id', id)
+    if (filters.tag_ids?.length) params.set('tag_match', filters.tag_match || 'any')
+  }
   params.set('limit', String(filters.limit))
   params.set('offset', String(filters.offset))
   return params.toString()
@@ -122,7 +124,7 @@ const collectionOptions = computed(() => collections.value?.map(c => ({ label: c
 const { data: categories } = useApi<Category[]>('/api/categories', { immediate: features.value.categories })
 const { data: locations } = useApi<Location[]>('/api/locations', { immediate: features.value.locations })
 const { data: conditions } = useApi<Condition[]>('/api/conditions', { immediate: features.value.conditions })
-const { data: tags } = useApi<Tag[]>('/api/tags')
+const { data: tags } = useApi<Tag[]>('/api/tags', { immediate: features.value.tags })
 const tagOptions = computed(() => (tags.value || []).map(tag => ({ label: tag.name, value: tag.id })))
 const { data: attributes, error: attributesError, refresh: refreshAttributes } = useApi<Attribute[]>('/api/attributes', { immediate: features.value.attributes })
 const visibleAttributes = computed(() => features.value.attributes ? (attributes.value || []).filter(a => features.value.plugins || !a.plugin_id) : [])
@@ -145,7 +147,7 @@ const attributeValueOptions = computed(() => (selectedAttribute.value?.options |
   }))
   .sort((left, right) => left.label.localeCompare(right.label)))
 const advancedOptions = computed(() => ({
-  tags: tagOptions.value,
+  ...(features.value.tags ? { tags: tagOptions.value } : {}),
   ...(features.value.collections ? { collections: collectionOptions.value } : {}),
   ...(features.value.categories ? { category: categoryOptions.value } : {}),
   ...(features.value.locations ? { location: locationOptions.value } : {}),
@@ -223,7 +225,7 @@ const activeFilterChips = computed<{ key: ActiveFilterKey, label: string }[]>(()
   }
   if (filters.location_id) chips.push({ key: 'location_id', label: `Location: ${optionName(locations.value, filters.location_id)}` })
   if (filters.condition_id) chips.push({ key: 'condition_id', label: `Condition: ${optionName(conditions.value, filters.condition_id)}` })
-  if (filters.tag_ids?.length) {
+  if (features.value.tags && filters.tag_ids?.length) {
     const names = filters.tag_ids.map(id => optionName(tags.value, id)).join(', ')
     chips.push({ key: 'tag_ids', label: `Tags (${filters.tag_match || 'any'}): ${names}` })
   }
@@ -257,7 +259,7 @@ function removeActiveFilter(key: ActiveFilterKey) {
 }
 
 const hasActiveFilters = computed(() => Boolean(
-  filters.collection_id || filters.q || filters.attribute_q || filters.category_id || filters.location_id || filters.condition_id || filters.tag_ids?.length || expression.value || selectedId.value || routeInvalid.value
+  filters.collection_id || filters.q || filters.attribute_q || filters.category_id || filters.location_id || filters.condition_id || (features.value.tags && filters.tag_ids?.length) || expression.value || selectedId.value || routeInvalid.value
 ))
 
 function clearFilters() {
@@ -514,6 +516,7 @@ function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
             class="min-w-0"
           />
           <USelectMenu
+            v-if="features.tags"
             v-model="filters.tag_ids"
             :items="tagOptions"
             multiple
@@ -524,7 +527,7 @@ function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
             icon="i-lucide-tags"
           />
           <USelect
-            v-if="(filters.tag_ids?.length || 0) > 1"
+            v-if="features.tags && (filters.tag_ids?.length || 0) > 1"
             v-model="filters.tag_match"
             :items="[{ label: 'Match any tag', value: 'any' }, { label: 'Match all tags', value: 'all' }]"
             value-key="value"
@@ -917,7 +920,7 @@ function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
                     >{{ collection.name }}</NuxtLink>
                   </div>
                   <div
-                    v-if="asset.tags?.length"
+                    v-if="features.tags && asset.tags?.length"
                     class="mt-2 flex flex-wrap gap-1.5"
                     aria-label="Tags"
                   >

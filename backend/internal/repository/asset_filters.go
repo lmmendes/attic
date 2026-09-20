@@ -182,6 +182,9 @@ func (c *filterCompiler) node(n domain.FilterNode, path string, depth int) strin
 		}
 		if n.Field == "q" && n.Operator == "search" {
 			p := c.param(s)
+			if !c.features.Tags {
+				return `a.search_vector @@ attic_prefix_tsquery(` + p + `)`
+			}
 			return `(a.search_vector @@ attic_prefix_tsquery(` + p + `)
  OR EXISTS (SELECT 1 FROM asset_tags at JOIN tags t ON t.id=at.tag_id
  WHERE at.asset_id=a.id AND t.organization_id=a.organization_id
@@ -198,7 +201,7 @@ func (c *filterCompiler) node(n domain.FilterNode, path string, depth int) strin
 	if n.Field == "attribute" {
 		return c.attribute(n, path)
 	}
-	enabled := map[string]bool{"collections": c.features.Collections, "tags": true, "category": c.features.Categories, "location": c.features.Locations, "condition": c.features.Conditions}
+	enabled := map[string]bool{"collections": c.features.Collections, "tags": c.features.Tags, "category": c.features.Categories, "location": c.features.Locations, "condition": c.features.Conditions}
 	if !enabled[n.Field] {
 		return c.issue(path, "This field is unavailable or disabled")
 	}

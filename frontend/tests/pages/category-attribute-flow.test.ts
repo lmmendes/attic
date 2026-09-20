@@ -8,7 +8,7 @@ import NewAttribute from '../../app/pages/attributes/new.vue'
 
 const { api, mutate, push, replace, resolve, toast, route, draft, clearCategories, featureFlags, featureRef } = vi.hoisted(() => {
   const featureFlags = {
-    locations: true, collections: true, categories: true, attributes: true,
+    locations: true, collections: true, tags: true, categories: true, attributes: true,
     conditions: true, warranties: true, plugins: true
   }
   return {
@@ -45,7 +45,7 @@ describe('creating an attribute from a category draft', () => {
     draft.value = null
     attributes.value = []
     Object.assign(featureFlags, {
-      locations: true, collections: true, categories: true, attributes: true,
+      locations: true, collections: true, tags: true, categories: true, attributes: true,
       conditions: true, warranties: true, plugins: true
     })
     api.mockImplementation((url: string) => url === '/api/attributes'

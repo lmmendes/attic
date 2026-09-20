@@ -67,12 +67,15 @@ func TestSanitizeAssetHidesDisabledRelationsAndPluginValues(t *testing.T) {
 		Location:       &domain.Location{ID: locationID},
 		ConditionID:    &conditionID,
 		Condition:      &domain.Condition{ID: conditionID},
+		TagIDs:         []uuid.UUID{uuid.New()},
+		Tags:           []domain.Tag{{ID: uuid.New(), Name: "Hidden"}},
 		Attributes:     json.RawMessage(`{"serial":"user-value","plugin.google_books.books.isbn":"123"}`),
 		ImportPluginID: &pluginID,
 	}
 	features := allFeaturesEnabled()
 	features.Locations = false
 	features.Conditions = false
+	features.Tags = false
 	features.Plugins = false
 
 	if err := (&Handler{}).sanitizeAsset(requestWithFeatures(features), asset); err != nil {
@@ -80,6 +83,9 @@ func TestSanitizeAssetHidesDisabledRelationsAndPluginValues(t *testing.T) {
 	}
 	if asset.LocationID != nil || asset.Location != nil || asset.ConditionID != nil || asset.Condition != nil {
 		t.Fatal("disabled relations were not hidden")
+	}
+	if asset.TagIDs != nil || asset.Tags != nil {
+		t.Fatal("disabled tags were not hidden")
 	}
 	if asset.CategoryID != nil || asset.Category != nil || asset.ImportPluginID != nil {
 		t.Fatal("plugin-owned metadata was not hidden")
@@ -134,7 +140,7 @@ func TestRejectDisabledAssetFields(t *testing.T) {
 	request := requestWithFeatures(features)
 	categoryID := uuid.NewString()
 
-	err := (&Handler{}).rejectDisabledAssetFields(request, &categoryID, nil, nil, nil, nil)
+	err := (&Handler{}).rejectDisabledAssetFields(request, &categoryID, nil, nil, nil, false, nil)
 	if want := errFeatureDisabled("categories"); err != want {
 		t.Fatalf("expected %v, got %v", want, err)
 	}
@@ -145,9 +151,18 @@ func TestRejectPluginAttributesWhenPluginsDisabled(t *testing.T) {
 	features.Plugins = false
 	request := requestWithFeatures(features)
 
-	err := (&Handler{}).rejectDisabledAssetFields(request, nil, nil, nil, nil, []byte(`{"plugin.google_books.books.isbn":"123"}`))
+	err := (&Handler{}).rejectDisabledAssetFields(request, nil, nil, nil, nil, false, []byte(`{"plugin.google_books.books.isbn":"123"}`))
 	if _, ok := err.(featureDisabledError); !ok {
 		t.Fatalf("expected featureDisabledError, got %v", err)
+	}
+}
+
+func TestRejectTagAssignmentWhenTagsDisabled(t *testing.T) {
+	features := allFeaturesEnabled()
+	features.Tags = false
+	err := (&Handler{}).rejectDisabledAssetFields(requestWithFeatures(features), nil, nil, nil, nil, true, nil)
+	if want := errFeatureDisabled("tags"); err != want {
+		t.Fatalf("expected %v, got %v", want, err)
 	}
 }
 
@@ -211,7 +226,7 @@ func TestUpdateOrganizationFeaturesRequiresCompleteMap(t *testing.T) {
 func TestUpdateOrganizationFeaturesRejectsNullValues(t *testing.T) {
 	repo := &mockOrganizationFeatureRepository{features: allFeaturesEnabled()}
 	h := handlerWithFeatureRepository(repo)
-	body := `{"locations":null,"collections":true,"categories":true,"attributes":true,"conditions":true,"warranties":true,"plugins":true}`
+	body := `{"locations":null,"collections":true,"tags":true,"categories":true,"attributes":true,"conditions":true,"warranties":true,"plugins":true}`
 	request := httptest.NewRequest(http.MethodPut, "/api/organization/features", strings.NewReader(body))
 	recorder := httptest.NewRecorder()
 
@@ -231,7 +246,7 @@ func TestUpdateOrganizationFeaturesRejectsNullValues(t *testing.T) {
 func TestUpdateOrganizationFeaturesPersistsCompleteMap(t *testing.T) {
 	repo := &mockOrganizationFeatureRepository{features: allFeaturesEnabled()}
 	h := handlerWithFeatureRepository(repo)
-	body := `{"locations":false,"collections":true,"categories":true,"attributes":false,"conditions":true,"warranties":true,"plugins":false}`
+	body := `{"locations":false,"collections":true,"tags":false,"categories":true,"attributes":false,"conditions":true,"warranties":true,"plugins":false}`
 	request := httptest.NewRequest(http.MethodPut, "/api/organization/features", strings.NewReader(body))
 	recorder := httptest.NewRecorder()
 
@@ -240,7 +255,7 @@ func TestUpdateOrganizationFeaturesPersistsCompleteMap(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, recorder.Code, recorder.Body.String())
 	}
-	if repo.updated == nil || repo.updated.Locations || !repo.updated.Attributes || repo.updated.Plugins {
+	if repo.updated == nil || repo.updated.Locations || repo.updated.Tags || !repo.updated.Attributes || repo.updated.Plugins {
 		t.Fatalf("unexpected persisted settings: %#v", repo.updated)
 	}
 }

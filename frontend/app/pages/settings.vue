@@ -9,6 +9,7 @@ const saving = ref(false)
 const labels: Array<{ key: keyof OrganizationFeatures, label: string, description: string }> = [
   { key: 'locations', label: 'Locations', description: 'Track where assets are stored.' },
   { key: 'collections', label: 'Collections', description: 'Group assets into custom collections.' },
+  { key: 'tags', label: 'Tags', description: 'Add flexible tags to assets.' },
   { key: 'categories', label: 'Categories & attributes', description: 'Organize assets and define their custom fields.' },
   { key: 'conditions', label: 'Conditions', description: 'Track asset condition.' },
   { key: 'warranties', label: 'Warranties', description: 'Track warranty coverage and expiry.' },

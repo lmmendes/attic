@@ -10,6 +10,7 @@ mockNuxtImport('useFeatures', () => () => ({
   features: ref({
     locations: true,
     collections: true,
+    tags: true,
     categories: true,
     attributes: true,
     conditions: true,

@@ -9,6 +9,7 @@ export interface User {
 export interface OrganizationFeatures {
   locations: boolean
   collections: boolean
+  tags: boolean
   categories: boolean
   attributes: boolean
   conditions: boolean

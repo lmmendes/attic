@@ -86,6 +86,13 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "collections feature is not enabled")
 		return
 	}
+	if enabled, err := h.featureEnabled(r, "tags"); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	} else if !enabled && (len(q["tag_id"]) > 0 || q.Get("tag_match") != "") {
+		writeError(w, http.StatusForbidden, "tags feature is not enabled")
+		return
+	}
 	if enabled, err := h.featureEnabled(r, "categories"); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to read organization features")
 		return
@@ -113,6 +120,12 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 	filter := domain.AssetFilter{
 		Query: q.Get("q"),
 	}
+	features, err := h.features(r)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read organization features")
+		return
+	}
+	filter.Features = features
 	seenTagIDs := map[uuid.UUID]bool{}
 	for _, value := range q["tag_id"] {
 		id, err := uuid.Parse(value)
@@ -166,11 +179,6 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 		filter.CollectionID = &id
 	}
 	if value := q.Get("attribute_q"); value != "" {
-		features, err := h.features(r)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to read organization features")
-			return
-		}
 		filter.Criteria = &domain.FilterCriteria{Version: 1, AttributeQuery: value}
 		filter.Features = features
 	}
@@ -270,7 +278,7 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := h.rejectDisabledAssetFields(r, req.CategoryID, req.LocationID, req.ConditionID, collectionIDs, req.Attributes); err != nil {
+	if err := h.rejectDisabledAssetFields(r, req.CategoryID, req.LocationID, req.ConditionID, collectionIDs, tagsProvided, req.Attributes); err != nil {
 		if _, ok := err.(featureDisabledError); ok {
 			writeError(w, http.StatusForbidden, err.Error())
 			return
@@ -397,7 +405,7 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := h.rejectDisabledAssetFields(r, req.CategoryID, req.LocationID, req.ConditionID, collectionIDs, req.Attributes); err != nil {
+	if err := h.rejectDisabledAssetFields(r, req.CategoryID, req.LocationID, req.ConditionID, collectionIDs, tagsProvided, req.Attributes); err != nil {
 		if _, ok := err.(featureDisabledError); ok {
 			writeError(w, http.StatusForbidden, err.Error())
 			return

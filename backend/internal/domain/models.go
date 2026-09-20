@@ -22,6 +22,7 @@ type Organization struct {
 type OrganizationFeatures struct {
 	Locations   bool `json:"locations"`
 	Collections bool `json:"collections"`
+	Tags        bool `json:"tags"`
 	Categories  bool `json:"categories"`
 	Attributes  bool `json:"attributes"`
 	Conditions  bool `json:"conditions"`
