@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { Collection, Category, Location, Condition, AssetsResponse, AssetFilters, Asset } from '~/types/api'
+import type { Collection, Category, Location, Condition, AssetsResponse, AssetFilters, Asset, Attribute } from '~/types/api'
 import { buildCategoryOptions } from '~/utils/categoryHierarchy'
+import { filterFailure, issueLabel } from '~/utils/assetFilters'
 
 const uncategorizedCategoryFilter = 'uncategorized'
 
@@ -35,21 +36,52 @@ const filters = reactive<AssetFilters>({
   limit: 24,
   offset: 0
 })
-
-watch(
-  () => [filters.category_id, filters.location_id, filters.condition_id],
-  () => { filters.offset = 0 },
-  { flush: 'sync' }
-)
-
-watch(() => route.query.category_id, (id) => {
-  filters.category_id = features.value.categories && typeof id === 'string' ? id : undefined
+const {
+  criteria, expression, structured, selected, selectedId, modified, message, issues, busy, routeInvalid, savedLoading, revision,
+  savedFilters, savedError, refreshSaved, apply, clear, selectSaved, save, rename, togglePin, remove
+} = useAssetFiltering(filters)
+const filterModal = useTemplateRef('filterModal')
+const renameOpen = ref(false)
+const renameName = ref('')
+const deleteOpen = ref(false)
+const filtersOpen = ref(false)
+const savedSearchActions = computed(() => {
+  if (!selected.value) return []
+  const name = selected.value.name
+  return [
+    [{ label: `Saved search: ${name}`, type: 'label' as const }],
+    [{
+      label: selected.value.pinned ? 'Unpin from sidebar' : 'Pin to sidebar',
+      icon: selected.value.pinned ? 'i-lucide-pin-off' : 'i-lucide-pin',
+      onSelect: () => togglePin()
+    }],
+    [{
+      label: `Edit “${name}”`,
+      icon: 'i-lucide-sliders-horizontal',
+      onSelect: () => openAdvanced('edit')
+    }],
+    [{
+      label: `Rename “${name}”`,
+      icon: 'i-lucide-pencil',
+      onSelect: () => {
+        renameName.value = name
+        renameOpen.value = true
+      }
+    }],
+    [{
+      label: `Delete “${name}”`,
+      icon: 'i-lucide-trash-2',
+      color: 'error' as const,
+      onSelect: () => { deleteOpen.value = true }
+    }]
+  ]
 })
 
 const queryString = computed(() => {
   const params = new URLSearchParams()
   if (features.value.collections && filters.collection_id) params.set('collection_id', filters.collection_id)
   if (filters.q) params.set('q', filters.q)
+  if (features.value.attributes && filters.attribute_q) params.set('attribute_q', filters.attribute_q)
   if (features.value.categories && filters.category_id) params.set('category_id', filters.category_id)
   if (features.value.locations && filters.location_id) params.set('location_id', filters.location_id)
   if (features.value.conditions && filters.condition_id) params.set('condition_id', filters.condition_id)
@@ -58,24 +90,60 @@ const queryString = computed(() => {
   return params.toString()
 })
 
-const { data: assetsResponse, status, error, refresh } = useApi<AssetsResponse>(
-  () => `/api/assets?${queryString.value}`
+const disabledCriterion = computed(() => Boolean(
+  (filters.attribute_q && !features.value.attributes) || (filters.category_id && !features.value.categories)
+  || (filters.location_id && !features.value.locations) || (filters.condition_id && !features.value.conditions)
+  || (filters.collection_id && !features.value.collections)
+))
+const blocked = computed(() => routeInvalid.value || savedLoading.value || disabledCriterion.value || !!(selected.value?.issues?.length && !modified.value))
+const structuredSearch = computed(() => structured.value || !!selectedId.value || !!expression.value)
+const { data: rawAssetsResponse, status, error, refresh } = useApi<AssetsResponse>(
+  () => structuredSearch.value ? '/api/assets/search' : `/api/assets?${queryString.value}`,
+  {
+    method: computed(() => structuredSearch.value ? 'POST' : 'GET'),
+    body: computed(() => structuredSearch.value ? { criteria: criteria.value, limit: filters.limit, offset: filters.offset } : undefined),
+    watch: false,
+    immediate: !blocked.value
+  }
 )
+const assetsResponse = computed(() => blocked.value || error.value ? null : rawAssetsResponse.value)
+const queryFailure = computed(() => error.value ? filterFailure(error.value) : undefined)
+watch([queryString, criteria, structuredSearch, blocked], () => {
+  if (!blocked.value) void refresh()
+}, { deep: true })
 
 const { data: collections } = useApi<Collection[]>('/api/collections', { immediate: features.value.collections })
 const collectionOptions = computed(() => collections.value?.map(c => ({ label: c.name, value: c.id, icon: c.icon })) || [])
-watch(() => route.query.collection_id, (id) => {
-  filters.collection_id = features.value.collections && typeof id === 'string' ? id : undefined
-  filters.offset = 0
-})
-watch(() => filters.collection_id, (id) => {
-  filters.offset = 0
-  if (id !== route.query.collection_id) router.replace({ query: { ...route.query, collection_id: id } })
-})
 
 const { data: categories } = useApi<Category[]>('/api/categories', { immediate: features.value.categories })
 const { data: locations } = useApi<Location[]>('/api/locations', { immediate: features.value.locations })
 const { data: conditions } = useApi<Condition[]>('/api/conditions', { immediate: features.value.conditions })
+const { data: attributes, error: attributesError, refresh: refreshAttributes } = useApi<Attribute[]>('/api/attributes', { immediate: features.value.attributes })
+const visibleAttributes = computed(() => features.value.attributes ? (attributes.value || []).filter(a => features.value.plugins || !a.plugin_id) : [])
+const selectableAttributes = computed(() => visibleAttributes.value
+  .filter(attribute => attribute.data_type === 'select')
+  .filter(attribute => attribute.options?.length)
+  .sort((left, right) => left.name.localeCompare(right.name)))
+const attributeOptions = computed(() => selectableAttributes.value.map(attribute => ({
+  label: attribute.name,
+  value: attribute.id,
+  icon: 'i-lucide-list-filter'
+})))
+const selectedAttributeId = ref<string>()
+const selectedAttribute = computed(() => selectableAttributes.value.find(attribute => attribute.id === selectedAttributeId.value))
+const attributeValueOptions = computed(() => (selectedAttribute.value?.options || [])
+  .map(option => ({
+    label: option.label,
+    value: option.label,
+    icon: 'i-lucide-tag'
+  }))
+  .sort((left, right) => left.label.localeCompare(right.label)))
+const advancedOptions = computed(() => ({
+  ...(features.value.collections ? { collections: collectionOptions.value } : {}),
+  ...(features.value.categories ? { category: categoryOptions.value } : {}),
+  ...(features.value.locations ? { location: locationOptions.value } : {}),
+  ...(features.value.conditions ? { condition: conditionOptions.value } : {})
+}))
 
 const categoryOptions = computed(() =>
   [
@@ -130,18 +198,54 @@ const conditionOptions = computed(() =>
   conditions.value?.map(c => ({ label: c.label, value: c.id })) || []
 )
 
+type ActiveFilterKey = 'collection_id' | 'category_id' | 'location_id' | 'condition_id' | 'attribute_q' | 'expression'
+
+const activeFilterChips = computed<{ key: ActiveFilterKey, label: string }[]>(() => {
+  const chips: { key: ActiveFilterKey, label: string }[] = []
+  const optionName = (items: { id: string, name?: string, label?: string }[] | undefined, id: string) => {
+    const item = items?.find(item => item.id === id)
+    return item?.name || item?.label || id
+  }
+
+  if (filters.collection_id) chips.push({ key: 'collection_id', label: `Collection: ${optionName(collections.value, filters.collection_id)}` })
+  if (filters.category_id) {
+    const label = filters.category_id === uncategorizedCategoryFilter
+      ? 'Uncategorized'
+      : optionName(categories.value, filters.category_id)
+    chips.push({ key: 'category_id', label: `Category: ${label}` })
+  }
+  if (filters.location_id) chips.push({ key: 'location_id', label: `Location: ${optionName(locations.value, filters.location_id)}` })
+  if (filters.condition_id) chips.push({ key: 'condition_id', label: `Condition: ${optionName(conditions.value, filters.condition_id)}` })
+  if (filters.attribute_q) {
+    const attribute = selectableAttributes.value.find(item => item.options?.some(option => option.label === filters.attribute_q))
+    chips.push({ key: 'attribute_q', label: `${attribute?.name || 'Attribute'}: ${filters.attribute_q}` })
+  }
+  if (expression.value) chips.push({ key: 'expression', label: 'Advanced rules' })
+  return chips
+})
+
+function removeActiveFilter(key: ActiveFilterKey) {
+  if (key === 'expression') {
+    const next = { ...criteria.value }
+    delete next.expression
+    apply(next)
+    return
+  }
+  if (key === 'attribute_q') {
+    selectAttributeValue(undefined)
+    return
+  }
+  filters[key] = undefined
+  filters.offset = 0
+}
+
 const hasActiveFilters = computed(() => Boolean(
-  filters.collection_id || filters.q || filters.category_id || filters.location_id || filters.condition_id
+  filters.collection_id || filters.q || filters.attribute_q || filters.category_id || filters.location_id || filters.condition_id || expression.value || selectedId.value || routeInvalid.value
 ))
 
 function clearFilters() {
-  searchQuery.value = ''
-  filters.collection_id = undefined
-  filters.q = ''
-  filters.category_id = undefined
-  filters.location_id = undefined
-  filters.condition_id = undefined
-  filters.offset = 0
+  clear()
+  selectedAttributeId.value = undefined
 }
 
 const page = computed({
@@ -174,15 +278,54 @@ function _getLocationPath(asset: Asset): string[] {
 }
 
 // Debounced search
-const searchQuery = ref('')
+const searchQuery = ref(filters.q || '')
+const selectedAttributeValue = ref<string | undefined>(filters.attribute_q || undefined)
+const attributeSearchTerm = ref(filters.attribute_q || '')
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
 watch(searchQuery, (val: string) => {
   if (searchTimeout) clearTimeout(searchTimeout)
+  if (val === (filters.q || '')) return
   searchTimeout = setTimeout(() => {
     filters.q = val
     filters.offset = 0
   }, 300)
 })
+watch(() => filters.q, (value) => {
+  searchQuery.value = value || ''
+}, { flush: 'sync' })
+watch(() => filters.attribute_q, (value) => {
+  selectedAttributeValue.value = value || undefined
+  attributeSearchTerm.value = value || ''
+}, { flush: 'sync' })
+watch([selectableAttributes, () => filters.attribute_q], ([definitions, value]) => {
+  if (!value) return
+  const matchingAttribute = definitions.find(attribute => attribute.options?.some(option => option.label === value))
+  selectedAttributeId.value = matchingAttribute?.id
+}, { immediate: true })
+watch(revision, () => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchQuery.value = filters.q || ''
+  selectedAttributeValue.value = filters.attribute_q || undefined
+  attributeSearchTerm.value = filters.attribute_q || ''
+}, { flush: 'sync' })
+onBeforeUnmount(() => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+})
+function selectAttributeValue(value: string | undefined) {
+  selectedAttributeValue.value = value
+  filters.attribute_q = value
+  filters.offset = 0
+  attributeSearchTerm.value = value || ''
+}
+function selectAttribute(attributeId: string | undefined) {
+  selectedAttributeId.value = attributeId
+  selectAttributeValue(undefined)
+}
+function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  filters.q = searchQuery.value
+  filterModal.value?.show(mode)
+}
 </script>
 
 <template>
@@ -223,7 +366,7 @@ watch(searchQuery, (val: string) => {
 
     <!-- Filters Bar -->
     <section class="attic-panel rounded-[18px] p-3 sm:p-4">
-      <div class="flex flex-col gap-3 2xl:flex-row 2xl:items-center 2xl:justify-between">
+      <div class="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center">
         <div
           ref="searchContainer"
           class="min-w-0 flex-1"
@@ -236,7 +379,114 @@ watch(searchQuery, (val: string) => {
             class="w-full"
           />
         </div>
-        <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center 2xl:justify-end">
+        <div
+          v-if="selectedId || savedFilters?.length"
+          class="flex w-full shrink-0 gap-1 lg:w-80 2xl:w-auto"
+        >
+          <USelectMenu
+            :model-value="selectedId"
+            :items="(savedFilters || []).map(f => ({ label: f.name, value: f.id }))"
+            value-key="value"
+            placeholder="Saved searches"
+            aria-label="Saved searches"
+            icon="i-lucide-bookmark"
+            class="min-w-0 flex-1 2xl:w-64"
+            :disabled="busy || savedLoading"
+            @update:model-value="selectSaved($event)"
+          />
+          <span
+            v-if="selected && modified"
+            class="self-center rounded-md bg-warning/10 px-2 py-1 text-xs font-semibold text-warning"
+          >Modified</span>
+          <UDropdownMenu
+            v-if="selected"
+            :items="savedSearchActions"
+            :content="{ align: 'end' }"
+          >
+            <UButton
+              icon="i-lucide-ellipsis"
+              color="neutral"
+              variant="outline"
+              :aria-label="`Manage saved search ${selected.name}`"
+              :title="`Manage saved search ${selected.name}`"
+              :disabled="busy"
+            >
+              <span class="hidden 2xl:inline">Manage</span>
+            </UButton>
+          </UDropdownMenu>
+        </div>
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-list-filter"
+          class="w-full shrink-0 justify-center font-semibold lg:w-auto"
+          :trailing-icon="filtersOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+          :aria-expanded="filtersOpen"
+          aria-controls="asset-filters"
+          aria-label="Filters"
+          @click="filtersOpen = !filtersOpen"
+        >
+          Filters
+          <span
+            v-if="activeFilterChips.length"
+            aria-hidden="true"
+            class="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-extrabold text-primary"
+          >{{ activeFilterChips.length }}</span>
+        </UButton>
+      </div>
+      <div
+        v-if="activeFilterChips.length || hasActiveFilters"
+        class="mt-3 flex flex-wrap items-center gap-2 border-t border-mist-100 pt-3 dark:border-mist-700"
+        aria-label="Active filters"
+      >
+        <UButton
+          v-for="chip in activeFilterChips"
+          :key="chip.key"
+          size="xs"
+          color="neutral"
+          variant="soft"
+          trailing-icon="i-lucide-x"
+          :aria-label="`Remove ${chip.label} filter`"
+          @click="removeActiveFilter(chip.key)"
+        >
+          {{ chip.label }}
+        </UButton>
+        <UButton
+          class="ml-auto"
+          size="xs"
+          variant="link"
+          color="neutral"
+          @click="clearFilters"
+        >
+          Clear all
+        </UButton>
+      </div>
+      <div
+        v-if="filtersOpen"
+        id="asset-filters"
+        class="mt-4 border-t border-mist-100 pt-4 dark:border-mist-700"
+        aria-label="Filters"
+      >
+        <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 class="text-sm font-extrabold text-mist-950 dark:text-white">
+              Filters
+            </h2>
+            <p class="text-xs text-muted">
+              Narrow the asset list, or combine detailed rules in the search builder.
+            </p>
+          </div>
+          <UButton
+            variant="link"
+            class="w-fit px-0 font-semibold"
+            trailing-icon="i-lucide-arrow-right"
+            :disabled="savedLoading"
+            @click="openAdvanced()"
+          >
+            Open search builder
+          </UButton>
+        </div>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           <USelectMenu
             v-if="features.collections"
             v-model="filters.collection_id"
@@ -244,14 +494,15 @@ watch(searchQuery, (val: string) => {
             value-key="value"
             placeholder="Collection"
             aria-label="Filter by collection"
-            class="min-w-0 sm:w-44"
+            class="min-w-0"
           />
           <USelectMenu
             v-if="features.categories"
             v-model="filters.category_id"
             :items="categoryOptions"
             placeholder="Category"
-            class="min-w-0 sm:w-40"
+            aria-label="Filter by category"
+            class="min-w-0"
             value-key="value"
             icon="i-lucide-folder"
           />
@@ -260,7 +511,8 @@ watch(searchQuery, (val: string) => {
             v-model="filters.location_id"
             :items="locationOptions"
             placeholder="Location"
-            class="min-w-0 sm:w-40"
+            aria-label="Filter by location"
+            class="min-w-0"
             value-key="value"
             icon="i-lucide-map-pin"
           />
@@ -269,22 +521,168 @@ watch(searchQuery, (val: string) => {
             v-model="filters.condition_id"
             :items="conditionOptions"
             placeholder="Condition"
-            class="min-w-0 sm:w-36"
+            aria-label="Filter by condition"
+            class="min-w-0"
             value-key="value"
             icon="i-lucide-sparkles"
           />
-          <UButton
-            v-if="hasActiveFilters"
-            variant="ghost"
-            color="neutral"
-            icon="i-lucide-x"
-            @click="clearFilters"
-          >
-            Clear
-          </UButton>
+          <USelectMenu
+            v-if="features.attributes"
+            id="advanced-attribute"
+            :model-value="selectedAttributeId"
+            :items="attributeOptions"
+            value-key="value"
+            placeholder="Attribute"
+            aria-label="Attribute"
+            class="min-w-0"
+            @update:model-value="selectAttribute"
+          />
+          <UInputMenu
+            v-if="features.attributes"
+            id="advanced-attribute-value"
+            v-model:search-term="attributeSearchTerm"
+            :model-value="selectedAttributeValue"
+            :items="attributeValueOptions"
+            value-key="value"
+            :placeholder="selectedAttributeId ? 'Attribute value' : 'Choose an attribute first'"
+            aria-label="Attribute value"
+            icon="i-lucide-search"
+            class="min-w-0"
+            :disabled="!selectedAttributeId"
+            @update:model-value="selectAttributeValue"
+          />
         </div>
+        <p
+          v-if="features.attributes && !selectableAttributes.length && !attributesError"
+          class="mt-2 text-xs text-muted"
+        >
+          No configured attribute values are available. Use the search builder for text, number, date, or boolean attributes.
+        </p>
       </div>
+      <p
+        v-if="message"
+        class="mt-3 text-sm text-error"
+        role="alert"
+      >
+        {{ message }}
+      </p>
+      <ul
+        v-if="issues.length"
+        class="mt-3 text-sm text-error"
+        aria-label="Saved filter issues"
+      >
+        <li
+          v-for="(issue, index) in issues"
+          :key="index"
+        >
+          {{ issueLabel(issue, criteria, visibleAttributes) }}: {{ issue.message }}
+        </li>
+      </ul>
+      <p
+        v-if="savedError"
+        class="mt-3 text-sm text-error"
+        role="alert"
+      >
+        Could not load saved filters. <UButton
+          size="xs"
+          variant="link"
+          @click="refreshSaved()"
+        >
+          Retry saved filters
+        </UButton>
+      </p>
+      <p
+        v-if="attributesError"
+        class="mt-3 text-sm text-error"
+        role="alert"
+      >
+        Could not load attribute definitions. <UButton
+          size="xs"
+          variant="link"
+          @click="refreshAttributes()"
+        >
+          Retry attributes
+        </UButton>
+      </p>
     </section>
+
+    <AssetFilterModal
+      ref="filterModal"
+      :criteria="criteria"
+      :selected="selected"
+      :attributes="visibleAttributes"
+      :options="advancedOptions"
+      :features="features"
+      :issues="[...issues, ...(queryFailure?.issues || [])]"
+      :message="message || queryFailure?.message || ''"
+      :busy="busy"
+      :save="save"
+      @apply="apply"
+    />
+    <UModal
+      v-model:open="renameOpen"
+      title="Rename saved search"
+      description="Only the name will change, including for searches that need repair."
+      :dismissible="!busy"
+      :close="!busy"
+    >
+      <template #body>
+        <UInput
+          v-model="renameName"
+          aria-label="New filter name"
+          class="w-full"
+        />
+        <p
+          v-if="message"
+          role="alert"
+          class="text-error"
+        >
+          {{ message }}
+        </p>
+      </template>
+      <template #footer>
+        <UButton
+          variant="ghost"
+          color="neutral"
+          :disabled="busy"
+          @click="renameOpen = false"
+        >
+          Cancel
+        </UButton>
+        <UButton
+          :loading="busy"
+          :disabled="!renameName.trim()"
+          @click="rename(renameName).then(ok => { if (ok) renameOpen = false })"
+        >
+          Rename
+        </UButton>
+      </template>
+    </UModal>
+    <UModal
+      v-model:open="deleteOpen"
+      title="Delete saved search"
+      :description="`Delete ${selected?.name || 'this filter'}? Your current search will stay applied.`"
+      :dismissible="!busy"
+      :close="!busy"
+    >
+      <template #footer>
+        <UButton
+          variant="ghost"
+          color="neutral"
+          :disabled="busy"
+          @click="deleteOpen = false"
+        >
+          Cancel
+        </UButton>
+        <UButton
+          color="error"
+          :loading="busy"
+          @click="remove().then(ok => { if (ok) deleteOpen = false })"
+        >
+          Delete
+        </UButton>
+      </template>
+    </UModal>
 
     <!-- Assets Table -->
     <div class="flex-1">
@@ -340,7 +738,7 @@ watch(searchQuery, (val: string) => {
             </thead>
             <tbody class="divide-y divide-mist-100 dark:divide-mist-800">
               <!-- Loading State -->
-              <tr v-if="status === 'pending'">
+              <tr v-if="status === 'pending' || savedLoading">
                 <td
                   colspan="7"
                   class="p-8 text-center"
@@ -356,7 +754,7 @@ watch(searchQuery, (val: string) => {
               </tr>
 
               <!-- Error State -->
-              <tr v-else-if="error">
+              <tr v-else-if="error || blocked">
                 <td
                   colspan="7"
                   class="p-10 text-center"
@@ -370,9 +768,21 @@ watch(searchQuery, (val: string) => {
                       Could not load assets
                     </p>
                     <p class="mt-1 text-sm text-muted">
-                      Check your connection and try again.
+                      {{ queryFailure?.message || message || 'Open the search builder to remove or repair unavailable criteria.' }}
                     </p>
+                    <ul
+                      v-if="queryFailure?.issues.length"
+                      class="mt-2 text-sm text-error"
+                    >
+                      <li
+                        v-for="(issue, index) in queryFailure.issues"
+                        :key="index"
+                      >
+                        {{ issueLabel(issue, criteria, visibleAttributes) }}: {{ issue.message }}
+                      </li>
+                    </ul>
                     <UButton
+                      v-if="!blocked"
                       class="mt-4"
                       variant="soft"
                       icon="i-lucide-refresh-cw"

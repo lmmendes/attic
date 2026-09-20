@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { SavedFilter } from '~/types/api'
+
 useHead({
   meta: [
     { name: 'viewport', content: 'width=device-width, initial-scale=1' }
@@ -24,6 +26,10 @@ useSeoMeta({
 const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isAuthDisabled, isOIDCEnabled, changePassword } = useAuth()
 const { features, loaded: featuresLoaded, error: featureError, load: loadFeatures } = useFeatures()
 const config = useRuntimeConfig()
+const { data: savedSearches, refresh: refreshSavedSearches } = useApi<SavedFilter[]>('/api/saved-filters', {
+  immediate: false
+})
+const pinnedSavedSearches = computed(() => (savedSearches.value || []).filter(search => search.pinned).slice(0, 5))
 
 async function retryFeatureLoad() {
   await loadFeatures()
@@ -44,6 +50,9 @@ watch(loggedIn, (isLoggedIn) => {
   if (isLoggedIn) {
     void fetchAppInfo()
     void loadFeatures()
+    void refreshSavedSearches()
+  } else {
+    savedSearches.value = []
   }
 }, { immediate: true })
 
@@ -164,6 +173,7 @@ const isActive = (to: string) => {
   if (to === '/') return route.path === '/'
   return route.path.startsWith(to)
 }
+const isSavedSearchActive = (id: string) => route.path === '/assets' && route.query.saved_filter_id === id
 
 type DropdownMenuItem = {
   label: string
@@ -220,7 +230,7 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
         <!-- Sidebar -->
         <aside class="hidden lg:flex w-68 bg-white/92 dark:bg-mist-900/92 backdrop-blur-xl border-r border-mist-200/80 dark:border-mist-800 flex-col flex-shrink-0">
           <!-- Logo -->
-          <div class="p-5">
+          <div class="min-h-0 flex-1 overflow-y-auto p-5">
             <NuxtLink
               to="/"
               class="flex items-center gap-3 px-2 mb-9"
@@ -266,6 +276,32 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
                   {{ item.label }}
                 </span>
               </NuxtLink>
+
+              <div
+                v-if="pinnedSavedSearches.length"
+                class="mt-4 space-y-1 border-l border-mist-200 pl-3 dark:border-mist-700"
+                aria-label="Pinned saved searches"
+              >
+                <p class="px-2 pb-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">
+                  Saved searches
+                </p>
+                <NuxtLink
+                  v-for="search in pinnedSavedSearches"
+                  :key="search.id"
+                  :to="{ path: '/assets', query: { saved_filter_id: search.id } }"
+                  class="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all"
+                  :class="isSavedSearchActive(search.id)
+                    ? 'bg-attic-50 text-attic-600 dark:bg-attic-500/15 dark:text-attic-300'
+                    : 'text-mist-600 hover:bg-mist-50 dark:text-mist-300 dark:hover:bg-mist-800'"
+                  :title="search.name"
+                >
+                  <UIcon
+                    name="i-lucide-pin"
+                    class="size-3.5 shrink-0"
+                  />
+                  <span class="truncate text-xs font-semibold">{{ search.name }}</span>
+                </NuxtLink>
+              </div>
 
               <!-- Divider -->
               <div class="pt-5 mt-5 border-t border-mist-100 dark:border-mist-800">

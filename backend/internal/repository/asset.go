@@ -169,7 +169,7 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 		argNum++
 	}
 	if filter.Query != "" {
-		conditions = append(conditions, fmt.Sprintf("a.search_vector @@ plainto_tsquery('english', $%d)", argNum))
+		conditions = append(conditions, fmt.Sprintf("a.search_vector @@ attic_prefix_tsquery($%d)", argNum))
 		args = append(args, filter.Query)
 		argNum++
 	}
@@ -181,6 +181,18 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 		argNum++
 	}
 
+	if filter.Criteria != nil {
+		if filter.Features == nil {
+			return nil, 0, errors.New("filter feature settings are required")
+		}
+		predicate, filterArgs, err := r.CompileCriteria(ctx, orgID, *filter.Criteria, *filter.Features, argNum)
+		if err != nil {
+			return nil, 0, err
+		}
+		conditions = append(conditions, predicate)
+		args = append(args, filterArgs...)
+		argNum += len(filterArgs)
+	}
 	whereClause := strings.Join(conditions, " AND ")
 
 	// Count total

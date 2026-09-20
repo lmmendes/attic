@@ -188,6 +188,7 @@ export interface AssetsResponse {
 }
 
 export interface AssetFilters {
+  attribute_q?: string
   collection_id?: string
   q?: string
   category_id?: string
@@ -195,6 +196,46 @@ export interface AssetFilters {
   condition_id?: string
   limit?: number
   offset?: number
+}
+
+export interface FilterRule {
+  kind: 'rule'
+  field: 'attribute' | 'collections' | 'category' | 'location' | 'condition' | 'q' | 'attribute_q'
+  attribute_id?: string
+  data_type?: AttributeDataType
+  selection_mode?: 'single' | 'multiple'
+  operator: string
+  value?: string | number | boolean
+  values?: string[]
+  upper?: string | number
+}
+
+export interface FilterGroup {
+  kind: 'group'
+  match: 'all' | 'any'
+  children: FilterNode[]
+}
+
+export type FilterNode = FilterGroup | FilterRule
+
+export interface FilterCriteria extends Omit<AssetFilters, 'limit' | 'offset'> {
+  version: number
+  expression?: FilterNode
+}
+
+export interface FilterIssue {
+  path: string
+  message: string
+}
+
+export interface SavedFilter {
+  id: string
+  name: string
+  pinned: boolean
+  criteria: FilterCriteria
+  created_at: string
+  updated_at: string
+  issues?: FilterIssue[]
 }
 
 // Import Plugin Types

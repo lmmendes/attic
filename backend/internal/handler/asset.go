@@ -136,12 +136,24 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 		}
 		filter.CollectionID = &id
 	}
+	if value := q.Get("attribute_q"); value != "" {
+		features, err := h.features(r)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to read organization features")
+			return
+		}
+		filter.Criteria = &domain.FilterCriteria{Version: 1, AttributeQuery: value}
+		filter.Features = features
+	}
 	assets, total, err := h.repos.Assets.List(r.Context(), h.orgID, filter, page)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to list assets")
+		writeFilterError(w, err)
 		return
 	}
+	h.writeAssetList(w, r, assets, total, page)
+}
 
+func (h *Handler) writeAssetList(w http.ResponseWriter, r *http.Request, assets []domain.Asset, total int, page domain.Pagination) {
 	if assets == nil {
 		assets = []domain.Asset{}
 	}
@@ -165,8 +177,8 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, AssetListResponse{
 		Assets: assetsWithURLs,
 		Total:  total,
-		Limit:  limit,
-		Offset: offset,
+		Limit:  page.Limit,
+		Offset: page.Offset,
 	})
 }
 

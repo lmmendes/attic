@@ -80,7 +80,7 @@ describe('accessibility template regressions', () => {
   it('distinguishes an asset load failure from an empty inventory and offers retry', () => {
     const source = readAppFile('pages/assets/index.vue')
 
-    expect(source).toContain('v-else-if="error"')
+    expect(source).toContain('v-else-if="error || blocked"')
     expect(source).toContain('Could not load assets')
     expect(source).toContain('@click="refresh()"')
   })
