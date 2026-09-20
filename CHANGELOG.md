@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.6.0](https://github.com/lmmendes/attic/compare/v2.5.1...v2.6.0) (2026-09-20)
+
+
+### Features
+
+* **assets:** add advanced filtering and saved searches ([#94](https://github.com/lmmendes/attic/issues/94)) ([d04e12f](https://github.com/lmmendes/attic/commit/d04e12f19ea757de0ba9ad61db6ff4666a9e39cd))
+
+
+### Bug Fixes
+
+* **deps:** correct Dependabot project directories ([#96](https://github.com/lmmendes/attic/issues/96)) ([14bdc63](https://github.com/lmmendes/attic/commit/14bdc63f4c199f729040e0f0ec3c540f28e0ce5a))
+
 ## [2.5.1](https://github.com/lmmendes/attic/compare/v2.5.0...v2.5.1) (2026-09-15)
 
 
