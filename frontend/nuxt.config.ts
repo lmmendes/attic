@@ -1,3 +1,24 @@
+import { icons as lucideIconSet } from '@iconify-json/lucide'
+
+const lucideIconNames = Object.keys(lucideIconSet.icons).sort()
+const lucideIconAliases = Object.entries(lucideIconSet.aliases || {}).reduce<Record<string, string[]>>(
+  (aliases, [name, alias]) => {
+    const parent = alias.parent
+    aliases[parent] ||= []
+    aliases[parent].push(name)
+    return aliases
+  },
+  {}
+)
+const lucideIconCatalog = lucideIconNames.map(name => ({
+  name: `i-lucide-${name}`,
+  aliases: (lucideIconAliases[name] || []).sort()
+}))
+const lucideBundleIcons = [
+  ...lucideIconNames,
+  ...Object.keys(lucideIconSet.aliases || {})
+].map(name => `lucide:${name}`)
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   modules: [
@@ -17,7 +38,8 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || ''
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
+      lucideIconCatalog
     }
   },
 
@@ -49,5 +71,13 @@ export default defineNuxtConfig({
         weights: [200, 300, 400, 500, 600, 700, 800]
       }
     ]
+  },
+
+  icon: {
+    clientBundle: {
+      icons: lucideBundleIcons,
+      scan: true,
+      sizeLimitKb: 768
+    }
   }
 })

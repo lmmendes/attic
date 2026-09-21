@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { getIconLabel } from '~/utils/iconLabel'
 import { buildCategoryOptions, getCategoryDescendantIds, getInheritedCategoryAttributes } from '~/utils/categoryHierarchy'
 import type { Category, Attribute } from '~/types/api'
 
@@ -87,69 +86,6 @@ const inheritedAttributes = computed(() =>
 
 // Search query for attribute library
 const attributeSearch = ref('')
-
-// Available icons - expanded list
-const icons = [
-  // Media & Entertainment
-  'i-lucide-book-open',
-  'i-lucide-headphones',
-  'i-lucide-gamepad-2',
-  'i-lucide-film',
-  'i-lucide-music',
-  'i-lucide-tv',
-  'i-lucide-disc-3',
-  'i-lucide-radio',
-  // Electronics & Tech
-  'i-lucide-laptop',
-  'i-lucide-camera',
-  'i-lucide-smartphone',
-  'i-lucide-tablet',
-  'i-lucide-monitor',
-  'i-lucide-printer',
-  'i-lucide-cpu',
-  'i-lucide-hard-drive',
-  // Clothing & Accessories
-  'i-lucide-shirt',
-  'i-lucide-watch',
-  'i-lucide-glasses',
-  'i-lucide-gem',
-  // Home & Furniture
-  'i-lucide-armchair',
-  'i-lucide-lamp',
-  'i-lucide-bed',
-  'i-lucide-sofa',
-  // Tools & Equipment
-  'i-lucide-wrench',
-  'i-lucide-hammer',
-  'i-lucide-drill',
-  'i-lucide-scissors',
-  // Sports & Fitness
-  'i-lucide-dumbbell',
-  'i-lucide-bike',
-  'i-lucide-footprints',
-  // Art & Creative
-  'i-lucide-palette',
-  'i-lucide-brush',
-  'i-lucide-pen-tool',
-  'i-lucide-image',
-  // Transport
-  'i-lucide-car',
-  'i-lucide-plane',
-  'i-lucide-ship',
-  // Kitchen & Dining
-  'i-lucide-chef-hat',
-  'i-lucide-utensils',
-  'i-lucide-coffee',
-  'i-lucide-wine',
-  // Other
-  'i-lucide-box',
-  'i-lucide-archive',
-  'i-lucide-briefcase',
-  'i-lucide-gift',
-  'i-lucide-heart',
-  'i-lucide-star',
-  'i-lucide-tag'
-]
 
 // Character count for description
 const descriptionCount = computed(() => form.description.length)
@@ -404,28 +340,7 @@ function cancel() {
               Icon
             </h3>
           </div>
-          <div class="pr-1 sm:max-h-[280px] sm:overflow-y-auto custom-scrollbar">
-            <div class="grid grid-cols-5 gap-3">
-              <button
-                v-for="icon in icons"
-                :key="icon"
-                type="button"
-                :aria-label="`${getIconLabel(icon)} icon`"
-                :title="`${getIconLabel(icon)} icon`"
-                :aria-pressed="form.icon === icon"
-                class="aspect-square rounded-xl flex items-center justify-center transition-all"
-                :class="form.icon === icon
-                  ? 'bg-attic-500 text-white ring-2 ring-offset-2 ring-attic-500 dark:ring-offset-mist-800'
-                  : 'bg-mist-50 dark:bg-mist-900 text-muted hover:text-attic-500 hover:bg-mist-100 dark:hover:bg-mist-700 border border-transparent hover:border-mist-200 dark:hover:border-mist-600'"
-                @click="form.icon = icon"
-              >
-                <UIcon
-                  :name="icon"
-                  class="w-6 h-6"
-                />
-              </button>
-            </div>
-          </div>
+          <IconPicker v-model="form.icon" />
         </div>
       </div>
 

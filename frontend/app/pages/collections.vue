@@ -34,7 +34,6 @@ const editing = ref<string | null>(null)
 const busy = ref(false)
 const formError = ref('')
 const form = reactive({ name: '', description: '', icon: 'i-lucide-library' })
-const icons = ['library', 'gamepad-2', 'disc-3', 'armchair', 'sofa', 'book-open', 'music', 'camera', 'headphones', 'monitor', 'shirt', 'watch', 'gem', 'wrench', 'cooking-pot', 'bike', 'flower-2', 'palette', 'puzzle', 'box'].map(name => `i-lucide-${name}`)
 
 function errorMessage(err: unknown, fallback: string) {
   const response = err as { data?: { error?: string } }
@@ -229,28 +228,7 @@ async function remove() {
               class="w-full"
             />
           </UFormField>
-          <fieldset>
-            <legend class="mb-2 text-sm font-semibold">
-              Icon
-            </legend>
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="icon in icons"
-                :key="icon"
-                type="button"
-                :aria-label="getIconLabel(icon)"
-                :aria-pressed="form.icon === icon"
-                class="flex size-11 items-center justify-center rounded-xl border focus-visible:outline-2 focus-visible:outline-attic-500"
-                :class="form.icon === icon ? 'border-attic-500 bg-attic-500/10 text-attic-500' : 'border-subtle text-muted'"
-                @click="form.icon = icon"
-              >
-                <UIcon
-                  :name="icon"
-                  class="size-5"
-                />
-              </button>
-            </div>
-          </fieldset>
+          <IconPicker v-model="form.icon" />
           <p
             v-if="formError"
             role="alert"
