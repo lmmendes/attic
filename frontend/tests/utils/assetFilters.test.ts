@@ -6,6 +6,7 @@ describe('asset filter definitions', () => {
   it('roundtrips full criteria without pagination and isolates nested drafts', () => {
     const criteria: FilterCriteria & { offset: number } = {
       version: 1, q: 'computer', attribute_q: 'blue', category_id: 'category', collection_id: 'collection', offset: 48,
+      tag_ids: ['retro', 'portable'], tag_match: 'all',
       expression: { kind: 'group', match: 'any', children: [{ kind: 'rule', field: 'collections', operator: 'all', values: ['one', 'two'] }] }
     }
     const draft = copyCriteria(criteria)
@@ -23,6 +24,10 @@ describe('asset filter definitions', () => {
   it('allows linked collection overrides while preserving a structured expression', () => {
     const criteria = { version: 1, collection_id: 'old', expression: { kind: 'rule', field: 'q', operator: 'search', value: 'a' } }
     expect(readCriteria({ criteria: JSON.stringify(criteria), collection_id: 'new' }).criteria).toEqual({ ...criteria, collection_id: 'new' })
+  })
+
+  it('restores repeated tag URL parameters and matching mode', () => {
+    expect(readCriteria({ tag_id: ['one', 'two'], tag_match: 'all' }).criteria).toEqual({ version: 1, tag_ids: ['one', 'two'], tag_match: 'all' })
   })
 
   it.each(['{', '{"version":2}', '{"version":1,"q":42}', '{"version":1,"expression":{"kind":"group","children":null}}'])('rejects malformed URL %s without throwing', (criteria) => {

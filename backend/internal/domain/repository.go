@@ -82,6 +82,7 @@ type AssetFilter struct {
 	LocationID    *uuid.UUID
 	ConditionID   *uuid.UUID
 	TagIDs        []uuid.UUID
+	TagMatch      string
 	Query         string // Full-text search query
 	Attributes    map[string]any
 	Criteria      *FilterCriteria
@@ -109,13 +110,14 @@ type AssetRepository interface {
 
 // TagRepository handles tag persistence
 type TagRepository interface {
-	GetByID(ctx context.Context, id uuid.UUID) (*Tag, error)
+	GetByID(ctx context.Context, orgID, id uuid.UUID) (*Tag, error)
 	GetByName(ctx context.Context, orgID uuid.UUID, name string) (*Tag, error)
 	List(ctx context.Context, orgID uuid.UUID) ([]Tag, error)
 	ListByAsset(ctx context.Context, assetID uuid.UUID) ([]Tag, error)
 	Create(ctx context.Context, tag *Tag) error
 	GetOrCreate(ctx context.Context, orgID uuid.UUID, name string) (*Tag, error)
-	Delete(ctx context.Context, id uuid.UUID) error
+	Update(ctx context.Context, tag *Tag) error
+	Delete(ctx context.Context, orgID, id uuid.UUID) error
 }
 
 // WarrantyWithAsset combines warranty with asset info for listing

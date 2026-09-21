@@ -111,6 +111,7 @@ const route = useRoute()
 const protectedRoutes: Array<[string, keyof typeof features.value]> = [
   ['/locations', 'locations'],
   ['/collections', 'collections'],
+  ['/tags', 'tags'],
   ['/categories', 'categories'],
   ['/attributes', 'categories'],
   ['/conditions', 'conditions'],
@@ -133,7 +134,8 @@ const baseNavigation = [
   { label: 'All Assets', to: '/assets', icon: 'i-lucide-package' },
   { label: 'Locations', to: '/locations', icon: 'i-lucide-map-pin' },
   { label: 'Collections', to: '/collections', icon: 'i-lucide-library' },
-  { label: 'Categories', to: '/categories', icon: 'i-lucide-tag' }
+  { label: 'Tags', to: '/tags', icon: 'i-lucide-tags' },
+  { label: 'Categories', to: '/categories', icon: 'i-lucide-shapes' }
 ]
 
 const secondaryNavigation = [
@@ -147,6 +149,7 @@ const navigation = computed(() => {
   const items = baseNavigation.filter((item) => {
     if (item.to === '/locations') return features.value.locations
     if (item.to === '/collections') return features.value.collections
+    if (item.to === '/tags') return features.value.tags
     if (item.to === '/categories') return features.value.categories
     return true
   })

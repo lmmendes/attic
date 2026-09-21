@@ -60,9 +60,9 @@ func (r *AssetRepository) NewFilterValidator(ctx context.Context, org uuid.UUID,
 		c.attributes[attr.ID.String()] = attr
 	}
 	// Table and field names are fixed, never supplied by the caller.
-	for field, table := range map[string]string{"category": "categories", "location": "locations", "condition": "conditions", "collections": "collections"} {
+	for field, table := range map[string]string{"category": "categories", "location": "locations", "condition": "conditions", "collections": "collections", "tags": "tags"} {
 		query := "SELECT id::text FROM " + table + " WHERE organization_id=$1"
-		if field != "collections" {
+		if field != "collections" && field != "tags" {
 			query += " AND deleted_at IS NULL"
 		}
 		if field == "category" && !features.Plugins {
@@ -107,6 +107,15 @@ func (c *filterCompiler) compile(criteria domain.FilterCriteria) (string, []any,
 	}
 	if criteria.AttributeQuery != "" {
 		parts = append(parts, c.node(domain.FilterNode{Kind: "rule", Field: "attribute_q", Operator: "contains", Value: criteria.AttributeQuery}, "attribute_q", 0))
+	}
+	if len(criteria.TagIDs) > 0 {
+		match := criteria.TagMatch
+		if match == "" {
+			match = "any"
+		}
+		parts = append(parts, c.node(domain.FilterNode{Kind: "rule", Field: "tags", Operator: match, Values: criteria.TagIDs}, "tag_ids", 0))
+	} else if criteria.TagMatch != "" {
+		c.issue("tag_match", "Tag matching requires at least one tag")
 	}
 	if criteria.Expression != nil {
 		parts = append(parts, c.node(*criteria.Expression, "expression", 0))
@@ -172,7 +181,14 @@ func (c *filterCompiler) node(n domain.FilterNode, path string, depth int) strin
 			return c.issue(path, "Enter search text (up to 1000 bytes)")
 		}
 		if n.Field == "q" && n.Operator == "search" {
-			return "a.search_vector @@ attic_prefix_tsquery(" + c.param(s) + ")"
+			p := c.param(s)
+			if !c.features.Tags {
+				return `a.search_vector @@ attic_prefix_tsquery(` + p + `)`
+			}
+			return `(a.search_vector @@ attic_prefix_tsquery(` + p + `)
+ OR EXISTS (SELECT 1 FROM asset_tags at JOIN tags t ON t.id=at.tag_id
+ WHERE at.asset_id=a.id AND t.organization_id=a.organization_id
+ AND to_tsvector('english',t.name) @@ attic_prefix_tsquery(` + p + `)))`
 		}
 		if n.Field == "attribute_q" && n.Operator == "contains" {
 			if !c.features.Attributes {
@@ -185,11 +201,11 @@ func (c *filterCompiler) node(n domain.FilterNode, path string, depth int) strin
 	if n.Field == "attribute" {
 		return c.attribute(n, path)
 	}
-	enabled := map[string]bool{"collections": c.features.Collections, "category": c.features.Categories, "location": c.features.Locations, "condition": c.features.Conditions}
+	enabled := map[string]bool{"collections": c.features.Collections, "tags": c.features.Tags, "category": c.features.Categories, "location": c.features.Locations, "condition": c.features.Conditions}
 	if !enabled[n.Field] {
 		return c.issue(path, "This field is unavailable or disabled")
 	}
-	if n.Value != nil || n.Upper != nil || len(n.Values) == 0 || (n.Operator != "any" && !(n.Field == "collections" && n.Operator == "all")) {
+	if n.Value != nil || n.Upper != nil || len(n.Values) == 0 || (n.Operator != "any" && !((n.Field == "collections" || n.Field == "tags") && n.Operator == "all")) {
 		return c.issue(path, "Choose a supported membership operator and at least one value")
 	}
 	parts := []string{}
@@ -206,6 +222,8 @@ func (c *filterCompiler) node(n domain.FilterNode, path string, depth int) strin
 		switch n.Field {
 		case "collections":
 			parts = append(parts, "EXISTS (SELECT 1 FROM asset_collections ac JOIN collections cl ON cl.id=ac.collection_id AND cl.organization_id=a.organization_id WHERE ac.asset_id=a.id AND ac.collection_id="+p+"::uuid)")
+		case "tags":
+			parts = append(parts, "EXISTS (SELECT 1 FROM asset_tags at JOIN tags t ON t.id=at.tag_id AND t.organization_id=a.organization_id WHERE at.asset_id=a.id AND at.tag_id="+p+"::uuid)")
 		case "category":
 			visible := ""
 			if !c.features.Plugins {

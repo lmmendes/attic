@@ -4,7 +4,7 @@ import { defineComponent, h, ref } from 'vue'
 import AssetFilterModal from '../../app/components/AssetFilterModal.vue'
 import type { FilterCriteria, OrganizationFeatures } from '../../app/types/api'
 
-const features: OrganizationFeatures = { attributes: true, categories: true, collections: true, locations: true, conditions: true, plugins: true, warranties: true }
+const features: OrganizationFeatures = { attributes: true, categories: true, collections: true, tags: true, locations: true, conditions: true, plugins: true, warranties: true }
 const modal = { props: ['open', 'title'], template: '<div v-if="open"><h1>{{ title }}</h1><slot name="body" /><slot name="footer" /></div>' }
 const input = { props: ['modelValue'], emits: ['update:modelValue'], template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)">' }
 

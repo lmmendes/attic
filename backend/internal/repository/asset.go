@@ -12,6 +12,8 @@ import (
 	"github.com/lmmendes/attic/internal/domain"
 )
 
+var ErrInvalidTags = errors.New("one or more tags do not exist in this workspace")
+
 type AssetRepository struct {
 	pool *pgxpool.Pool
 }
@@ -41,6 +43,9 @@ func (r *AssetRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.As
 		return nil, err
 	}
 	if err := r.loadAssetCollections(ctx, []*domain.Asset{&a}); err != nil {
+		return nil, err
+	}
+	if err := r.loadAssetTags(ctx, []*domain.Asset{&a}); err != nil {
 		return nil, err
 	}
 	return &a, nil
@@ -82,24 +87,6 @@ func (r *AssetRepository) GetByIDFull(ctx context.Context, id uuid.UUID) (*domai
 			&cond.ID, &cond.OrganizationID, &cond.Code, &cond.Label, &cond.Description, &cond.SortOrder, &cond.CreatedAt, &cond.UpdatedAt,
 		); err == nil {
 			asset.Condition = &cond
-		}
-	}
-
-	// Load tags
-	tagQuery := `
-		SELECT t.id, t.organization_id, t.name, t.created_at
-		FROM tags t
-		JOIN asset_tags at ON at.tag_id = t.id
-		WHERE at.asset_id = $1
-	`
-	rows, err := r.pool.Query(ctx, tagQuery, id)
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var tag domain.Tag
-			if err := rows.Scan(&tag.ID, &tag.OrganizationID, &tag.Name, &tag.CreatedAt); err == nil {
-				asset.Tags = append(asset.Tags, tag)
-			}
 		}
 	}
 
@@ -169,8 +156,26 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 		argNum++
 	}
 	if filter.Query != "" {
-		conditions = append(conditions, fmt.Sprintf("a.search_vector @@ attic_prefix_tsquery($%d)", argNum))
+		searchCondition := fmt.Sprintf("a.search_vector @@ attic_prefix_tsquery($%d)", argNum)
+		if filter.Features == nil || filter.Features.Tags {
+			searchCondition = fmt.Sprintf(`(a.search_vector @@ attic_prefix_tsquery($%d)
+            OR EXISTS (SELECT 1 FROM asset_tags at JOIN tags t ON t.id=at.tag_id
+                WHERE at.asset_id=a.id AND t.organization_id=a.organization_id
+				AND to_tsvector('english', t.name) @@ attic_prefix_tsquery($%d)))`, argNum, argNum)
+		}
+		conditions = append(conditions, searchCondition)
 		args = append(args, filter.Query)
+		argNum++
+	}
+	if len(filter.TagIDs) > 0 {
+		operator := "> 0"
+		if filter.TagMatch == "all" {
+			operator = fmt.Sprintf("= %d", len(filter.TagIDs))
+		}
+		conditions = append(conditions, fmt.Sprintf(`(SELECT COUNT(DISTINCT at.tag_id) FROM asset_tags at
+            JOIN tags t ON t.id=at.tag_id AND t.organization_id=a.organization_id
+            WHERE at.asset_id=a.id AND at.tag_id=ANY($%d)) %s`, argNum, operator))
+		args = append(args, filter.TagIDs)
 		argNum++
 	}
 	if filter.CollectionID != nil {
@@ -297,6 +302,9 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 	if err := r.loadAssetCollections(ctx, assetPointers); err != nil {
 		return nil, 0, err
 	}
+	if err := r.loadAssetTags(ctx, assetPointers); err != nil {
+		return nil, 0, err
+	}
 	return assets, total, nil
 }
 
@@ -340,6 +348,9 @@ func (r *AssetRepository) Create(ctx context.Context, a *domain.Asset) error {
 	if err := replaceAssetCollections(ctx, tx, a); err != nil {
 		return err
 	}
+	if err := replaceAssetTags(ctx, tx, a); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }
 
@@ -371,10 +382,16 @@ func (r *AssetRepository) Update(ctx context.Context, a *domain.Asset) error {
 	if err := replaceAssetCollections(ctx, tx, a); err != nil {
 		return err
 	}
+	if err := replaceAssetTags(ctx, tx, a); err != nil {
+		return err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	return r.loadAssetCollections(ctx, []*domain.Asset{a})
+	if err := r.loadAssetCollections(ctx, []*domain.Asset{a}); err != nil {
+		return err
+	}
+	return r.loadAssetTags(ctx, []*domain.Asset{a})
 }
 
 func (r *AssetRepository) Delete(ctx context.Context, id uuid.UUID) error {
@@ -405,19 +422,121 @@ func (r *AssetRepository) SetTags(ctx context.Context, assetID uuid.UUID, tagIDs
 	}
 	defer tx.Rollback(ctx)
 
-	// Delete existing tags
-	if _, err := tx.Exec(ctx, "DELETE FROM asset_tags WHERE asset_id = $1", assetID); err != nil {
+	asset := &domain.Asset{ID: assetID, TagIDs: tagIDs}
+	if err := tx.QueryRow(ctx, `SELECT organization_id FROM assets WHERE id=$1 AND deleted_at IS NULL`, assetID).Scan(&asset.OrganizationID); err != nil {
 		return err
 	}
+	if err := replaceAssetTags(ctx, tx, asset); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
 
-	// Insert new tags
-	for _, tagID := range tagIDs {
-		if _, err := tx.Exec(ctx, "INSERT INTO asset_tags (asset_id, tag_id) VALUES ($1, $2)", assetID, tagID); err != nil {
+func replaceAssetTags(ctx context.Context, tx pgx.Tx, asset *domain.Asset) error {
+	if asset.TagIDs == nil && asset.NewTagNames == nil {
+		return nil
+	}
+	ids := make([]uuid.UUID, 0, len(asset.TagIDs))
+	seenIDs := map[uuid.UUID]bool{}
+	for _, id := range asset.TagIDs {
+		if !seenIDs[id] {
+			ids = append(ids, id)
+			seenIDs[id] = true
+		}
+	}
+	tags := []domain.Tag{}
+	if len(ids) > 0 {
+		rows, err := tx.Query(ctx, `SELECT id, organization_id, name, description, created_at, updated_at, 0
+            FROM tags WHERE organization_id=$1 AND id=ANY($2) ORDER BY lower(name), id FOR SHARE`, asset.OrganizationID, ids)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var tag domain.Tag
+			if err := scanTag(rows, &tag); err != nil {
+				rows.Close()
+				return err
+			}
+			tags = append(tags, tag)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		if len(tags) != len(ids) {
+			return ErrInvalidTags
+		}
+	}
+	seenNames := map[string]bool{}
+	for _, tag := range tags {
+		seenNames[strings.ToLower(tag.Name)] = true
+	}
+	for _, name := range asset.NewTagNames {
+		key := strings.ToLower(name)
+		if seenNames[key] {
+			continue
+		}
+		id := uuid.New()
+		_, err := tx.Exec(ctx, `INSERT INTO tags(id, organization_id, name) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`, id, asset.OrganizationID, name)
+		if err != nil {
+			return err
+		}
+		var tag domain.Tag
+		if err := tx.QueryRow(ctx, `SELECT id, organization_id, name, description, created_at, updated_at, 0
+            FROM tags WHERE organization_id=$1 AND lower(name)=lower($2)`, asset.OrganizationID, name).Scan(
+			&tag.ID, &tag.OrganizationID, &tag.Name, &tag.Description, &tag.CreatedAt, &tag.UpdatedAt, &tag.AssetCount); err != nil {
+			return err
+		}
+		tags = append(tags, tag)
+		ids = append(ids, tag.ID)
+		seenIDs[tag.ID] = true
+		seenNames[key] = true
+	}
+	if len(ids) > 50 {
+		return errors.New("assign at most 50 tags")
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM asset_tags WHERE asset_id=$1`, asset.ID); err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if _, err := tx.Exec(ctx, `INSERT INTO asset_tags(asset_id, tag_id) VALUES($1,$2)`, asset.ID, id); err != nil {
 			return err
 		}
 	}
+	asset.TagIDs, asset.Tags = ids, tags
+	return nil
+}
 
-	return tx.Commit(ctx)
+func (r *AssetRepository) loadAssetTags(ctx context.Context, assets []*domain.Asset) error {
+	if len(assets) == 0 {
+		return nil
+	}
+	byID := map[uuid.UUID]*domain.Asset{}
+	ids := make([]uuid.UUID, 0, len(assets))
+	for _, asset := range assets {
+		asset.TagIDs = []uuid.UUID{}
+		asset.Tags = []domain.Tag{}
+		byID[asset.ID] = asset
+		ids = append(ids, asset.ID)
+	}
+	rows, err := r.pool.Query(ctx, `SELECT at.asset_id, t.id, t.organization_id, t.name, t.description, t.created_at, t.updated_at
+        FROM asset_tags at JOIN tags t ON t.id=at.tag_id WHERE at.asset_id=ANY($1) ORDER BY lower(t.name), t.id`, ids)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var assetID uuid.UUID
+		var tag domain.Tag
+		if err := rows.Scan(&assetID, &tag.ID, &tag.OrganizationID, &tag.Name, &tag.Description, &tag.CreatedAt, &tag.UpdatedAt); err != nil {
+			return err
+		}
+		if asset := byID[assetID]; asset != nil && asset.OrganizationID == tag.OrganizationID {
+			asset.TagIDs = append(asset.TagIDs, tag.ID)
+			asset.Tags = append(asset.Tags, tag)
+		}
+	}
+	return rows.Err()
 }
 
 func (r *AssetRepository) GetTotalValue(ctx context.Context, orgID uuid.UUID, filter domain.AssetFilter) (float64, error) {

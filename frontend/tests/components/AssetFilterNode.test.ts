@@ -19,7 +19,7 @@ async function setup(initial: FilterNode) {
         'onUpdate:modelValue': (value: FilterNode) => { node.value = value },
         'attributes': [{ id: 'vendor', name: 'Vendor', key: 'vendor', data_type: 'string', organization_id: '', created_at: '', updated_at: '' }],
         'options': { collections: [{ label: 'Computers', value: 'one' }, { label: 'Favorites', value: 'two' }] },
-        'features': { attributes: true, categories: true, collections: true, locations: true, conditions: true, plugins: true, warranties: true },
+        'features': { attributes: true, categories: true, collections: true, tags: true, locations: true, conditions: true, plugins: true, warranties: true },
         'ruleCount': 1
       })
     }

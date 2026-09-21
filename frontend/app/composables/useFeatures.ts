@@ -3,6 +3,7 @@ import type { OrganizationFeatures } from '~/types/api'
 const disabledFeatures: OrganizationFeatures = {
   locations: false,
   collections: false,
+  tags: false,
   categories: false,
   attributes: false,
   conditions: false,
@@ -13,6 +14,7 @@ const disabledFeatures: OrganizationFeatures = {
 const featureKeys: Array<keyof OrganizationFeatures> = [
   'locations',
   'collections',
+  'tags',
   'categories',
   'attributes',
   'conditions',
@@ -28,6 +30,7 @@ function isFeatureMap(value: unknown): value is OrganizationFeatures {
 const defaults: OrganizationFeatures = {
   locations: true,
   collections: true,
+  tags: true,
   categories: true,
   attributes: true,
   conditions: true,

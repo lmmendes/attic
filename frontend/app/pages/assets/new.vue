@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { Category, Location, Condition } from '~/types/api'
+import type { Category, Location, Condition, Tag } from '~/types/api'
 import { isValidAssetQuantity, QUANTITY_VALIDATION_MESSAGE } from '~/utils/assetValidation'
+import { tagAssignment } from '~/utils/tags'
 
 definePageMeta({
   middleware: 'auth'
@@ -15,12 +16,14 @@ const { features } = useFeatures()
 const { data: categories } = useApi<Category[]>('/api/categories', { immediate: features.value.categories })
 const { data: locations } = useApi<Location[]>('/api/locations', { immediate: features.value.locations })
 const { data: conditions } = useApi<Condition[]>('/api/conditions', { immediate: features.value.conditions })
+const { data: tags } = useApi<Tag[]>('/api/tags', { immediate: features.value.tags })
 
 const loading = ref(false)
 const categoryLoading = ref(false)
 const selectedCategory = ref<Category | null>(null)
 const form = reactive({
   collection_ids: [] as string[],
+  tag_names: [] as string[],
   name: '',
   description: '',
   category_id: undefined as string | undefined,
@@ -160,6 +163,7 @@ async function submitForm() {
       category_id: features.value.categories ? form.category_id : undefined,
       location_id: features.value.locations ? form.location_id || undefined : undefined,
       collection_ids: features.value.collections ? form.collection_ids : undefined,
+      ...(features.value.tags ? tagAssignment(form.tag_names, tags.value || []) : {}),
       condition_id: features.value.conditions ? form.condition_id || undefined : undefined,
       quantity: form.quantity,
       attributes: features.value.categories && Object.keys(form.attributes).length > 0 ? form.attributes : undefined,
@@ -345,6 +349,11 @@ async function submitForm() {
           <AssetCollectionsField
             v-if="features.collections"
             v-model="form.collection_ids"
+          />
+          <AssetTagsField
+            v-if="features.tags"
+            v-model="form.tag_names"
+            :tags="tags || []"
           />
         </section>
 

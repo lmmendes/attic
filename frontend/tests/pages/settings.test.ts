@@ -5,7 +5,7 @@ import SettingsPage from '../../app/pages/settings.vue'
 
 const { features, featureRef, authLoading, fetchSession, load, update, toast } = vi.hoisted(() => {
   const features = {
-    locations: true, collections: true, categories: true, attributes: true,
+    locations: true, collections: true, tags: true, categories: true, attributes: true,
     conditions: true, warranties: true, plugins: true
   }
   return {
@@ -41,7 +41,7 @@ describe('organization feature settings', () => {
     await flushPromises()
 
     expect(load).not.toHaveBeenCalled()
-    for (const label of ['Locations', 'Collections', 'Categories & attributes', 'Conditions', 'Warranties', 'Plugins']) {
+    for (const label of ['Locations', 'Collections', 'Tags', 'Categories & attributes', 'Conditions', 'Warranties', 'Plugins']) {
       expect(wrapper.text()).toContain(label)
     }
     expect(wrapper.text()).not.toContain('Use custom category properties')

@@ -83,13 +83,13 @@ func (r *OrganizationRepository) Update(ctx context.Context, o *domain.Organizat
 func (r *OrganizationRepository) GetFeatures(ctx context.Context, orgID uuid.UUID) (*domain.OrganizationFeatures, error) {
 	features := &domain.OrganizationFeatures{}
 	err := r.pool.QueryRow(ctx, `
-		SELECT locations, collections, categories, attributes, conditions, warranties, plugins
+		SELECT locations, collections, tags, categories, attributes, conditions, warranties, plugins
 		FROM organization_feature_settings WHERE organization_id = $1`, orgID).Scan(
-		&features.Locations, &features.Collections, &features.Categories, &features.Attributes,
+		&features.Locations, &features.Collections, &features.Tags, &features.Categories, &features.Attributes,
 		&features.Conditions, &features.Warranties, &features.Plugins,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
-		*features = domain.OrganizationFeatures{Locations: true, Collections: true, Categories: true, Attributes: true, Conditions: true, Warranties: true, Plugins: true}
+		*features = domain.OrganizationFeatures{Locations: true, Collections: true, Tags: true, Categories: true, Attributes: true, Conditions: true, Warranties: true, Plugins: true}
 		return features, nil
 	}
 	if err != nil {
@@ -104,13 +104,14 @@ func (r *OrganizationRepository) GetFeatures(ctx context.Context, orgID uuid.UUI
 func (r *OrganizationRepository) UpdateFeatures(ctx context.Context, orgID uuid.UUID, f *domain.OrganizationFeatures) error {
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO organization_feature_settings
-			(organization_id, locations, collections, categories, attributes, conditions, warranties, plugins)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+			(organization_id, locations, collections, tags, categories, attributes, conditions, warranties, plugins)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
 		ON CONFLICT (organization_id) DO UPDATE SET
 			locations=EXCLUDED.locations, collections=EXCLUDED.collections,
+			tags=EXCLUDED.tags,
 			categories=EXCLUDED.categories, attributes=EXCLUDED.attributes,
 			conditions=EXCLUDED.conditions, warranties=EXCLUDED.warranties,
 			plugins=EXCLUDED.plugins, updated_at=NOW()`, orgID,
-		f.Locations, f.Collections, f.Categories, f.Categories, f.Conditions, f.Warranties, f.Plugins)
+		f.Locations, f.Collections, f.Tags, f.Categories, f.Categories, f.Conditions, f.Warranties, f.Plugins)
 	return err
 }

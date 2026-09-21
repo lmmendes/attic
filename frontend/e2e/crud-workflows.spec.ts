@@ -115,6 +115,43 @@ test.describe('core browser workflows', () => {
     await expect(page.getByText('No assets match these filters')).toBeVisible()
   })
 
+  test('creates, manages, filters, and deletes asset tags', async ({ page }) => {
+    const tagName = `E2E Retro ${runID}`
+    const renamedTag = `${tagName} Updated`
+    const assetName = `E2E Tagged Asset ${runID}`
+
+    await signIn(page)
+    const created = await page.request.post('/api/assets', {
+      data: { name: assetName, quantity: 1, new_tag_names: [tagName] }
+    })
+    expect(created.ok(), await created.text()).toBeTruthy()
+    const asset = await created.json() as { id: string }
+
+    await page.goto(`/assets/${asset.id}`)
+    await expect(page.getByRole('link', { name: tagName, exact: true })).toBeVisible()
+
+    await page.goto('/tags')
+    const row = page.getByRole('listitem').filter({ hasText: tagName })
+    await expect(row).toContainText('1 asset')
+    await row.getByRole('button', { name: `Edit ${tagName}` }).click()
+    await page.getByLabel('Name', { exact: true }).fill(renamedTag)
+    await page.getByLabel('Description', { exact: true }).fill('Managed by browser integration tests')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect(page.getByText('Tag updated', { exact: true })).toBeVisible()
+
+    await page.getByRole('link', { name: renamedTag, exact: true }).click()
+    await expect(page.getByRole('row').filter({ hasText: assetName })).toBeVisible()
+
+    await page.goto('/tags')
+    const updated = page.getByRole('listitem').filter({ hasText: renamedTag })
+    await updated.getByRole('button', { name: `Delete ${renamedTag}` }).click()
+    await page.getByRole('dialog', { name: 'Delete tag' }).getByRole('button', { name: 'Delete tag' }).click()
+    await expect(page.getByText('Tag deleted. Your assets are safe.', { exact: true })).toBeVisible()
+    await page.goto(`/assets/${asset.id}`)
+    await expect(page.getByRole('heading', { name: assetName })).toBeVisible()
+    await expect(page.getByRole('link', { name: renamedTag, exact: true })).toHaveCount(0)
+  })
+
   test('creates, edits, and searches users as an administrator', async ({ page }) => {
     const email = `e2e-${runID}@example.com`
     const name = `E2E Member ${runID}`

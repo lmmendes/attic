@@ -16,6 +16,7 @@ mockNuxtImport('useApi', () => () => ({ data, error, status, refresh }))
 const enabledFeatures: OrganizationFeatures = {
   locations: true,
   collections: true,
+  tags: true,
   categories: true,
   attributes: true,
   conditions: true,

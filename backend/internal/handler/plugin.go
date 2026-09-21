@@ -75,7 +75,7 @@ func NewPluginHandler(registry *plugin.Registry, repos *Repositories, storage Fi
 }
 
 func allFeaturesEnabled() *domain.OrganizationFeatures {
-	return &domain.OrganizationFeatures{Locations: true, Collections: true, Categories: true, Attributes: true, Conditions: true, Warranties: true, Plugins: true}
+	return &domain.OrganizationFeatures{Locations: true, Collections: true, Tags: true, Categories: true, Attributes: true, Conditions: true, Warranties: true, Plugins: true}
 }
 
 func (h *PluginHandler) organizationFeatures(ctx context.Context) (*domain.OrganizationFeatures, error) {

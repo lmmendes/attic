@@ -15,6 +15,8 @@ type FilterCriteria struct {
 	LocationID     string      `json:"location_id,omitempty"`
 	ConditionID    string      `json:"condition_id,omitempty"`
 	CollectionID   string      `json:"collection_id,omitempty"`
+	TagIDs         []string    `json:"tag_ids,omitempty"`
+	TagMatch       string      `json:"tag_match,omitempty"`
 	Expression     *FilterNode `json:"expression,omitempty"`
 }
 

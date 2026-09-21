@@ -488,6 +488,23 @@ function getShortId(): string {
             {{ collection.name }}
           </UButton>
         </div>
+        <div
+          v-if="features.tags && asset.tags?.length"
+          class="flex flex-wrap gap-2"
+          aria-label="Tags"
+        >
+          <UButton
+            v-for="tag in asset.tags"
+            :key="tag.id"
+            :to="{ path: '/assets', query: { tag_id: tag.id } }"
+            icon="i-lucide-tag"
+            variant="soft"
+            color="neutral"
+            size="sm"
+          >
+            {{ tag.name }}
+          </UButton>
+        </div>
 
         <!-- Description (if present) -->
         <section

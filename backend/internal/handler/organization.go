@@ -26,7 +26,7 @@ func (h *Handler) UpdateOrganizationFeatures(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	known := map[string]bool{"locations": true, "collections": true, "categories": true, "attributes": true, "conditions": true, "warranties": true, "plugins": true}
+	known := map[string]bool{"locations": true, "collections": true, "tags": true, "categories": true, "attributes": true, "conditions": true, "warranties": true, "plugins": true}
 	for key, value := range raw {
 		if !known[key] {
 			writeError(w, http.StatusBadRequest, "unknown feature: "+key)

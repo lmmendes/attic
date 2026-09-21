@@ -16,6 +16,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ 'update:modelValue': [node: FilterNode], 'remove': [] }>()
 const fields = computed(() => [
   { label: 'Name / description', value: 'q' },
+  ...(props.features.tags ? [{ label: 'Tags', value: 'tags' }] : []),
   ...(props.features.attributes ? [{ label: 'All attribute values', value: 'attribute_q' }] : []),
   ...(['collections', 'category', 'location', 'condition'] as const)
     .filter(field => props.features[({ collections: 'collections', category: 'categories', location: 'locations', condition: 'conditions' } as const)[field]])
