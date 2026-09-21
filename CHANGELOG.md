@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.7.0](https://github.com/lmmendes/attic/compare/v2.6.0...v2.7.0) (2026-09-21)
+
+
+### Features
+
+* **tags:** add asset tagging and tag management ([#100](https://github.com/lmmendes/attic/issues/100)) ([f12c0fd](https://github.com/lmmendes/attic/commit/f12c0fd1d76fc7770a98bca06b849bb598016e4c))
+* **ui:** add searchable full Lucide icon picker ([#103](https://github.com/lmmendes/attic/issues/103)) ([9239a05](https://github.com/lmmendes/attic/commit/9239a05a05559d8379cb36d1e33ca0a38fc47623))
+
 ## [2.6.0](https://github.com/lmmendes/attic/compare/v2.5.1...v2.6.0) (2026-09-20)
 
 
