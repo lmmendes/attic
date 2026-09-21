@@ -39,11 +39,9 @@ describe('accessibility template regressions', () => {
   })
 
   it('names icon and data-type choices and exposes their selected state', () => {
-    for (const file of ['pages/locations.vue', 'components/CategoryEditor.vue']) {
-      const source = readAppFile(file)
-      expect(source, file).toContain(':aria-label=')
-      expect(source, file).toContain(':aria-pressed=')
-    }
+    const iconPicker = readAppFile('components/IconPicker.vue')
+    expect(iconPicker).toContain(':aria-label=')
+    expect(iconPicker).toContain(':aria-pressed=')
 
     for (const file of ['pages/attributes/new.vue', 'pages/attributes/[id]/edit.vue']) {
       const source = readAppFile(file)
@@ -89,8 +87,19 @@ describe('accessibility template regressions', () => {
     expect(readAppFile('pages/assets/[id]/index.vue')).toContain(':aria-label="`Delete ${asset.name}`"')
   })
 
-  it('lets category icon grids contribute their full mobile height', () => {
-    expect(readAppFile('components/CategoryEditor.vue')).toContain('sm:max-h-[280px] sm:overflow-y-auto')
+  it('uses the shared searchable icon picker everywhere icons are editable', () => {
+    for (const file of [
+      'pages/locations.vue',
+      'pages/collections.vue',
+      'components/CategoryEditor.vue',
+      'components/AssetHistory.vue'
+    ]) {
+      expect(readAppFile(file), file).toContain('<IconPicker v-model=')
+    }
+
+    const iconPicker = readAppFile('components/IconPicker.vue')
+    expect(iconPicker).toContain('max-h-72 overflow-y-auto')
+    expect(iconPicker).toContain('Search Lucide icons')
   })
 
   it('allows the attribute filters to shrink without overlapping search', () => {

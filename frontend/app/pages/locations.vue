@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Location, Asset } from '~/types/api'
-import { getIconLabel } from '~/utils/iconLabel'
 import { getLocationNameError } from '~/utils/locationValidation'
 
 definePageMeta({
@@ -60,21 +59,6 @@ interface ParentOption {
   label: string
   value: string | undefined
 }
-
-const locationIcons = [
-  'i-lucide-map-pin',
-  'i-lucide-home',
-  'i-lucide-archive',
-  'i-lucide-box',
-  'i-lucide-bed',
-  'i-lucide-sofa',
-  'i-lucide-utensils',
-  'i-lucide-bath',
-  'i-lucide-car',
-  'i-lucide-briefcase',
-  'i-lucide-door-open',
-  'i-lucide-warehouse'
-]
 
 function openCreateModal(parentId?: string) {
   editingLocation.value = null
@@ -871,31 +855,7 @@ function getLocationIcon(location: Location): string {
               />
             </div>
 
-            <div>
-              <label class="block text-sm font-medium text-mist-700 dark:text-mist-300 mb-1.5">
-                Icon
-              </label>
-              <div class="grid grid-cols-6 gap-2">
-                <button
-                  v-for="icon in locationIcons"
-                  :key="icon"
-                  type="button"
-                  :aria-label="`${getIconLabel(icon)} icon`"
-                  :title="`${getIconLabel(icon)} icon`"
-                  :aria-pressed="form.icon === icon"
-                  class="h-10 rounded-lg border transition-all flex items-center justify-center"
-                  :class="form.icon === icon
-                    ? 'bg-attic-500 text-white border-attic-500'
-                    : 'bg-mist-50 dark:bg-mist-700 text-muted dark:text-mist-300 border-mist-200 dark:border-mist-600 hover:border-attic-400 hover:text-attic-500'"
-                  @click="form.icon = icon"
-                >
-                  <UIcon
-                    :name="icon"
-                    class="w-4 h-4"
-                  />
-                </button>
-              </div>
-            </div>
+            <IconPicker v-model="form.icon" />
 
             <div>
               <label class="block text-sm font-medium text-mist-700 dark:text-mist-300 mb-1.5">
