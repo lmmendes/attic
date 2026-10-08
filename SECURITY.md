@@ -1,36 +1,38 @@
 # Security Policy
 
-## Supported Versions
-
-Version v1.x of attic support security updates.
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x.x   | :white_check_mark: |
+Security is important to the **attic** project. We appreciate the efforts of security researchers and community members who help identify and responsibly disclose vulnerabilities.
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in attic, please report it responsibly. **Do not create a public GitHub issue for security vulnerabilities**.
+If you discover a potential security vulnerability in attic, please report it privately so we can investigate and address it before public disclosure.
 
-### How to Report
+**Do not report security vulnerabilities through public GitHub issues, discussions, or pull requests.**
 
-Use the [private vulnerability reporting](https://github.com/lmmendes/attic/security/advisories/new) feature from GitHub.
+Instead, use GitHub's private vulnerability reporting feature:
 
-### What to Include
+**[Report a Security Vulnerability](https://github.com/lmmendes/attic/security/advisories/new)**
 
-- Description of the vulnerability
-- Steps to reproduce the issue
-- Potential impact and severity assessment
-- Any suggested fixes (optional)
+## Response and Resolution
 
-## Response Timeline
+We aim to handle vulnerability reports promptly and transparently while prioritizing the security of our users.
 
-- **Acknowledgment**: Within 48-72 hours
-- **Initial Assessment**: Within 1 week
-- **Fix Timeline**: Depends on severity, but we aim to address critical issues as quickly as possible
+| Stage | Target Timeline |
+|---|---|
+| **Acknowledgment** | Within 48–72 hours |
+| **Initial Assessment** | Within 7 days |
+| **Resolution** | Based on severity, impact, and complexity |
+| **Disclosure** | Coordinated after a fix or mitigation is available, whenever possible |
 
-We follow a coordinated disclosure policy. We ask that you give us reasonable time to address the vulnerability before any public disclosure.
+These timelines are best-effort targets and may vary depending on maintainer availability and the complexity of the reported issue.
+
+We will make reasonable efforts to keep reporters informed of significant progress throughout the investigation and remediation process.
+
+## Security Updates
+
+Security fixes are distributed through the project's normal release process.
+
+Users are encouraged to monitor the repository's [GitHub Security Advisories](https://github.com/lmmendes/attic/security/advisories) and keep their installations updated.
 
 ## License
 
-attic is licensed under [MIT](LICENSE.md).
+attic is licensed under the [MIT License](LICENSE.md).
