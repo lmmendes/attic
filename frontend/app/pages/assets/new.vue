@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Category, Location, Condition, Tag } from '~/types/api'
+import type { Asset, Category, Location, Condition, Tag } from '~/types/api'
 import { isValidAssetQuantity, QUANTITY_VALIDATION_MESSAGE } from '~/utils/assetValidation'
 import { tagAssignment } from '~/utils/tags'
 
@@ -21,7 +21,10 @@ const { data: tags } = useApi<Tag[]>('/api/tags', { immediate: features.value.ta
 const loading = ref(false)
 const categoryLoading = ref(false)
 const selectedCategory = ref<Category | null>(null)
+const parentValid = ref(true)
+const parentAsset = ref<Asset | null>(null)
 const form = reactive({
+  parent_id: null as string | null,
   collection_ids: [] as string[],
   tag_names: [] as string[],
   name: '',
@@ -96,6 +99,14 @@ const conditionOptions = computed(() => [
   ...(conditions.value?.map(c => ({ label: c.label, value: c.id })) || [])
 ])
 
+watch(() => route.query.parent_id, (id) => {
+  if (typeof id === 'string' && !form.parent_id) form.parent_id = id
+}, { immediate: true })
+
+watch(parentAsset, (parent) => {
+  if (parent) form.location_id = parent.location_id || undefined
+})
+
 // Fetch category with attributes when category changes
 let categoryRequestId = 0
 watch(() => form.category_id, async (categoryId) => {
@@ -145,6 +156,10 @@ function getInputType(dataType: string): string {
 
 async function submitForm() {
   if (loading.value) return
+  if (form.parent_id && !parentValid.value) {
+    toast.add({ title: 'Resolve the parent asset before saving', color: 'error' })
+    return
+  }
   if (!form.name.trim()) {
     toast.add({ title: 'Name is required', color: 'error' })
     return
@@ -159,16 +174,17 @@ async function submitForm() {
   try {
     const payload = {
       name: form.name.trim(),
+      parent_id: form.parent_id,
       description: form.description || undefined,
       category_id: features.value.categories ? form.category_id : undefined,
-      location_id: features.value.locations ? form.location_id || undefined : undefined,
+      location_id: features.value.locations && !form.parent_id ? form.location_id || undefined : undefined,
       collection_ids: features.value.collections ? form.collection_ids : undefined,
       ...(features.value.tags ? tagAssignment(form.tag_names, tags.value || []) : {}),
       condition_id: features.value.conditions ? form.condition_id || undefined : undefined,
       quantity: form.quantity,
       attributes: features.value.categories && Object.keys(form.attributes).length > 0 ? form.attributes : undefined,
       purchase_at: form.purchase_at || undefined,
-      purchase_price: form.purchase_price || undefined,
+      purchase_price: form.purchase_price ?? undefined,
       purchase_note: form.purchase_note || undefined,
       notes: form.notes || undefined
     }
@@ -317,7 +333,7 @@ async function submitForm() {
 
             <!-- Location -->
             <div
-              v-if="features.locations"
+              v-if="features.locations && !form.parent_id"
               class="md:col-span-4 space-y-2"
             >
               <label
@@ -339,6 +355,13 @@ async function submitForm() {
             </div>
           </div>
 
+          <AssetPicker
+            v-model="form.parent_id"
+            label="Inside"
+            :show-location="features.locations"
+            @valid="parentValid = $event"
+            @resolved="parentAsset = $event"
+          />
           <AssetCategoryField
             v-if="features.categories"
             v-model="form.category_id"

@@ -155,11 +155,11 @@ func (f *Fixtures) CreateAssetFull(ctx context.Context, asset *domain.Asset) err
 	_, err := f.pool.Exec(ctx, `
 		INSERT INTO assets (id, organization_id, category_id, location_id, condition_id, collection_id,
 		                    name, description, quantity, attributes, purchase_at, purchase_price, purchase_note,
-		                    import_plugin_id, import_external_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
+		                    import_plugin_id, import_external_id, parent_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
 	`, asset.ID, asset.OrganizationID, asset.CategoryID, asset.LocationID, asset.ConditionID, asset.CollectionID,
 		asset.Name, asset.Description, asset.Quantity, asset.Attributes, asset.PurchaseAt, asset.PurchasePrice, asset.PurchaseNote,
-		asset.ImportPluginID, asset.ImportExternalID)
+		asset.ImportPluginID, asset.ImportExternalID, asset.ParentID)
 	return err
 }
 

@@ -170,30 +170,49 @@ type Collection struct {
 }
 
 // Asset represents a tracked item
+type AssetReference struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+type ContainmentSummary struct {
+	TotalValue         float64 `json:"total_value"`
+	UnpricedAssetCount int     `json:"unpriced_asset_count"`
+}
+
 type Asset struct {
-	ID               uuid.UUID       `json:"id"`
-	OrganizationID   uuid.UUID       `json:"organization_id"`
-	CategoryID       *uuid.UUID      `json:"category_id,omitempty"`
-	LocationID       *uuid.UUID      `json:"location_id,omitempty"`
-	ConditionID      *uuid.UUID      `json:"condition_id,omitempty"`
-	CollectionID     *uuid.UUID      `json:"-"` // Legacy storage field; new memberships use asset_collections.
-	CollectionIDs    []uuid.UUID     `json:"collection_ids"`
-	Collections      []Collection    `json:"collections"`
-	TagIDs           []uuid.UUID     `json:"tag_ids"`
-	MainAttachmentID *uuid.UUID      `json:"main_attachment_id,omitempty"`
-	Name             string          `json:"name"`
-	Description      *string         `json:"description,omitempty"`
-	Quantity         int             `json:"quantity"`
-	Attributes       json.RawMessage `json:"attributes"`
-	PurchaseAt       *time.Time      `json:"purchase_at,omitempty"`
-	PurchasePrice    *float64        `json:"purchase_price,omitempty"`
-	PurchaseNote     *string         `json:"purchase_note,omitempty"`
-	Notes            *string         `json:"notes,omitempty"`              // User personal notes about the asset
-	ImportPluginID   *string         `json:"import_plugin_id,omitempty"`   // Plugin that imported this asset
-	ImportExternalID *string         `json:"import_external_id,omitempty"` // External ID for re-fetching
-	CreatedAt        time.Time       `json:"created_at"`
-	UpdatedAt        time.Time       `json:"updated_at"`
-	DeletedAt        *time.Time      `json:"-"`
+	ChildCount         int                 `json:"child_count"`
+	ParentID           *uuid.UUID          `json:"parent_id"`
+	Parent             *AssetReference     `json:"parent,omitempty"`
+	ContainmentSummary *ContainmentSummary `json:"containment_summary,omitempty"`
+	ParentProvided     bool                `json:"-"`
+	LocationProvided   bool                `json:"-"`
+	PreserveLocation   bool                `json:"-"`
+	AddChildIDs        []uuid.UUID         `json:"-"`
+	RemoveChildIDs     []uuid.UUID         `json:"-"`
+	ID                 uuid.UUID           `json:"id"`
+	OrganizationID     uuid.UUID           `json:"organization_id"`
+	CategoryID         *uuid.UUID          `json:"category_id,omitempty"`
+	LocationID         *uuid.UUID          `json:"location_id,omitempty"`
+	ConditionID        *uuid.UUID          `json:"condition_id,omitempty"`
+	CollectionID       *uuid.UUID          `json:"-"` // Legacy storage field; new memberships use asset_collections.
+	CollectionIDs      []uuid.UUID         `json:"collection_ids"`
+	Collections        []Collection        `json:"collections"`
+	TagIDs             []uuid.UUID         `json:"tag_ids"`
+	MainAttachmentID   *uuid.UUID          `json:"main_attachment_id,omitempty"`
+	Name               string              `json:"name"`
+	Description        *string             `json:"description,omitempty"`
+	Quantity           int                 `json:"quantity"`
+	Attributes         json.RawMessage     `json:"attributes"`
+	PurchaseAt         *time.Time          `json:"purchase_at,omitempty"`
+	PurchasePrice      *float64            `json:"purchase_price,omitempty"`
+	PurchaseNote       *string             `json:"purchase_note,omitempty"`
+	Notes              *string             `json:"notes,omitempty"`              // User personal notes about the asset
+	ImportPluginID     *string             `json:"import_plugin_id,omitempty"`   // Plugin that imported this asset
+	ImportExternalID   *string             `json:"import_external_id,omitempty"` // External ID for re-fetching
+	CreatedAt          time.Time           `json:"created_at"`
+	UpdatedAt          time.Time           `json:"updated_at"`
+	DeletedAt          *time.Time          `json:"-"`
 
 	// Populated by queries
 	Category       *Category   `json:"category,omitempty"`

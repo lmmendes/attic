@@ -486,6 +486,18 @@ paths:
       security:
         - sessionCookie: []
       parameters:
+        - name: parent_id
+          in: query
+          description: List direct contents of an active asset in this workspace.
+          schema: { type: string, format: uuid }
+        - name: exclude_subtree_of
+          in: query
+          description: Exclude this asset and all descendants when selecting a parent.
+          schema: { type: string, format: uuid }
+        - name: exclude_ancestors_of
+          in: query
+          description: Exclude this asset and all ancestors when selecting contents.
+          schema: { type: string, format: uuid }
         - name: q
           in: query
           description: Full-text search query
@@ -567,6 +579,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Asset'
+
+  /api/assets/{id}/parent:
+    patch:
+      tags: [Assets]
+      summary: Change an asset's parent or detach it
+      description: Atomically synchronize the subtree location with its new parent. Detach preserves the current location. Rejects cycles and unavailable parent assignments.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parent_id]
+              properties:
+                parent_id: { type: string, format: uuid, nullable: true }
+      responses:
+        '200':
+          description: Updated asset with parent and containment summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Asset' }
+        '400': { description: Invalid parent, cycle, or unavailable assignment }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/assets/search:
     post:
@@ -746,7 +785,8 @@ paths:
           description: Asset updated
     delete:
       tags: [Assets]
-      summary: Delete asset
+      summary: Delete asset and detach its direct contents
+      description: Direct children become standalone at their current location and keep their own contents.
       security:
         - sessionCookie: []
       parameters:
@@ -1821,6 +1861,21 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    AssetReference:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+
+    ContainmentSummary:
+      type: object
+      description: Includes this asset and all active descendants. Sums each purchase price times its own quantity once; missing prices contribute zero. Ancestor quantities do not multiply contents. Inventory statistics continue to count stored asset prices once.
+      required: [total_value, unpriced_asset_count]
+      properties:
+        total_value: { type: number }
+        unpriced_asset_count: { type: integer, minimum: 0 }
+
     Asset:
       type: object
       properties:
@@ -1858,6 +1913,14 @@ components:
           type: string
           format: uuid
           nullable: true
+        parent:
+          $ref: '#/components/schemas/AssetReference'
+        child_count:
+          type: integer
+          minimum: 0
+          description: Number of active direct contents. Populated on asset list responses for expandable contents trees.
+        containment_summary:
+          $ref: '#/components/schemas/ContainmentSummary'
         parent_id:
           type: string
           format: uuid
@@ -1866,6 +1929,12 @@ components:
           type: string
         description:
           type: string
+        purchase_price:
+          type: number
+          description: Unit purchase price in the current single-currency model; zero is valid.
+        purchase_at:
+          type: string
+          format: date
         quantity:
           type: integer
         attributes:
@@ -1919,8 +1988,26 @@ components:
           type: string
           format: uuid
         parent_id:
+          description: On update omission preserves the parent, null detaches, and a UUID reparents. Contents always share the parent's location. Detach retains the current location unless another is explicitly supplied.
           type: string
           format: uuid
+          nullable: true
+        add_child_ids:
+          description: Update only. Move these active assets inside this asset atomically with Save. Omission leaves contents unchanged.
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        remove_child_ids:
+          description: Update only. Detach these direct contents atomically with Save; returns 409 if an asset is no longer a direct child. Cannot overlap add_child_ids.
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        purchase_price:
+          type: number
+          description: Unit purchase price in the current single-currency model; zero is valid.
+        purchase_at:
+          type: string
+          format: date
         quantity:
           type: integer
           default: 1

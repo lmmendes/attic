@@ -894,6 +894,11 @@ function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
                   <p class="mt-0.5 truncate text-xs text-muted">
                     {{ asset.description || `${asset.quantity} ${asset.quantity === 1 ? 'item' : 'items'} in inventory` }}
                   </p>
+                  <NuxtLink
+                    v-if="asset.parent"
+                    :to="`/assets/${asset.parent.id}`"
+                    class="text-xs text-attic-500 hover:underline"
+                  >Inside: {{ asset.parent.name }}</NuxtLink>
                   <div
                     v-if="features.categories || features.locations"
                     class="mt-1.5 flex items-center gap-1.5 md:hidden"

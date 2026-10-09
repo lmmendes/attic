@@ -20,6 +20,7 @@ const maxAssetQuantity = 1000000
 const uncategorizedCategoryFilter = "uncategorized"
 
 type CreateAssetRequest struct {
+	ParentID      json.RawMessage `json:"parent_id"`
 	CollectionIDs []string        `json:"collection_ids,omitempty"`
 	TagIDs        *[]string       `json:"tag_ids,omitempty"`
 	NewTagNames   *[]string       `json:"new_tag_names,omitempty"`
@@ -37,20 +38,23 @@ type CreateAssetRequest struct {
 }
 
 type UpdateAssetRequest struct {
-	CollectionIDs []string        `json:"collection_ids,omitempty"`
-	TagIDs        *[]string       `json:"tag_ids,omitempty"`
-	NewTagNames   *[]string       `json:"new_tag_names,omitempty"`
-	CategoryID    *string         `json:"category_id,omitempty"`
-	LocationID    *string         `json:"location_id,omitempty"`
-	ConditionID   *string         `json:"condition_id,omitempty"`
-	Name          string          `json:"name"`
-	Description   *string         `json:"description,omitempty"`
-	Quantity      int             `json:"quantity"`
-	Attributes    json.RawMessage `json:"attributes,omitempty"`
-	PurchaseAt    *string         `json:"purchase_at,omitempty"`
-	PurchasePrice *float64        `json:"purchase_price,omitempty"`
-	PurchaseNote  *string         `json:"purchase_note,omitempty"`
-	Notes         *string         `json:"notes,omitempty"`
+	ParentID       json.RawMessage `json:"parent_id"`
+	AddChildIDs    []string        `json:"add_child_ids,omitempty"`
+	RemoveChildIDs []string        `json:"remove_child_ids,omitempty"`
+	CollectionIDs  []string        `json:"collection_ids,omitempty"`
+	TagIDs         *[]string       `json:"tag_ids,omitempty"`
+	NewTagNames    *[]string       `json:"new_tag_names,omitempty"`
+	CategoryID     *string         `json:"category_id,omitempty"`
+	LocationID     *string         `json:"location_id,omitempty"`
+	ConditionID    *string         `json:"condition_id,omitempty"`
+	Name           string          `json:"name"`
+	Description    *string         `json:"description,omitempty"`
+	Quantity       int             `json:"quantity"`
+	Attributes     json.RawMessage `json:"attributes,omitempty"`
+	PurchaseAt     *string         `json:"purchase_at,omitempty"`
+	PurchasePrice  *float64        `json:"purchase_price,omitempty"`
+	PurchaseNote   *string         `json:"purchase_note,omitempty"`
+	Notes          *string         `json:"notes,omitempty"`
 }
 
 type AssetListResponse struct {
@@ -126,6 +130,28 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filter.Features = features
+	for _, param := range []struct {
+		name string
+		dest **uuid.UUID
+	}{{"parent_id", &filter.ParentID}, {"exclude_subtree_of", &filter.ExcludeSubtreeOf}, {"exclude_ancestors_of", &filter.ExcludeAncestorsOf}} {
+		if value := q.Get(param.name); value != "" {
+			id, err := uuid.Parse(value)
+			if err != nil || id == uuid.Nil {
+				writeError(w, http.StatusBadRequest, "invalid "+param.name)
+				return
+			}
+			ref, err := h.repos.Assets.GetByID(r.Context(), id)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to get asset")
+				return
+			}
+			if ref == nil || ref.OrganizationID != h.orgID {
+				writeError(w, http.StatusNotFound, "asset not found")
+				return
+			}
+			*param.dest = &id
+		}
+	}
 	seenTagIDs := map[uuid.UUID]bool{}
 	for _, value := range q["tag_id"] {
 		id, err := uuid.Parse(value)
@@ -343,12 +369,20 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 	asset.PurchaseNote = req.PurchaseNote
 	asset.Notes = req.Notes
 
+	if err := assignContainmentInput(asset, req.ParentID, nil, nil); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	asset.LocationProvided = req.LocationID != nil
 	asset.CollectionIDs = collectionIDs
 	asset.TagIDs = []uuid.UUID{}
 	if tagsProvided {
 		asset.TagIDs, asset.NewTagNames = tagIDs, newTagNames
 	}
 	if err := h.repos.Assets.Create(r.Context(), asset); err != nil {
+		if writeContainmentError(w, err) {
+			return
+		}
 		var attributeErr *repository.AttributeError
 		if errors.As(err, &attributeErr) {
 			writeAttributeError(w, err)
@@ -366,6 +400,10 @@ func (h *Handler) CreateAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := h.sanitizeAsset(r, asset); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to apply organization features")
+		return
+	}
 	writeJSON(w, http.StatusCreated, asset)
 }
 
@@ -508,7 +546,16 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		asset.TagIDs, asset.NewTagNames = tagIDs, newTagNames
 	}
 
+	if err := assignContainmentInput(asset, req.ParentID, req.AddChildIDs, req.RemoveChildIDs); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	asset.LocationProvided = req.LocationID != nil
+	asset.PreserveLocation = !features.Locations
 	if err := h.repos.Assets.Update(r.Context(), asset); err != nil {
+		if writeContainmentError(w, err) {
+			return
+		}
 		var attributeErr *repository.AttributeError
 		if errors.As(err, &attributeErr) {
 			writeAttributeError(w, err)
@@ -526,6 +573,10 @@ func (h *Handler) UpdateAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := h.sanitizeAsset(r, asset); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to apply organization features")
+		return
+	}
 	writeJSON(w, http.StatusOK, asset)
 }
 

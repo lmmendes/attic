@@ -54,7 +54,19 @@ function getAttributeValue(key: string): string {
 
 const deleteModalOpen = ref(false)
 const warrantyModalOpen = ref(false)
-void refreshAsset // Mark as used
+const detaching = ref(false)
+async function detachAsset() {
+  if (detaching.value) return
+  detaching.value = true
+  try {
+    await apiFetch(`/api/assets/${route.params.id}/parent`, { method: 'PATCH', body: JSON.stringify({ parent_id: null }) })
+    await refreshAsset()
+    toast.add({ title: 'Asset detached', color: 'success' })
+  } catch (err: unknown) {
+    const failure = err as { data?: { error?: string } }
+    toast.add({ title: failure.data?.error || 'Failed to detach asset', color: 'error' })
+  } finally { detaching.value = false }
+}
 const config = useRuntimeConfig()
 
 // Warranty form
@@ -506,6 +518,77 @@ function getShortId(): string {
           </UButton>
         </div>
 
+        <section
+          v-if="asset.parent"
+          class="attic-panel overflow-hidden rounded-[20px]"
+          aria-label="Inside"
+        >
+          <div class="border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
+            <h3 class="flex items-center gap-2 text-base font-bold text-mist-950 dark:text-white">
+              <UIcon
+                name="i-lucide-package"
+                class="size-5 text-attic-500"
+                aria-hidden="true"
+              />
+              Inside
+            </h3>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+            <NuxtLink
+              :to="`/assets/${asset.parent.id}`"
+              class="inline-flex min-w-0 items-center gap-2 break-words font-bold text-attic-500 hover:underline"
+            >
+              <span class="min-w-0 break-words">{{ asset.parent.name }}</span>
+              <UIcon
+                name="i-lucide-arrow-up-right"
+                class="size-4 shrink-0"
+                aria-hidden="true"
+              />
+            </NuxtLink>
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="sm"
+              icon="i-lucide-unlink"
+              :loading="detaching"
+              :disabled="detaching"
+              @click="detachAsset"
+            >
+              Detach
+            </UButton>
+          </div>
+        </section>
+        <AssetContents
+          :asset-id="asset.id"
+          @changed="refreshAsset()"
+        />
+        <section
+          v-if="asset.containment_summary"
+          class="attic-panel overflow-hidden rounded-[20px]"
+        >
+          <div class="border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
+            <h3 class="flex items-center gap-2 text-base font-bold text-mist-950 dark:text-white">
+              <UIcon
+                name="i-lucide-calculator"
+                class="size-5 shrink-0 text-attic-500"
+                aria-hidden="true"
+              />
+              Total cost including contents
+            </h3>
+          </div>
+          <div class="space-y-2 px-5 py-4">
+            <p class="text-lg font-bold tabular-nums text-default">
+              {{ formatCurrency(asset.containment_summary.total_value) }}
+            </p>
+            <p
+              v-if="asset.containment_summary.unpriced_asset_count"
+              class="text-sm text-muted"
+            >
+              Partial total · {{ asset.containment_summary.unpriced_asset_count }} {{ asset.containment_summary.unpriced_asset_count === 1 ? 'asset has' : 'assets have' }} no purchase price.
+            </p>
+          </div>
+        </section>
+
         <!-- Description (if present) -->
         <section
           v-if="asset.description"
@@ -895,7 +978,7 @@ function getShortId(): string {
             </div>
           </div>
           <p class="text-gray-600 dark:text-gray-300 mb-6">
-            Are you sure you want to delete "<strong>{{ asset?.name }}</strong>"? All associated data will be permanently removed.
+            Are you sure you want to delete "<strong>{{ asset?.name }}</strong>"? All associated data will be permanently removed. Contents will become standalone assets at their current location.
           </p>
           <div class="flex justify-end gap-3">
             <UButton

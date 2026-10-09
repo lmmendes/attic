@@ -24,7 +24,7 @@ func NewAssetRepository(pool *pgxpool.Pool) *AssetRepository {
 
 func (r *AssetRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Asset, error) {
 	query := `
-		SELECT id, organization_id, category_id, location_id, condition_id, collection_id, main_attachment_id,
+		SELECT id, organization_id, parent_id, category_id, location_id, condition_id, collection_id, main_attachment_id,
 		       name, description, quantity, attributes, purchase_at, purchase_price, purchase_note, notes,
 		       import_plugin_id, import_external_id, created_at, updated_at
 		FROM assets
@@ -32,7 +32,7 @@ func (r *AssetRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.As
 	`
 	var a domain.Asset
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&a.ID, &a.OrganizationID, &a.CategoryID, &a.LocationID, &a.ConditionID, &a.CollectionID, &a.MainAttachmentID,
+		&a.ID, &a.OrganizationID, &a.ParentID, &a.CategoryID, &a.LocationID, &a.ConditionID, &a.CollectionID, &a.MainAttachmentID,
 		&a.Name, &a.Description, &a.Quantity, &a.Attributes, &a.PurchaseAt, &a.PurchasePrice, &a.PurchaseNote, &a.Notes,
 		&a.ImportPluginID, &a.ImportExternalID, &a.CreatedAt, &a.UpdatedAt,
 	)
@@ -46,6 +46,9 @@ func (r *AssetRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.As
 		return nil, err
 	}
 	if err := r.loadAssetTags(ctx, []*domain.Asset{&a}); err != nil {
+		return nil, err
+	}
+	if err := r.loadAssetParents(ctx, []*domain.Asset{&a}); err != nil {
 		return nil, err
 	}
 	return &a, nil
@@ -114,6 +117,11 @@ func (r *AssetRepository) GetByIDFull(ctx context.Context, id uuid.UUID) (*domai
 		}
 	}
 
+	summary, err := r.GetContainmentSummary(ctx, asset.OrganizationID, id)
+	if err != nil {
+		return nil, err
+	}
+	asset.ContainmentSummary = summary
 	return asset, nil
 }
 
@@ -127,6 +135,32 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 	argNum++
 
 	conditions = append(conditions, "a.deleted_at IS NULL")
+
+	if filter.ParentID != nil {
+		conditions = append(conditions, fmt.Sprintf("a.parent_id = $%d", argNum))
+		args = append(args, *filter.ParentID)
+		argNum++
+	}
+	for _, exclusion := range []struct {
+		id        *uuid.UUID
+		ancestors bool
+	}{{filter.ExcludeSubtreeOf, false}, {filter.ExcludeAncestorsOf, true}} {
+		if exclusion.id == nil {
+			continue
+		}
+		join := "child.parent_id = tree.id"
+		if exclusion.ancestors {
+			join = "child.id = tree.parent_id"
+		}
+		conditions = append(conditions, fmt.Sprintf(`a.id NOT IN (
+   WITH RECURSIVE tree AS (
+    SELECT id, parent_id FROM assets WHERE id=$%d AND organization_id=$1 AND deleted_at IS NULL
+    UNION SELECT child.id, child.parent_id FROM assets child JOIN tree ON %s
+    WHERE child.organization_id=$1 AND child.deleted_at IS NULL
+   ) SELECT id FROM tree)`, argNum, join))
+		args = append(args, *exclusion.id)
+		argNum++
+	}
 
 	if filter.Uncategorized {
 		conditions = append(conditions, "a.category_id IS NULL")
@@ -209,11 +243,12 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 
 	// Get assets with related data
 	query := fmt.Sprintf(`
-		SELECT a.id, a.organization_id, a.category_id, a.location_id, a.condition_id, a.collection_id, a.main_attachment_id,
+		SELECT a.id, a.organization_id, a.parent_id, a.category_id, a.location_id, a.condition_id, a.collection_id, a.main_attachment_id,
 		       a.name, a.description, a.quantity, a.attributes, a.purchase_at, a.purchase_price, a.purchase_note, a.notes, a.created_at, a.updated_at,
 		       c.id, c.name, c.plugin_id,
 		       l.id, l.name,
 		       cond.id, cond.code, cond.label,
+               (SELECT COUNT(*) FROM assets child WHERE child.parent_id=a.id AND child.organization_id=a.organization_id AND child.deleted_at IS NULL),
 		       att.id, att.file_key, att.file_name, att.content_type
 		FROM assets a
 		LEFT JOIN categories c ON c.id = a.category_id AND c.deleted_at IS NULL
@@ -221,7 +256,7 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 		LEFT JOIN conditions cond ON cond.id = a.condition_id AND cond.deleted_at IS NULL
 		LEFT JOIN attachments att ON att.id = a.main_attachment_id
 		WHERE %s
-		ORDER BY a.updated_at DESC
+		ORDER BY a.updated_at DESC, a.id
 		LIMIT $%d OFFSET $%d
 	`, whereClause, argNum, argNum+1)
 
@@ -242,11 +277,12 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 		var attID, attFileKey, attFileName, attContentType *string
 
 		if err := rows.Scan(
-			&a.ID, &a.OrganizationID, &a.CategoryID, &a.LocationID, &a.ConditionID, &a.CollectionID, &a.MainAttachmentID,
+			&a.ID, &a.OrganizationID, &a.ParentID, &a.CategoryID, &a.LocationID, &a.ConditionID, &a.CollectionID, &a.MainAttachmentID,
 			&a.Name, &a.Description, &a.Quantity, &a.Attributes, &a.PurchaseAt, &a.PurchasePrice, &a.PurchaseNote, &a.Notes, &a.CreatedAt, &a.UpdatedAt,
 			&catID, &catName, &catPluginID,
 			&locID, &locName,
 			&condID, &condCode, &condLabel,
+			&a.ChildCount,
 			&attID, &attFileKey, &attFileName, &attContentType,
 		); err != nil {
 			return nil, 0, err
@@ -305,6 +341,9 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 	if err := r.loadAssetTags(ctx, assetPointers); err != nil {
 		return nil, 0, err
 	}
+	if err := r.loadAssetParents(ctx, assetPointers); err != nil {
+		return nil, 0, err
+	}
 	return assets, total, nil
 }
 
@@ -322,23 +361,26 @@ func (r *AssetRepository) Create(ctx context.Context, a *domain.Asset) error {
 	if err = validateSelectAsset(ctx, tx, a); err != nil {
 		return err
 	}
-	query := `
-		INSERT INTO assets (id, organization_id, category_id, location_id, condition_id, collection_id,
-		                    name, description, quantity, attributes, purchase_at, purchase_price, purchase_note, notes,
-		                    import_plugin_id, import_external_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-		RETURNING created_at, updated_at
-	`
 	if a.ID == uuid.Nil {
 		a.ID = uuid.New()
 	}
+	if err = prepareAssetContainment(ctx, tx, a, true); err != nil {
+		return err
+	}
+	query := `
+		INSERT INTO assets (id, organization_id, category_id, location_id, condition_id, collection_id,
+		                    name, description, quantity, attributes, purchase_at, purchase_price, purchase_note, notes,
+		                    import_plugin_id, import_external_id, parent_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+		RETURNING created_at, updated_at
+	`
 	if a.Attributes == nil {
 		a.Attributes = []byte("{}")
 	}
 	if err := tx.QueryRow(ctx, query,
 		a.ID, a.OrganizationID, a.CategoryID, a.LocationID, a.ConditionID, a.CollectionID,
 		a.Name, a.Description, a.Quantity, a.Attributes, a.PurchaseAt, a.PurchasePrice, a.PurchaseNote, a.Notes,
-		a.ImportPluginID, a.ImportExternalID,
+		a.ImportPluginID, a.ImportExternalID, a.ParentID,
 	).Scan(&a.CreatedAt, &a.UpdatedAt); err != nil {
 		return err
 	}
@@ -349,6 +391,9 @@ func (r *AssetRepository) Create(ctx context.Context, a *domain.Asset) error {
 		return err
 	}
 	if err := replaceAssetTags(ctx, tx, a); err != nil {
+		return err
+	}
+	if err = applyAssetContainment(ctx, tx, a); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
@@ -363,9 +408,12 @@ func (r *AssetRepository) Update(ctx context.Context, a *domain.Asset) error {
 	if err = validateSelectAsset(ctx, tx, a); err != nil {
 		return err
 	}
+	if err = prepareAssetContainment(ctx, tx, a, false); err != nil {
+		return err
+	}
 	query := `
 		UPDATE assets
-		SET category_id = $2, location_id = $3, condition_id = $4, collection_id = $5,
+		SET parent_id = $14, category_id = $2, location_id = $3, condition_id = $4, collection_id = $5,
 		    name = $6, description = $7, quantity = $8, attributes = $9, purchase_at = $10, purchase_price = $11, purchase_note = $12, notes = $13
 		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING updated_at
@@ -375,7 +423,7 @@ func (r *AssetRepository) Update(ctx context.Context, a *domain.Asset) error {
 	}
 	if err := tx.QueryRow(ctx, query,
 		a.ID, a.CategoryID, a.LocationID, a.ConditionID, a.CollectionID,
-		a.Name, a.Description, a.Quantity, a.Attributes, a.PurchaseAt, a.PurchasePrice, a.PurchaseNote, a.Notes,
+		a.Name, a.Description, a.Quantity, a.Attributes, a.PurchaseAt, a.PurchasePrice, a.PurchaseNote, a.Notes, a.ParentID,
 	).Scan(&a.UpdatedAt); err != nil {
 		return err
 	}
@@ -385,13 +433,19 @@ func (r *AssetRepository) Update(ctx context.Context, a *domain.Asset) error {
 	if err := replaceAssetTags(ctx, tx, a); err != nil {
 		return err
 	}
+	if err := applyAssetContainment(ctx, tx, a); err != nil {
+		return err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
 	if err := r.loadAssetCollections(ctx, []*domain.Asset{a}); err != nil {
 		return err
 	}
-	return r.loadAssetTags(ctx, []*domain.Asset{a})
+	if err := r.loadAssetTags(ctx, []*domain.Asset{a}); err != nil {
+		return err
+	}
+	return r.loadAssetParents(ctx, []*domain.Asset{a})
 }
 
 func (r *AssetRepository) Delete(ctx context.Context, id uuid.UUID) error {
@@ -407,6 +461,12 @@ func (r *AssetRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if err = lockAttributeWrites(ctx, tx, org); err != nil {
+		return err
+	}
+	if err = lockContainment(ctx, tx, org); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, "UPDATE assets SET parent_id=NULL WHERE parent_id=$1 AND organization_id=$2 AND deleted_at IS NULL", id, org); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, "UPDATE assets SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL", id); err != nil {
