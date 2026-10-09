@@ -407,6 +407,7 @@ func main() {
 			r.Post("/", h.CreateAsset)
 			r.Get("/{id}", h.GetAsset)
 			r.Put("/{id}", h.UpdateAsset)
+			r.Patch("/{id}/parent", h.SetAssetParent)
 			r.Delete("/{id}", h.DeleteAsset)
 
 			// Warranty (nested under asset)
