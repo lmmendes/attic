@@ -10,6 +10,7 @@ const router = useRouter()
 const toast = useToast()
 const apiFetch = useApiFetch()
 const { features } = useFeatures()
+const { settings } = useOrganizationSettings()
 
 const assetUrl = computed(() => `/api/assets/${route.params.id}`)
 const { data: asset, refresh: refreshAsset } = useApi<Asset>(
@@ -275,7 +276,7 @@ function formatCurrency(value?: number) {
   if (value === undefined || value === null) return '-'
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD'
+    currency: settings.value.currency
   }).format(value)
 }
 

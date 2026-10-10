@@ -12,6 +12,7 @@ const router = useRouter()
 const toast = useToast()
 const apiFetch = useApiFetch()
 const { features } = useFeatures()
+const { settings } = useOrganizationSettings()
 
 const assetUrl = computed(() => `/api/assets/${route.params.id}`)
 const { data: asset, status: assetStatus, clear: clearAsset } = useApi<Asset>(
@@ -684,14 +685,14 @@ async function submitForm() {
                   Purchase Price
                 </label>
                 <div class="relative">
-                  <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 pointer-events-none">$</span>
+                  <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 pointer-events-none">{{ settings.currency }}</span>
                   <input
                     v-model.number="form.purchase_price"
                     type="number"
                     step="0.01"
                     min="0"
                     placeholder="0.00"
-                    class="block w-full rounded-xl border-mist-200 bg-white py-3 pl-8 pr-4 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                    class="block w-full rounded-xl border-mist-200 bg-white py-3 pl-14 pr-4 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                   >
                 </div>
               </div>

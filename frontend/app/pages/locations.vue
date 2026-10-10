@@ -295,10 +295,11 @@ function hasChildren(locationId: string): boolean {
 }
 
 // Format currency
+const { settings } = useOrganizationSettings()
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD',
+    currency: settings.value.currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(value)
@@ -568,14 +569,21 @@ function getLocationIcon(location: Location): string {
 
                     <!-- Stats Row -->
                     <div class="flex gap-5 pt-2">
-                      <div class="flex items-baseline gap-2">
-                        <span class="text-2xl font-black text-white">{{ locationAssets?.total || 0 }}</span>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-white/60">Assets</span>
+                      <div class="shrink-0">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-white/60">
+                          Assets
+                        </p>
+                        <p class="text-2xl font-black text-white">
+                          {{ locationAssets?.total || 0 }}
+                        </p>
                       </div>
-                      <div class="h-8 w-px bg-white/20" />
-                      <div class="flex items-baseline gap-2">
-                        <span class="text-2xl font-black text-white">{{ formatCurrency(totalValue) }}</span>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-white/60">Total value</span>
+                      <div class="min-w-0 border-l border-white/20 pl-5">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-white/60">
+                          Total value
+                        </p>
+                        <p class="text-2xl font-black text-white">
+                          {{ formatCurrency(totalValue) }}
+                        </p>
                       </div>
                     </div>
                   </div>

@@ -17,6 +17,10 @@ export interface OrganizationFeatures {
   plugins: boolean
 }
 
+export interface OrganizationSettings {
+  currency: string // ISO 4217 code of every asset price; amounts are never converted
+}
+
 export type AttributeDataType = 'string' | 'number' | 'boolean' | 'text' | 'date' | 'select'
 
 export interface AttributeOptionInput {

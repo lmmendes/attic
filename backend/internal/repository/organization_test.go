@@ -71,6 +71,27 @@ func Test_OrganizationRepository_Create_DefaultsAllFeaturesEnabled(t *testing.T)
 	}
 }
 
+func Test_OrganizationRepository_Currency_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	if err := testDB.TruncateAll(ctx); err != nil {
+		t.Fatalf("failed to truncate: %v", err)
+	}
+	repo := NewOrganizationRepository(testDB.Pool)
+	org := &domain.Organization{Name: "Currency"}
+	if err := repo.Create(ctx, org); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := repo.GetSettings(ctx, org.ID); err != nil || got.Currency != "USD" {
+		t.Fatalf("expected USD by default, got %+v (err %v)", got, err)
+	}
+	if err := repo.UpdateSettings(ctx, org.ID, &domain.OrganizationSettings{Currency: "GBP"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := repo.GetSettings(ctx, org.ID); err != nil || got.Currency != "GBP" {
+		t.Fatalf("expected GBP after update, got %+v (err %v)", got, err)
+	}
+}
+
 func Test_OrganizationRepository_UpdateFeatures_ReplacesCompleteMap(t *testing.T) {
 	ctx := context.Background()
 	if err := testDB.TruncateAll(ctx); err != nil {

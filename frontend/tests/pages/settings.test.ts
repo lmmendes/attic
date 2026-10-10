@@ -3,7 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import SettingsPage from '../../app/pages/settings.vue'
 
-const { features, featureRef, authLoading, fetchSession, load, update, toast } = vi.hoisted(() => {
+const { features, featureRef, settingsRef, authLoading, fetchSession, load, update, loadSettings, updateSettings, toast } = vi.hoisted(() => {
   const features = {
     locations: true, collections: true, tags: true, categories: true, attributes: true,
     conditions: true, warranties: true, plugins: true
@@ -11,10 +11,13 @@ const { features, featureRef, authLoading, fetchSession, load, update, toast } =
   return {
     features,
     featureRef: { __v_isRef: true, value: features },
+    settingsRef: { __v_isRef: true, value: { currency: 'USD' } },
     authLoading: { __v_isRef: true, value: false },
     fetchSession: vi.fn(),
     load: vi.fn(),
     update: vi.fn(),
+    loadSettings: vi.fn(),
+    updateSettings: vi.fn(),
     toast: vi.fn()
   }
 })
@@ -26,6 +29,7 @@ mockNuxtImport('useAuth', () => () => ({
   fetchSession
 }))
 mockNuxtImport('useFeatures', () => () => ({ features: featureRef, load, update }))
+mockNuxtImport('useOrganizationSettings', () => () => ({ settings: settingsRef, load: loadSettings, update: updateSettings }))
 mockNuxtImport('useToast', () => () => ({ add: toast }))
 
 describe('organization feature settings', () => {
@@ -34,6 +38,8 @@ describe('organization feature settings', () => {
     authLoading.value = false
     Object.keys(features).forEach(key => features[key as keyof typeof features] = true)
     update.mockResolvedValue(features)
+    settingsRef.value = { currency: 'USD' }
+    updateSettings.mockResolvedValue(settingsRef.value)
   })
 
   it('renders loaded features without restarting the app feature gate', async () => {
@@ -108,7 +114,22 @@ describe('organization feature settings', () => {
     await flushPromises()
 
     expect(load).toHaveBeenCalledOnce()
+    expect(loadSettings).toHaveBeenCalledOnce()
     expect(toast).toHaveBeenCalledWith({ title: 'Could not save settings', color: 'error' })
+    wrapper.unmount()
+  })
+
+  it('saves the currency with the features', async () => {
+    settingsRef.value = { currency: 'GBP' }
+    const wrapper = await mountSuspended(SettingsPage)
+    expect(wrapper.text()).toContain('Used for all asset prices')
+    const saveButton = wrapper.findAll('button').find(button => button.text().includes('Save changes'))!
+    await saveButton.trigger('click')
+    await flushPromises()
+
+    expect(update).toHaveBeenCalledOnce()
+    expect(updateSettings).toHaveBeenCalledWith({ currency: 'GBP' })
+    expect(toast).toHaveBeenCalledWith({ title: 'Settings saved', color: 'success' })
     wrapper.unmount()
   })
 })

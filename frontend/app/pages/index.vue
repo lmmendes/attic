@@ -6,6 +6,7 @@ definePageMeta({ middleware: 'auth' })
 
 const { user } = useAuth()
 const { features } = useFeatures()
+const { settings } = useOrganizationSettings()
 const { data: categories } = useApi<Category[]>('/api/categories', { immediate: features.value.categories })
 const { data: locations } = useApi<Location[]>('/api/locations', { immediate: features.value.locations })
 const { data: collections, error: collectionsError } = useApi<Collection[]>('/api/collections', { immediate: features.value.collections })
@@ -59,7 +60,7 @@ const { data: assets } = useApi<{ assets: Asset[], total: number }>(() => assets
 const { data: assetStats } = useApi<AssetStats>(() => assetStatsUrl.value)
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-US', {
-  style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0
+  style: 'currency', currency: settings.value.currency, minimumFractionDigits: 0, maximumFractionDigits: 0
 }).format(value)
 
 const greeting = computed(() => {

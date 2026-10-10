@@ -21,6 +21,8 @@ tags:
     description: Asset condition management
   - name: Assets
     description: Asset management
+  - name: Organization
+    description: Organization-wide settings
   - name: Tags
     description: Shared asset tag management
   - name: Asset Events
@@ -72,6 +74,50 @@ paths:
                 $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /api/organization/settings:
+    get:
+      tags: [Organization]
+      summary: Get organization settings
+      description: Available to every signed-in user.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Current organization settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [Organization]
+      summary: Update organization settings
+      description: >-
+        Admin only. Changing the currency relabels every existing asset price;
+        amounts are not converted.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationSettings'
+      responses:
+        '200':
+          description: Settings saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationSettings'
+        '400':
+          description: currency is missing or not a known ISO 4217 currency code (e.g. ZZZ)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin access required
 
   /api/categories:
     get:
@@ -1941,6 +1987,16 @@ components:
           type: integer
         offset:
           type: integer
+
+    OrganizationSettings:
+      type: object
+      required: [currency]
+      properties:
+        currency:
+          type: string
+          description: >-
+            ISO 4217 code that every asset price is shown in. Trimmed and uppercased on save.
+          example: EUR
 
     Warranty:
       type: object

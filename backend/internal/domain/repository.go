@@ -14,6 +14,8 @@ type OrganizationRepository interface {
 	Update(ctx context.Context, org *Organization) error
 	GetFeatures(ctx context.Context, orgID uuid.UUID) (*OrganizationFeatures, error)
 	UpdateFeatures(ctx context.Context, orgID uuid.UUID, features *OrganizationFeatures) error
+	GetSettings(ctx context.Context, orgID uuid.UUID) (*OrganizationSettings, error)
+	UpdateSettings(ctx context.Context, orgID uuid.UUID, settings *OrganizationSettings) error
 }
 
 // UserRepository handles user persistence

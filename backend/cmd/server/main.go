@@ -313,6 +313,8 @@ func main() {
 		r.Get("/me", h.GetCurrentUser)
 		r.Get("/organization/features", h.GetOrganizationFeatures)
 		r.With(auth.RequireAdmin(sessionManager)).Put("/organization/features", h.UpdateOrganizationFeatures)
+		r.Get("/organization/settings", h.GetOrganizationSettings)
+		r.With(auth.RequireAdmin(sessionManager)).Put("/organization/settings", h.UpdateOrganizationSettings)
 
 		// User management (admin only)
 		r.Route("/users", func(r chi.Router) {
