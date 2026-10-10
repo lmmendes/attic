@@ -221,37 +221,114 @@ async function clearMainImage() {
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
+const dragging = ref(false)
+let dragDepth = 0
 
 function triggerUpload() {
   fileInput.value?.click()
 }
 
-async function handleFileUpload(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
+const uploadQueue: File[] = []
+const retryFiles = ref<File[]>([])
+
+async function uploadFiles(files: File[], isQueued = false) {
+  if (!files.length || uploading.value) {
+    if (uploading.value) uploadQueue.push(...files)
+    return
+  }
 
   uploading.value = true
+  if (!isQueued) retryFiles.value = []
+  let succeeded = 0
+  let index = 0
   try {
-    const formData = new FormData()
-    formData.append('file', file)
+    for (; index < files.length; index++) {
+      const file = files[index]!
+      const formData = new FormData()
+      formData.append('file', file)
 
-    await fetch(`${config.public.apiBase}/api/assets/${route.params.id}/attachments`, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include'
+      const response = await fetch(`${config.public.apiBase}/api/assets/${route.params.id}/attachments`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      })
+      if (!response.ok) {
+        throw new Error(`Upload failed with status ${response.status}`)
+      }
+      succeeded++
+    }
+
+    toast.add({
+      title: succeeded > 1 ? `${succeeded} files uploaded` : 'File uploaded',
+      color: 'success'
     })
-
-    toast.add({ title: 'File uploaded', color: 'success' })
-    refreshAttachments()
-    // Refresh asset in case this was auto-set as main image
-    refreshAsset()
   } catch {
-    toast.add({ title: 'Failed to upload file', color: 'error' })
+    const remaining = files.slice(index)
+    if (succeeded === 0) {
+      toast.add({ title: 'Failed to upload file', color: 'error' })
+    } else {
+      toast.add({
+        title: `Uploaded ${succeeded} of ${files.length} files`,
+        color: 'warning'
+      })
+    }
+    if (remaining.length) {
+      retryFiles.value = [...retryFiles.value, ...remaining]
+    }
   } finally {
+    if (succeeded > 0) {
+      refreshAttachments()
+      // Refresh asset in case this was auto-set as main image
+      refreshAsset()
+    }
     uploading.value = false
-    input.value = ''
   }
+
+  if (uploadQueue.length) {
+    const next = uploadQueue.splice(0)
+    await uploadFiles(next, true)
+  }
+}
+
+async function handleFileUpload(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = input.files
+  if (!files?.length) return
+  await uploadFiles(Array.from(files))
+  input.value = ''
+}
+
+function retryUpload() {
+  const files = retryFiles.value
+  if (!files.length || uploading.value) return
+  retryFiles.value = []
+  void uploadFiles(files)
+}
+
+function onDragEnter(event: DragEvent) {
+  if (!event.dataTransfer?.types.includes('Files')) return
+  event.preventDefault()
+  dragDepth++
+  dragging.value = true
+}
+
+function onDragOver(event: DragEvent) {
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+}
+
+function onDragLeave(event: DragEvent) {
+  event.preventDefault()
+  dragDepth = Math.max(0, dragDepth - 1)
+  if (dragDepth === 0) dragging.value = false
+}
+
+function onDrop(event: DragEvent) {
+  event.preventDefault()
+  dragDepth = 0
+  dragging.value = false
+  const files = event.dataTransfer?.files
+  if (files?.length) void uploadFiles(Array.from(files))
 }
 
 function formatDate(dateStr?: string) {
@@ -728,7 +805,26 @@ function getShortId(): string {
         </section>
 
         <!-- Attachments Section -->
-        <section class="attic-panel overflow-hidden rounded-[20px]">
+        <section
+          class="attic-panel relative overflow-hidden rounded-[20px]"
+          :class="{ 'ring-2 ring-attic-500 dark:ring-attic-400': dragging }"
+          @dragenter="onDragEnter"
+          @dragover="onDragOver"
+          @dragleave="onDragLeave"
+          @drop="onDrop"
+        >
+          <div
+            v-if="dragging"
+            class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-attic-500/10"
+          >
+            <div class="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-attic-500 shadow-lg dark:bg-mist-800 dark:text-attic-300">
+              <UIcon
+                name="i-lucide-upload"
+                class="w-4 h-4"
+              />
+              Drop files to upload
+            </div>
+          </div>
           <div class="flex items-center justify-between border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
             <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
               <UIcon
@@ -751,9 +847,32 @@ function getShortId(): string {
             <input
               ref="fileInput"
               type="file"
+              multiple
               class="hidden"
               @change="handleFileUpload"
             >
+          </div>
+          <div
+            v-if="retryFiles.length"
+            class="flex items-center justify-between gap-3 border-b border-terracotta-100 bg-terracotta-50 px-5 py-2.5 dark:border-terracotta-900/40 dark:bg-terracotta-950/10"
+          >
+            <span class="text-xs font-semibold text-terracotta-700 dark:text-terracotta-300">
+              {{ retryFiles.length }} {{ retryFiles.length > 1 ? 'files' : 'file' }} not uploaded
+            </span>
+            <div class="flex items-center gap-2">
+              <button
+                class="text-xs font-bold text-terracotta-700 hover:underline dark:text-terracotta-300"
+                @click="retryUpload"
+              >
+                Retry
+              </button>
+              <button
+                class="text-xs font-bold text-muted hover:underline"
+                @click="retryFiles = []"
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
           <div
             v-if="attachments?.length"
