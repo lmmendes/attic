@@ -227,6 +227,7 @@ describe('ImportModal', () => {
       type Step = 'select' | 'search' | 'importing'
 
       let currentStep: Step = 'select'
+      expect(currentStep).toBe('select')
 
       currentStep = 'search'
       expect(currentStep).toBe('search')

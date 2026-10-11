@@ -186,6 +186,7 @@ describe('Assets Index Page', () => {
         { id: 'asset-3' }
       ]
       let selectedAssets: string[] = []
+      expect(selectedAssets).toEqual([])
 
       selectedAssets = assets.map(a => a.id)
 
@@ -194,6 +195,7 @@ describe('Assets Index Page', () => {
 
     it('deselects all assets', () => {
       let selectedAssets = ['asset-1', 'asset-2', 'asset-3']
+      expect(selectedAssets).toHaveLength(3)
 
       selectedAssets = []
 

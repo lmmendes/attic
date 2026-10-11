@@ -122,6 +122,7 @@ describe('Password Change Modal', () => {
 
     it('tracks loading state during password change', async () => {
       let loading = false
+      expect(loading).toBe(false)
 
       loading = true
       expect(loading).toBe(true)

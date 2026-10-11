@@ -29,7 +29,7 @@ const { api, mutate, push, replace, resolve, toast, route, draft, clearCategorie
 mockNuxtImport('useAuth', () => () => ({ isAdmin: { __v_isRef: true, value: true } }))
 mockNuxtImport('useApi', () => api)
 mockNuxtImport('useApiFetch', () => () => mutate)
-mockNuxtImport('useRouter', () => () => ({ push, replace, resolve }))
+mockNuxtImport('useRouter', () => () => ({ push, replace, resolve, afterEach: vi.fn(), beforeResolve: vi.fn() }))
 mockNuxtImport('useRoute', () => () => route)
 mockNuxtImport('useToast', () => () => ({ add: toast }))
 mockNuxtImport('useState', () => () => draft)

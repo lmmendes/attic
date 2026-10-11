@@ -1,12 +1,15 @@
 import type { UseFetchOptions } from 'nuxt/app'
 
+type ApiKeys<T> = Array<T extends T ? keyof T extends string ? keyof T : never : never>
+type ApiOptions<T> = UseFetchOptions<T, T, ApiKeys<T>, undefined, string, HttpMethod | Lowercase<HttpMethod>>
+
 export function useApi<T>(
   url: string | (() => string),
-  options: UseFetchOptions<T> = {}
+  options: ApiOptions<T> = {}
 ) {
   const config = useRuntimeConfig()
 
-  const defaults: UseFetchOptions<T> = {
+  const defaults: ApiOptions<T> = {
     baseURL: config.public.apiBase as string,
     key: typeof url === 'string' ? url : undefined,
     credentials: 'include', // Include cookies for auth
@@ -26,7 +29,7 @@ export function useApi<T>(
 
 export function useApiLazy<T>(
   url: string | (() => string),
-  options: UseFetchOptions<T> = {}
+  options: ApiOptions<T> = {}
 ) {
   return useApi<T>(url, { ...options, lazy: true })
 }

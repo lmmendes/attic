@@ -406,6 +406,7 @@ describe('New Asset Page', () => {
   describe('loading state', () => {
     it('sets loading true during submission', async () => {
       let loading = false
+      expect(loading).toBe(false)
 
       loading = true
       expect(loading).toBe(true)
