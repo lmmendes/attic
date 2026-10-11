@@ -3,14 +3,19 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/lmmendes/attic/internal/domain"
 	"golang.org/x/oauth2"
 )
 
@@ -20,15 +25,15 @@ const (
 	cookieMaxAge      = 24 * time.Hour
 )
 
-// Session represents a user session stored in a cookie
-type Session struct {
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token,omitempty"`
-	IDToken      string    `json:"id_token,omitempty"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	Subject      string    `json:"sub"`
-	Email        string    `json:"email"`
-	Name         string    `json:"name"`
+// Session contains OIDC credentials stored server-side.
+type Session = domain.OIDCSession
+
+// OIDCSessionStore persists OIDC sessions using a hash of the browser session ID.
+type OIDCSessionStore interface {
+	Create(context.Context, string, *Session) error
+	Get(context.Context, string) (*Session, error)
+	Delete(context.Context, string) error
+	DeleteExpired(context.Context) error
 }
 
 // OAuthHandler handles OAuth login flow
@@ -37,33 +42,28 @@ type OAuthHandler struct {
 	oauth2Config       oauth2.Config
 	verifier           *oidc.IDTokenVerifier
 	baseURL            string
-	secret             []byte
+	sessions           OIDCSessionStore
 	disabled           bool
 	endSessionEndpoint string
 }
 
 // OAuthConfig for OAuth handler
 type OAuthConfig struct {
-	IssuerURL     string
-	ClientID      string
-	ClientSecret  string
-	BaseURL       string
-	SessionSecret string
-	Disabled      bool
+	IssuerURL    string
+	ClientID     string
+	ClientSecret string
+	BaseURL      string
+	SessionStore OIDCSessionStore
+	Disabled     bool
 }
 
 // NewOAuthHandler creates a new OAuth handler
 func NewOAuthHandler(ctx context.Context, cfg OAuthConfig) (*OAuthHandler, error) {
 	if cfg.Disabled {
-		return &OAuthHandler{
-			nil,
-			oauth2.Config{},
-			nil,
-			cfg.BaseURL,
-			nil,
-			true,
-			"",
-		}, nil
+		return &OAuthHandler{baseURL: cfg.BaseURL, disabled: true}, nil
+	}
+	if cfg.SessionStore == nil {
+		return nil, errors.New("OIDC session store is required")
 	}
 
 	provider, err := oidc.NewProvider(ctx, cfg.IssuerURL)
@@ -83,14 +83,6 @@ func NewOAuthHandler(ctx context.Context, cfg OAuthConfig) (*OAuthHandler, error
 		ClientID: cfg.ClientID,
 	})
 
-	secret := []byte(cfg.SessionSecret)
-	if len(secret) < 32 {
-		// Pad secret if too short
-		padded := make([]byte, 32)
-		copy(padded, secret)
-		secret = padded
-	}
-
 	// Extract end_session_endpoint from OIDC discovery document
 	var providerClaims struct {
 		EndSessionEndpoint string `json:"end_session_endpoint"`
@@ -100,13 +92,9 @@ func NewOAuthHandler(ctx context.Context, cfg OAuthConfig) (*OAuthHandler, error
 	}
 
 	return &OAuthHandler{
-		provider,
-		oauth2Config,
-		verifier,
-		cfg.BaseURL,
-		secret[:32],
-		false,
-		providerClaims.EndSessionEndpoint,
+		provider: provider, oauth2Config: oauth2Config, verifier: verifier,
+		baseURL: cfg.BaseURL, sessions: cfg.SessionStore,
+		endSessionEndpoint: providerClaims.EndSessionEndpoint,
 	}, nil
 }
 
@@ -215,13 +203,13 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		AccessToken:  token.AccessToken,
 		RefreshToken: token.RefreshToken,
 		IDToken:      rawIDToken,
-		ExpiresAt:    token.Expiry,
+		ExpiresAt:    oidcSessionExpiry(time.Now(), token.Expiry, idToken.Expiry),
 		Subject:      idToken.Subject,
 		Email:        claims.Email,
 		Name:         claims.Name,
 	}
 
-	// Store session in cookie
+	// Persist the session and send only its opaque ID to the browser
 	if err := h.setSessionCookie(w, r, &session); err != nil {
 		slog.Error("failed to set session cookie", "error", err)
 		http.Error(w, "Failed to create session", http.StatusInternalServerError)
@@ -237,14 +225,11 @@ func (h *OAuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	// Read session before clearing so we can pass id_token_hint to the provider
 	session, _ := h.getSessionFromCookie(r)
 
-	// Clear session cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-	})
+	if err := h.ClearSession(w, r); err != nil {
+		slog.Error("failed to revoke OIDC session", "error", err)
+		http.Error(w, "Failed to revoke session", http.StatusInternalServerError)
+		return
+	}
 
 	if h.disabled {
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
@@ -304,13 +289,6 @@ func (h *OAuthHandler) GetSessionInfo(r *http.Request) map[string]any {
 		}
 	}
 
-	if time.Now().After(session.ExpiresAt) {
-		return map[string]any{
-			"authenticated": false,
-			"oidc_enabled":  true,
-		}
-	}
-
 	return map[string]any{
 		"authenticated": true,
 		"oidc_enabled":  true,
@@ -323,7 +301,7 @@ func (h *OAuthHandler) GetSessionInfo(r *http.Request) map[string]any {
 	}
 }
 
-// GetAccessToken extracts access token from session cookie
+// GetAccessToken retrieves the access token from the server-side session
 func (h *OAuthHandler) GetAccessToken(r *http.Request) string {
 	session, err := h.getSessionFromCookie(r)
 	if err != nil || session == nil {
@@ -332,7 +310,7 @@ func (h *OAuthHandler) GetAccessToken(r *http.Request) string {
 	return session.AccessToken
 }
 
-// GetIDToken extracts ID token from session cookie
+// GetIDToken retrieves the ID token from the server-side session
 func (h *OAuthHandler) GetIDToken(r *http.Request) string {
 	session, err := h.getSessionFromCookie(r)
 	if err != nil || session == nil {
@@ -341,25 +319,49 @@ func (h *OAuthHandler) GetIDToken(r *http.Request) string {
 	return session.IDToken
 }
 
+func oidcSessionExpiry(now, accessExpiry, idExpiry time.Time) time.Time {
+	expiry := now.Add(cookieMaxAge)
+	for _, candidate := range []time.Time{accessExpiry, idExpiry} {
+		if !candidate.IsZero() && candidate.Before(expiry) {
+			expiry = candidate
+		}
+	}
+	return expiry
+}
+
+func sessionIDHash(id string) (string, error) {
+	raw, err := base64.RawURLEncoding.DecodeString(id)
+	if err != nil || len(raw) != 32 || base64.RawURLEncoding.EncodeToString(raw) != id {
+		return "", errors.New("invalid OIDC session ID")
+	}
+	digest := sha256.Sum256([]byte(id))
+	return hex.EncodeToString(digest[:]), nil
+}
+
 func (h *OAuthHandler) setSessionCookie(w http.ResponseWriter, r *http.Request, session *Session) error {
-	data, err := json.Marshal(session)
+	if h.sessions == nil {
+		return errors.New("OIDC session store is required")
+	}
+	if !time.Now().Before(session.ExpiresAt) {
+		return errors.New("OIDC session is expired")
+	}
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return err
+	}
+	id := base64.RawURLEncoding.EncodeToString(raw)
+	hash, err := sessionIDHash(id)
 	if err != nil {
 		return err
 	}
-
-	// Encode as base64
-	encoded := base64.StdEncoding.EncodeToString(data)
-
+	if err := h.sessions.Create(r.Context(), hash, session); err != nil {
+		return err
+	}
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    encoded,
-		Path:     "/",
-		MaxAge:   int(cookieMaxAge.Seconds()),
-		HttpOnly: true,
-		Secure:   isSecureRequest(r),
-		SameSite: http.SameSiteLaxMode,
+		Name: sessionCookieName, Value: id, Path: "/",
+		MaxAge: max(1, int(time.Until(session.ExpiresAt).Seconds())), Expires: session.ExpiresAt,
+		HttpOnly: true, Secure: isSecureRequest(r), SameSite: http.SameSiteLaxMode,
 	})
-
 	return nil
 }
 
@@ -368,18 +370,45 @@ func (h *OAuthHandler) getSessionFromCookie(r *http.Request) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	data, err := base64.StdEncoding.DecodeString(cookie.Value)
+	hash, err := sessionIDHash(cookie.Value)
 	if err != nil {
 		return nil, err
 	}
-
-	var session Session
-	if err := json.Unmarshal(data, &session); err != nil {
+	if h.sessions == nil {
+		return nil, errors.New("OIDC session store is required")
+	}
+	session, err := h.sessions.Get(r.Context(), hash)
+	if err != nil {
+		slog.Error("failed to load OIDC session", "error", err)
 		return nil, err
 	}
+	if session == nil || !time.Now().Before(session.ExpiresAt) {
+		return nil, errors.New("OIDC session missing or expired")
+	}
+	return session, nil
+}
 
-	return &session, nil
+// ClearSession revokes the server-side session and clears the browser cookie.
+func (h *OAuthHandler) ClearSession(w http.ResponseWriter, r *http.Request) error {
+	http.SetCookie(w, &http.Cookie{
+		Name: sessionCookieName, Value: "", Path: "/", MaxAge: -1,
+		HttpOnly: true, Secure: isSecureRequest(r), SameSite: http.SameSiteLaxMode,
+	})
+	cookie, err := r.Cookie(sessionCookieName)
+	if err != nil {
+		return nil
+	}
+	hash, err := sessionIDHash(cookie.Value)
+	if err != nil {
+		return nil
+	} // Legacy or malformed cookies have no stored session.
+	if h.sessions == nil {
+		return errors.New("OIDC session store is required")
+	}
+	if err := h.sessions.Delete(r.Context(), hash); err != nil {
+		return fmt.Errorf("deleting OIDC session: %w", err)
+	}
+	return nil
 }
 
 // isSecureRequest checks if the request originated over HTTPS,
