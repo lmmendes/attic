@@ -517,7 +517,7 @@ function getShortId(): string {
             </h3>
           </div>
           <div class="attic-panel rounded-[18px] p-4">
-            <p class="text-sm leading-relaxed text-mist-700 dark:text-mist-300">
+            <p class="whitespace-pre-line text-sm leading-relaxed text-mist-700 dark:text-mist-300">
               {{ asset.description }}
             </p>
           </div>
