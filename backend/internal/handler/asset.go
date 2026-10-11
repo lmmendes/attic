@@ -130,10 +130,14 @@ func (h *Handler) ListAssets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filter.Features = features
+	if q.Get("parent_id") != "" && q.Get("descendant_of") != "" {
+		writeError(w, http.StatusBadRequest, "parent_id and descendant_of are mutually exclusive")
+		return
+	}
 	for _, param := range []struct {
 		name string
 		dest **uuid.UUID
-	}{{"parent_id", &filter.ParentID}, {"exclude_subtree_of", &filter.ExcludeSubtreeOf}, {"exclude_ancestors_of", &filter.ExcludeAncestorsOf}} {
+	}{{"descendant_of", &filter.DescendantOf}, {"parent_id", &filter.ParentID}, {"exclude_subtree_of", &filter.ExcludeSubtreeOf}, {"exclude_ancestors_of", &filter.ExcludeAncestorsOf}} {
 		if value := q.Get(param.name); value != "" {
 			id, err := uuid.Parse(value)
 			if err != nil || id == uuid.Nil {

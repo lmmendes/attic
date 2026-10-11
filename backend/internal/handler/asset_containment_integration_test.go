@@ -115,6 +115,50 @@ func TestAssetContainmentHTTPIntegration(t *testing.T) {
 		}
 	}
 
+	t.Run("descendant browsing paths pagination and workspace boundaries", func(t *testing.T) {
+		root := create(map[string]any{"name": "Browse root"})
+		board := create(map[string]any{"name": "Browse board", "parent_id": root.ID})
+		ram := create(map[string]any{"name": "Browse RAM", "parent_id": board.ID})
+		deleted := create(map[string]any{"name": "Deleted part", "parent_id": root.ID})
+		call("DELETE", "/api/assets/"+deleted.ID.String(), nil, 204)
+		foreign := &domain.Asset{OrganizationID: otherOrg.ID, Name: "Foreign browse root", Quantity: 1}
+		must(assets.Create(ctx, foreign))
+		// Defense in depth: even an inconsistent cross-workspace edge must not leak.
+		_, err := db.Pool.Exec(ctx, "UPDATE assets SET parent_id=$1 WHERE id=$2", root.ID, foreign.ID)
+		must(err)
+		var result AssetListResponse
+		must(json.Unmarshal(call("GET", "/api/assets?descendant_of="+root.ID.String(), nil, 200).Body.Bytes(), &result))
+		if result.Total != 2 {
+			t.Fatalf("wrong descendant total: %+v", result)
+		}
+		for _, asset := range result.Assets {
+			if asset.ID == root.ID || asset.ID == foreign.ID || asset.ID == deleted.ID {
+				t.Fatal("invalid descendant returned")
+			}
+			if asset.ID == ram.ID {
+				if len(asset.ContainmentPath) != 2 || asset.ContainmentPath[0].ID != root.ID || asset.ContainmentPath[1].ID != board.ID {
+					t.Fatalf("wrong RAM path: %+v", asset.ContainmentPath)
+				}
+			}
+			if asset.ID == board.ID && (len(asset.ContainmentPath) != 1 || asset.ContainmentPath[0].ID != root.ID) {
+				t.Fatal("wrong board path")
+			}
+		}
+		must(json.Unmarshal(call("GET", "/api/assets?descendant_of="+root.ID.String()+"&limit=1&offset=1", nil, 200).Body.Bytes(), &result))
+		if result.Total != 2 || len(result.Assets) != 1 {
+			t.Fatalf("wrong page: %+v", result)
+		}
+		must(json.Unmarshal(call("GET", "/api/assets?descendant_of="+root.ID.String()+"&q=RAM", nil, 200).Body.Bytes(), &result))
+		if result.Total != 1 || result.Assets[0].ID != ram.ID {
+			t.Fatalf("wrong search: %+v", result)
+		}
+		call("GET", "/api/assets?descendant_of="+root.ID.String()+"&parent_id="+root.ID.String(), nil, 400)
+		call("GET", "/api/assets?descendant_of=broken", nil, 400)
+		call("GET", "/api/assets?descendant_of="+foreign.ID.String(), nil, 404)
+		call("GET", "/api/assets?descendant_of="+deleted.ID.String(), nil, 404)
+		call("GET", "/api/assets?descendant_of="+uuid.New().String(), nil, 404)
+	})
+
 	t.Run("nested movement reparent detach and cost", func(t *testing.T) {
 		crate := create(map[string]any{"name": "Crate", "location_id": garage.ID, "purchase_price": 10, "quantity": 2})
 		box := create(map[string]any{"name": "CPU box", "parent_id": crate.ID, "purchase_price": 5})

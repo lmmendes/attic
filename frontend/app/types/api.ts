@@ -127,6 +127,7 @@ export interface Asset {
   condition_id?: string
   parent_id?: string | null
   parent?: { id: string, name: string }
+  containment_path?: { id: string, name: string }[]
   child_count?: number
   containment_summary?: { total_value: number, unpriced_asset_count: number }
   main_attachment_id?: string

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -186,6 +187,49 @@ func (r *AssetRepository) loadAssetParents(ctx context.Context, assets []*domain
 			return err
 		}
 		byID[id].Parent = &parent
+	}
+	return rows.Err()
+}
+
+// loadContainmentPaths resolves paths for the result page in one scoped query.
+func (r *AssetRepository) loadContainmentPaths(ctx context.Context, org, root uuid.UUID, assets []*domain.Asset) error {
+	if len(assets) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, len(assets))
+	byID := make(map[uuid.UUID]*domain.Asset, len(assets))
+	for i, asset := range assets {
+		ids[i] = asset.ID
+		byID[asset.ID] = asset
+	}
+	rows, err := r.pool.Query(ctx, `WITH RECURSIVE paths AS (
+      SELECT asset.id AS asset_id, parent.id, parent.parent_id,
+        jsonb_build_array(jsonb_build_object('id',parent.id,'name',parent.name)) AS path,
+        ARRAY[asset.id,parent.id] AS visited
+      FROM assets asset JOIN assets parent ON parent.id=asset.parent_id
+      WHERE asset.id=ANY($3) AND asset.organization_id=$2 AND asset.deleted_at IS NULL
+        AND parent.organization_id=$2 AND parent.deleted_at IS NULL
+      UNION ALL
+      SELECT child.asset_id, parent.id, parent.parent_id,
+        jsonb_build_array(jsonb_build_object('id',parent.id,'name',parent.name)) || child.path,
+        child.visited || parent.id
+      FROM paths child JOIN assets parent ON child.parent_id=parent.id
+      WHERE child.id<>$1 AND parent.organization_id=$2 AND parent.deleted_at IS NULL
+        AND NOT parent.id=ANY(child.visited)
+    ) SELECT asset_id, path FROM paths WHERE id=$1`, root, org, ids)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id uuid.UUID
+		var path []byte
+		if err := rows.Scan(&id, &path); err != nil {
+			return err
+		}
+		if err := json.Unmarshal(path, &byID[id].ContainmentPath); err != nil {
+			return err
+		}
 	}
 	return rows.Err()
 }

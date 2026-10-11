@@ -181,6 +181,7 @@ type ContainmentSummary struct {
 }
 
 type Asset struct {
+	ContainmentPath    []AssetReference    `json:"containment_path,omitempty"`
 	ChildCount         int                 `json:"child_count"`
 	ParentID           *uuid.UUID          `json:"parent_id"`
 	Parent             *AssetReference     `json:"parent,omitempty"`

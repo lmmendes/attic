@@ -136,6 +136,16 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 
 	conditions = append(conditions, "a.deleted_at IS NULL")
 
+	if filter.DescendantOf != nil {
+		conditions = append(conditions, fmt.Sprintf(`a.id IN (
+          WITH RECURSIVE contents AS (
+            SELECT id FROM assets WHERE parent_id=$%d AND organization_id=$1 AND deleted_at IS NULL
+            UNION SELECT child.id FROM assets child JOIN contents parent ON child.parent_id=parent.id
+            WHERE child.organization_id=$1 AND child.deleted_at IS NULL
+          ) SELECT id FROM contents)`, argNum))
+		args = append(args, *filter.DescendantOf)
+		argNum++
+	}
 	if filter.ParentID != nil {
 		conditions = append(conditions, fmt.Sprintf("a.parent_id = $%d", argNum))
 		args = append(args, *filter.ParentID)
@@ -343,6 +353,11 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 	}
 	if err := r.loadAssetParents(ctx, assetPointers); err != nil {
 		return nil, 0, err
+	}
+	if filter.DescendantOf != nil {
+		if err := r.loadContainmentPaths(ctx, orgID, *filter.DescendantOf, assetPointers); err != nil {
+			return nil, 0, err
+		}
 	}
 	return assets, total, nil
 }

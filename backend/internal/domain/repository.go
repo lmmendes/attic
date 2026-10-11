@@ -76,6 +76,7 @@ type LocationRepository interface {
 
 // AssetFilter defines filters for asset queries
 type AssetFilter struct {
+	DescendantOf       *uuid.UUID
 	ParentID           *uuid.UUID
 	ExcludeSubtreeOf   *uuid.UUID
 	ExcludeAncestorsOf *uuid.UUID

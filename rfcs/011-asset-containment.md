@@ -79,37 +79,26 @@ Removing a component detaches its whole subtree.
 The flat assets list retains individual asset rows and indicates their immediate
 parent with a link.
 
-### Contents tree
+### Contents browser
 
-The Contents panel lists immediate children and recursively displays descendants:
+The detail page shows a full-width Contents browser below the asset overview,
+with a compact hierarchy rail and an asset results pane. The current asset is
+selected and expanded; other branches start collapsed. Selecting a name browses
+its contents, while the chevron independently expands its branch. Branches load
+on demand and retain siblings with Load more; leaves do not fetch children.
 
-```text
-Computer
-├── Motherboard
-│   └── 32 GB RAM
-└── Power supply
-```
+Results default to direct contents, with an Include nested contents toggle for
+all descendants. Search applies within the selected scope. Results paginate in
+batches of 24 and support image cards or a compact list. Nested results display
+their ancestor path. Breadcrumbs navigate within this browser; asset links open
+individual detail pages. Add asset and Link existing asset target the selected
+container. On mobile, the hierarchy collapses above the results.
 
-Parent rows use a subtle background, a component count, and an expand/collapse
-control. Descendants are indented with curved branch connectors. Neutral asset
-names provide the main visual emphasis; smaller quantity and price information
-remains secondary. The header separates creating a component from linking an
-existing asset and shows the count of immediate children.
-
-Branches start expanded. Child counts prevent requests for leaves. Each branch
-loads its own direct children, with independent pagination in batches of ten;
-the root list is paginated separately. Loading and error states belong to the
-affected branch, with a retry action when a request fails.
-
-Controls have accessible names, expansion state, and keyboard focus indicators.
-Links navigate to individual assets. Layout and metadata wrap on narrow screens;
-the styling also supports dark mode. Descendants in the edit tree are navigable,
-while removal actions apply to the edited asset's direct children.
-
-Inside, Contents, and the total-cost panel follow the Asset Details card pattern:
-a gray title bar with a blue icon and divider, followed by a white content body.
-Contents actions wrap in the header on small screens. The inline linking form
-has an explicit Cancel action, and empty contents explain how to get started.
+Loading and retry states belong to the affected branch or results pane. The
+browser supports keyboard selection, accessible expansion states, dark mode,
+and long names. Edit-mode Contents remains a direct-child list: additions and
+detachments apply only on Save, and Undo restores staged removals. Detached
+assets keep their descendants.
 
 ### Combined value
 
@@ -150,6 +139,7 @@ All operations require authentication and apply the current workspace scope.
 | `PUT /api/assets/{id}` | Accepts `parent_id`, `add_child_ids`, and `remove_child_ids` |
 | `PATCH /api/assets/{id}/parent` | Changes only the parent relationship and inherited location |
 | `GET /api/assets?parent_id=<id>` | Lists immediate children using existing pagination |
+| `GET /api/assets?descendant_of=<id>` | Lists descendants excluding the root, with ordered `containment_path` references; mutually exclusive with `parent_id` |
 | `GET /api/assets?exclude_subtree_of=<id>` | Excludes the asset and its descendants for parent selection |
 | `GET /api/assets?exclude_ancestors_of=<id>` | Excludes the asset and its ancestors for content selection |
 

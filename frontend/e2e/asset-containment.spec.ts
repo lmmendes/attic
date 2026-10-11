@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import type { APIRequestContext, Page } from '@playwright/test'
 
+const apiBase = process.env.E2E_API_BASE || ''
 const runID = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
 async function signIn(page: Page) {
@@ -12,13 +13,13 @@ async function signIn(page: Page) {
 }
 
 async function create(request: APIRequestContext, resource: string, data: Record<string, unknown>) {
-  const response = await request.post(`/api/${resource}`, { data })
+  const response = await request.post(`${apiBase}/api/${resource}`, { data })
   expect(response.status(), await response.text()).toBe(201)
   return await response.json() as { id: string }
 }
 
 async function getAsset(request: APIRequestContext, id: string) {
-  const response = await request.get(`/api/assets/${id}`)
+  const response = await request.get(`${apiBase}/api/assets/${id}`)
   expect(response.ok()).toBe(true)
   return await response.json() as { id: string, parent_id: string | null, location_id?: string, containment_summary: { total_value: number } }
 }
@@ -39,7 +40,7 @@ test('upgrades a PC atomically and detaches the replacement from its detail page
     ids.push(newGPU.id)
 
     await page.goto(`/assets/${pc.id}/edit`)
-    await page.getByRole('button', { name: `Remove Old GPU ${runID}`, exact: true }).click()
+    await page.getByRole('button', { name: `Detach Old GPU ${runID}`, exact: true }).click()
     await page.getByRole('button', { name: 'Link existing asset' }).click()
     await page.getByRole('button', { name: 'Content asset', exact: true }).click()
     await page.getByRole('option', { name: newName, exact: true }).click()
@@ -59,8 +60,8 @@ test('upgrades a PC atomically and detaches the replacement from its detail page
     await expect(page.getByRole('region', { name: 'Inside' })).toHaveCount(0)
     expect(await getAsset(page.request, newGPU.id)).toMatchObject({ parent_id: null, location_id: garage.id })
   } finally {
-    for (const id of ids.reverse()) await page.request.delete(`/api/assets/${id}`)
-    if (locationId) await page.request.delete(`/api/locations/${locationId}`)
+    for (const id of ids.reverse()) await page.request.delete(`${apiBase}/api/assets/${id}`)
+    if (locationId) await page.request.delete(`${apiBase}/api/locations/${locationId}`)
   }
 })
 
@@ -89,12 +90,13 @@ test('creates nested contents from a prefilled parent and moves the entire box',
     expect(await getAsset(page.request, ramID)).toMatchObject({ parent_id: box.id, location_id: garage.id })
 
     await page.goto(`/assets/${crate.id}`)
-    const nestedContents = page.getByRole('list', { name: `Contents of RAM box ${runID}`, exact: true })
-    await expect(nestedContents.getByRole('link', { name: `RAM ${runID}`, exact: true })).toBeVisible()
-    await page.getByRole('button', { name: `Collapse RAM box ${runID}`, exact: true }).click()
-    await expect(nestedContents).toHaveCount(0)
-    await page.getByRole('button', { name: `Expand RAM box ${runID}`, exact: true }).click()
-    await expect(nestedContents.getByRole('link', { name: `RAM ${runID}`, exact: true })).toBeVisible()
+    const results = page.getByRole('list', { name: 'Asset results', exact: true })
+    await expect(results.getByRole('link', { name: `RAM box ${runID}`, exact: true })).toBeVisible()
+    await page.getByRole('button', { name: `Browse contents of RAM box ${runID}`, exact: true }).click()
+    await expect(results.getByRole('link', { name: `RAM ${runID}`, exact: true })).toBeVisible()
+    await page.getByRole('navigation', { name: 'Contents path' }).getByRole('button', { name: `Crate ${runID}`, exact: true }).click()
+    await page.getByLabel('Include nested contents').check()
+    await expect(results.getByRole('link', { name: `RAM ${runID}`, exact: true })).toBeVisible()
     await page.goto(`/assets/${crate.id}/edit`)
     await page.locator('#location').click()
     await page.getByRole('option', { name: loftName, exact: true }).click()
@@ -106,7 +108,7 @@ test('creates nested contents from a prefilled parent and moves the entire box',
     await expect(page.getByRole('region', { name: 'Inside' })).toHaveCount(0)
     expect(await getAsset(page.request, ramID)).toMatchObject({ parent_id: box.id, location_id: loft.id })
   } finally {
-    for (const id of ids.reverse()) await page.request.delete(`/api/assets/${id}`)
-    for (const id of locations) await page.request.delete(`/api/locations/${id}`)
+    for (const id of ids.reverse()) await page.request.delete(`${apiBase}/api/assets/${id}`)
+    for (const id of locations) await page.request.delete(`${apiBase}/api/locations/${id}`)
   }
 })

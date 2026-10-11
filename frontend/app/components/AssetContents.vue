@@ -175,10 +175,10 @@ watch(() => props.assetId, () => {
             <UButton
               type="button"
               variant="link"
-              :aria-label="`Remove ${child.name}`"
+              :aria-label="`Detach ${child.name}`"
               @click="remove(child)"
             >
-              Remove
+              Detach
             </UButton>
           </li>
         </ul>

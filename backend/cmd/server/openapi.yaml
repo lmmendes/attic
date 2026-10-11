@@ -490,6 +490,10 @@ paths:
           in: query
           description: List direct contents of an active asset in this workspace.
           schema: { type: string, format: uuid }
+        - name: descendant_of
+          in: query
+          description: List all active descendants, excluding the root. Mutually exclusive with parent_id. Results include containment_path from this root to their immediate parent.
+          schema: { type: string, format: uuid }
         - name: exclude_subtree_of
           in: query
           description: Exclude this asset and all descendants when selecting a parent.
@@ -1919,6 +1923,11 @@ components:
           type: integer
           minimum: 0
           description: Number of active direct contents. Populated on asset list responses for expandable contents trees.
+        containment_path:
+          type: array
+          description: Ordered ancestors from descendant_of to the immediate parent; populated for descendant queries.
+          items:
+            $ref: '#/components/schemas/AssetReference'
         containment_summary:
           $ref: '#/components/schemas/ContainmentSummary'
         parent_id:
