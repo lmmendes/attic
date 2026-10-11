@@ -29,6 +29,8 @@ test.describe('core browser workflows', () => {
   test('creates, edits, and searches collections', async ({ page }) => {
     const collectionName = `E2E Games ${runID}`
     const updatedName = `${collectionName} Updated`
+    const updatedDescription = `Updated browser test collection ${runID}`
+    const collectionItems = page.getByRole('main').getByRole('listitem')
 
     await signIn(page)
     await page.goto('/collections')
@@ -39,20 +41,20 @@ test.describe('core browser workflows', () => {
     await page.getByRole('button', { name: 'Create collection' }).click()
 
     await expect(page.getByText('Collection created', { exact: true })).toBeVisible()
-    const collection = page.getByRole('listitem').filter({ hasText: collectionName })
+    const collection = collectionItems.filter({ hasText: collectionName })
     await expect(collection).toBeVisible()
 
     await collection.getByRole('button', { name: `Edit ${collectionName}` }).click()
     await expect(page.getByRole('heading', { name: 'Edit collection' })).toBeVisible()
     await page.getByPlaceholder('e.g. PS5 games').fill(updatedName)
-    await page.getByPlaceholder('What belongs in this collection?').fill('Updated browser test collection')
+    await page.getByPlaceholder('What belongs in this collection?').fill(updatedDescription)
     await page.getByRole('button', { name: 'Save changes' }).click()
 
     await expect(page.getByText('Collection updated', { exact: true })).toBeVisible()
     await expect(page.getByText(updatedName, { exact: true })).toBeVisible()
 
-    await page.getByPlaceholder('Search collections').fill('Updated browser test')
-    await expect(page.getByRole('listitem')).toHaveCount(1)
+    await page.getByPlaceholder('Search collections').fill(updatedDescription)
+    await expect(collectionItems).toHaveCount(1)
     await expect(page.getByText(updatedName, { exact: true })).toBeVisible()
   })
 
