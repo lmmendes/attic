@@ -46,6 +46,7 @@ function remove(asset: Asset) {
 watch(() => props.assetId, () => {
   offset.value = 0
   selected.value = null
+  selectedAsset.value = null
   pickerOpen.value = false
 })
 </script>
@@ -125,7 +126,7 @@ watch(() => props.assetId, () => {
             variant="ghost"
             color="neutral"
             :disabled="busy"
-            @click="pickerOpen = false; selected = null"
+            @click="pickerOpen = false; selected = null; selectedAsset = null"
           >
             Cancel
           </UButton>
