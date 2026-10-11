@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.7.1](https://github.com/lmmendes/attic/compare/v2.7.0...v2.7.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **assets:** preserve description line breaks in view mode ([#122](https://github.com/lmmendes/attic/issues/122)) ([8c00468](https://github.com/lmmendes/attic/commit/8c004689001374da7ad4fd56e54140be64e3d633))
+* **warranties:** save and return warranty policy numbers ([#121](https://github.com/lmmendes/attic/issues/121)) ([4954249](https://github.com/lmmendes/attic/commit/495424990140752db9f31bb97fc8af946524f2e2))
+
 ## [2.7.0](https://github.com/lmmendes/attic/compare/v2.6.0...v2.7.0) (2026-09-21)
 
 
