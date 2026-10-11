@@ -27,6 +27,8 @@ const { route, toast, flags } = vi.hoisted(() => ({
   toast: vi.fn(),
   flags: { locations: true, categories: false, collections: false, tags: false, conditions: false, warranties: false, plugins: false, attributes: false }
 }))
+// Nuxt 4.6 imports its fetch client from #build/fetch rather than the global.
+mockNuxtImport('$fetch', () => (...args: Parameters<typeof globalThis.$fetch>) => globalThis.$fetch(...args))
 mockNuxtImport('useRuntimeConfig', () => () => ({ public: { apiBase: 'http://attic.test' }, app: { baseURL: '/', buildAssetsDir: '/_nuxt/', cdnURL: '' } }))
 mockNuxtImport('useFeatures', () => () => ({ features: ref(flags) }))
 mockNuxtImport('useRoute', () => () => route)
@@ -236,6 +238,8 @@ describe('Asset containment', () => {
       http.patch('http://attic.test/api/assets/:id/parent', async ({ request }) => {
         saves.push({ method: 'PATCH', body: await request.json() as Record<string, unknown> })
         linked = true
+        assets.motherboard!.child_count = 1
+        assets.replacement!.parent_id = 'motherboard'
         return HttpResponse.json(assets.replacement)
       })
     )
@@ -245,8 +249,7 @@ describe('Asset containment', () => {
     await wrapper.findAll('button').find(button => button.text() === 'Link existing asset')!.trigger('click')
     const picker = wrapper.getComponent(AssetPicker)
     picker.vm.$emit('update:modelValue', 'replacement')
-    picker.vm.$emit('resolved', assets.replacement)
-    await flushPromises()
+    await settle(() => expect(wrapper.findAll('button').find(button => button.text() === 'Link asset')!.attributes('disabled')).toBeUndefined())
     await wrapper.findAll('button').find(button => button.text() === 'Link asset')!.trigger('click')
     await settle(() => expect(wrapper.get('ul[aria-label="Asset results"]').text()).toContain('New GPU'))
     expect(saves).toEqual([{ method: 'PATCH', body: { parent_id: 'motherboard' } }])

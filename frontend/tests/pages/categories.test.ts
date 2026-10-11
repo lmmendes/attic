@@ -186,6 +186,7 @@ describe('Categories Index Page', () => {
     it('shows success toast after deletion', async () => {
       mockApiFetch.mockResolvedValueOnce({})
       let deleteModalOpen = true
+      expect(deleteModalOpen).toBe(true)
       let categoryToDelete: { id: string, name: string } | null = { id: 'cat-1', name: 'Test' }
 
       await mockApiFetch(`/api/categories/${categoryToDelete.id}`, { method: 'DELETE' })
@@ -231,7 +232,9 @@ describe('Categories Index Page', () => {
 
     it('opens attributes modal on success', async () => {
       let attributesModalOpen = false
+      expect(attributesModalOpen).toBe(false)
       let viewingCategory: { id: string, name: string, attributes: unknown[] } | null = null
+      expect(viewingCategory).toBeNull()
 
       const fullCategory = { id: 'cat-1', name: 'Electronics', attributes: [] }
       mockApiFetch.mockResolvedValueOnce(fullCategory)

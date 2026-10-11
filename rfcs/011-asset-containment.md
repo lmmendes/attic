@@ -113,7 +113,7 @@ components.
 
 ## Data Model
 
-Migration `000025_asset_containment` adds:
+Migration `000026_asset_containment` adds:
 
 ```sql
 ALTER TABLE assets ADD COLUMN parent_id UUID;

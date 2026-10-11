@@ -9,7 +9,7 @@ const { fetch, api, replace, route } = vi.hoisted(() => ({ fetch: vi.fn(), api: 
 mockNuxtImport('useApiFetch', () => () => fetch)
 mockNuxtImport('useApi', () => api)
 mockNuxtImport('useRoute', () => () => route)
-mockNuxtImport('useRouter', () => () => ({ replace }))
+mockNuxtImport('useRouter', () => () => ({ replace, afterEach: vi.fn(), beforeResolve: vi.fn() }))
 const mocks = { fetch, api, replace, route }
 
 const saved: SavedFilter = { id: 'saved-1', name: 'Retro', pinned: false, criteria: { version: 1, q: 'retro', category_id: 'old-category' }, created_at: '', updated_at: '' }

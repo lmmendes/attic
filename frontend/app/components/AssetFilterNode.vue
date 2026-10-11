@@ -24,6 +24,9 @@ const fields = computed(() => [
   ...props.attributes.map(a => ({ label: `Attribute: ${a.name}`, value: `attribute:${a.id}` }))
 ])
 const selectedField = computed(() => props.modelValue.kind === 'rule' ? props.modelValue.field === 'attribute' ? `attribute:${props.modelValue.attribute_id}` : props.modelValue.field : '')
+const comparisonOptions = computed(() => props.modelValue.kind === 'rule'
+  ? ruleOperators(props.modelValue).map(value => ({ label: operatorLabels[value], value }))
+  : [])
 const fieldOptions = computed(() => fields.value.some(f => f.value === selectedField.value) ? fields.value : [{ label: 'Unavailable field — choose a replacement', value: selectedField.value }, ...fields.value])
 const attribute = computed(() => {
   const node = props.modelValue
@@ -156,7 +159,7 @@ function add(group = false) {
       />
       <USelect
         :model-value="modelValue.operator"
-        :items="ruleOperators(modelValue).map(value => ({ label: operatorLabels[value], value }))"
+        :items="comparisonOptions"
         aria-label="Rule comparison"
         @update:model-value="operator($event)"
       />

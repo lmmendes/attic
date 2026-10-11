@@ -222,6 +222,7 @@ describe('Login Page', () => {
   describe('error handling', () => {
     it('clears error before new login attempt', async () => {
       let error = 'Previous error'
+      expect(error).toBe('Previous error')
 
       error = ''
       mockLoginWithCredentials.mockResolvedValueOnce({ success: true })
