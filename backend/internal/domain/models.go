@@ -218,14 +218,15 @@ type Tag struct {
 
 // Warranty represents warranty information for an asset
 type Warranty struct {
-	ID        uuid.UUID  `json:"id"`
-	AssetID   uuid.UUID  `json:"asset_id"`
-	Provider  *string    `json:"provider,omitempty"`
-	StartDate *time.Time `json:"start_date,omitempty"`
-	EndDate   *time.Time `json:"end_date,omitempty"`
-	Notes     *string    `json:"notes,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID           uuid.UUID  `json:"id"`
+	AssetID      uuid.UUID  `json:"asset_id"`
+	PolicyNumber *string    `json:"policy_number,omitempty"`
+	Provider     *string    `json:"provider,omitempty"`
+	StartDate    *time.Time `json:"start_date,omitempty"`
+	EndDate      *time.Time `json:"end_date,omitempty"`
+	Notes        *string    `json:"notes,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
 // Attachment represents a file attached to an asset

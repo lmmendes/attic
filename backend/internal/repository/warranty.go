@@ -21,13 +21,13 @@ func NewWarrantyRepository(pool *pgxpool.Pool) *WarrantyRepository {
 
 func (r *WarrantyRepository) GetByAssetID(ctx context.Context, assetID uuid.UUID) (*domain.Warranty, error) {
 	query := `
-		SELECT id, asset_id, provider, start_date, end_date, notes, created_at, updated_at
+		SELECT id, asset_id, provider, policy_number, start_date, end_date, notes, created_at, updated_at
 		FROM warranties
 		WHERE asset_id = $1
 	`
 	var w domain.Warranty
 	err := r.pool.QueryRow(ctx, query, assetID).Scan(
-		&w.ID, &w.AssetID, &w.Provider, &w.StartDate, &w.EndDate,
+		&w.ID, &w.AssetID, &w.Provider, &w.PolicyNumber, &w.StartDate, &w.EndDate,
 		&w.Notes, &w.CreatedAt, &w.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -41,7 +41,7 @@ func (r *WarrantyRepository) GetByAssetID(ctx context.Context, assetID uuid.UUID
 
 func (r *WarrantyRepository) List(ctx context.Context, orgID uuid.UUID) ([]domain.WarrantyWithAsset, error) {
 	query := `
-		SELECT w.id, w.asset_id, w.provider, w.start_date, w.end_date, w.notes, w.created_at, w.updated_at,
+		SELECT w.id, w.asset_id, w.provider, w.policy_number, w.start_date, w.end_date, w.notes, w.created_at, w.updated_at,
 		       a.name as asset_name
 		FROM warranties w
 		JOIN assets a ON a.id = w.asset_id
@@ -59,7 +59,7 @@ func (r *WarrantyRepository) List(ctx context.Context, orgID uuid.UUID) ([]domai
 	for rows.Next() {
 		var w domain.WarrantyWithAsset
 		if err := rows.Scan(
-			&w.ID, &w.AssetID, &w.Provider, &w.StartDate, &w.EndDate,
+			&w.ID, &w.AssetID, &w.Provider, &w.PolicyNumber, &w.StartDate, &w.EndDate,
 			&w.Notes, &w.CreatedAt, &w.UpdatedAt, &w.AssetName,
 		); err != nil {
 			return nil, err
@@ -71,7 +71,7 @@ func (r *WarrantyRepository) List(ctx context.Context, orgID uuid.UUID) ([]domai
 
 func (r *WarrantyRepository) ListExpiring(ctx context.Context, orgID uuid.UUID, days int) ([]domain.Warranty, error) {
 	query := `
-		SELECT w.id, w.asset_id, w.provider, w.start_date, w.end_date, w.notes, w.created_at, w.updated_at
+		SELECT w.id, w.asset_id, w.provider, w.policy_number, w.start_date, w.end_date, w.notes, w.created_at, w.updated_at
 		FROM warranties w
 		JOIN assets a ON a.id = w.asset_id
 		WHERE a.organization_id = $1
@@ -91,7 +91,7 @@ func (r *WarrantyRepository) ListExpiring(ctx context.Context, orgID uuid.UUID, 
 	for rows.Next() {
 		var w domain.Warranty
 		if err := rows.Scan(
-			&w.ID, &w.AssetID, &w.Provider, &w.StartDate, &w.EndDate,
+			&w.ID, &w.AssetID, &w.Provider, &w.PolicyNumber, &w.StartDate, &w.EndDate,
 			&w.Notes, &w.CreatedAt, &w.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -103,27 +103,27 @@ func (r *WarrantyRepository) ListExpiring(ctx context.Context, orgID uuid.UUID, 
 
 func (r *WarrantyRepository) Create(ctx context.Context, w *domain.Warranty) error {
 	query := `
-		INSERT INTO warranties (id, asset_id, provider, start_date, end_date, notes)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO warranties (id, asset_id, provider, policy_number, start_date, end_date, notes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING created_at, updated_at
 	`
 	if w.ID == uuid.Nil {
 		w.ID = uuid.New()
 	}
 	return r.pool.QueryRow(ctx, query,
-		w.ID, w.AssetID, w.Provider, w.StartDate, w.EndDate, w.Notes,
+		w.ID, w.AssetID, w.Provider, w.PolicyNumber, w.StartDate, w.EndDate, w.Notes,
 	).Scan(&w.CreatedAt, &w.UpdatedAt)
 }
 
 func (r *WarrantyRepository) Update(ctx context.Context, w *domain.Warranty) error {
 	query := `
 		UPDATE warranties
-		SET provider = $2, start_date = $3, end_date = $4, notes = $5
+		SET provider = $2, policy_number = $3, start_date = $4, end_date = $5, notes = $6
 		WHERE id = $1
 		RETURNING updated_at
 	`
 	return r.pool.QueryRow(ctx, query,
-		w.ID, w.Provider, w.StartDate, w.EndDate, w.Notes,
+		w.ID, w.Provider, w.PolicyNumber, w.StartDate, w.EndDate, w.Notes,
 	).Scan(&w.UpdatedAt)
 }
 

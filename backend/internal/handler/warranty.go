@@ -9,17 +9,19 @@ import (
 )
 
 type CreateWarrantyRequest struct {
-	Provider  *string `json:"provider,omitempty"`
-	StartDate *string `json:"start_date,omitempty"`
-	EndDate   *string `json:"end_date,omitempty"`
-	Notes     *string `json:"notes,omitempty"`
+	Provider     *string `json:"provider,omitempty"`
+	PolicyNumber *string `json:"policy_number,omitempty"`
+	StartDate    *string `json:"start_date,omitempty"`
+	EndDate      *string `json:"end_date,omitempty"`
+	Notes        *string `json:"notes,omitempty"`
 }
 
 type UpdateWarrantyRequest struct {
-	Provider  *string `json:"provider,omitempty"`
-	StartDate *string `json:"start_date,omitempty"`
-	EndDate   *string `json:"end_date,omitempty"`
-	Notes     *string `json:"notes,omitempty"`
+	Provider     *string `json:"provider,omitempty"`
+	PolicyNumber *string `json:"policy_number,omitempty"`
+	StartDate    *string `json:"start_date,omitempty"`
+	EndDate      *string `json:"end_date,omitempty"`
+	Notes        *string `json:"notes,omitempty"`
 }
 
 func (h *Handler) GetWarranty(w http.ResponseWriter, r *http.Request) {
@@ -111,9 +113,10 @@ func (h *Handler) CreateWarranty(w http.ResponseWriter, r *http.Request) {
 	}
 
 	warranty := &domain.Warranty{
-		AssetID:  assetID,
-		Provider: req.Provider,
-		Notes:    req.Notes,
+		AssetID:      assetID,
+		Provider:     req.Provider,
+		PolicyNumber: req.PolicyNumber,
+		Notes:        req.Notes,
 	}
 
 	if req.StartDate != nil {
@@ -159,6 +162,7 @@ func (h *Handler) UpdateWarranty(w http.ResponseWriter, r *http.Request) {
 	}
 
 	warranty.Provider = req.Provider
+	warranty.PolicyNumber = req.PolicyNumber
 	warranty.Notes = req.Notes
 
 	if req.StartDate != nil {
