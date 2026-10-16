@@ -3,7 +3,9 @@ import { mountSuspended, mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { ref } from 'vue'
 import AssetsPage from '../../app/pages/assets/index.vue'
 
-const { api, routeQuery } = vi.hoisted(() => ({ api: vi.fn(), routeQuery: {} as Record<string, string> }))
+const { api, routeQuery, searchFeatures } = vi.hoisted(() => ({
+  api: vi.fn(), routeQuery: {} as Record<string, string>, searchFeatures: { tags: true, attributes: true }
+}))
 mockNuxtImport('useApi', () => api)
 mockNuxtImport('useRoute', () => () => ({ query: routeQuery }))
 mockNuxtImport('useFeatures', () => () => ({
@@ -15,7 +17,8 @@ mockNuxtImport('useFeatures', () => () => ({
     attributes: true,
     conditions: true,
     warranties: true,
-    plugins: true
+    plugins: true,
+    ...searchFeatures
   })
 }))
 
@@ -28,6 +31,8 @@ const select = {
 describe('Inventory pagination', () => {
   beforeEach(() => {
     api.mockReset()
+    searchFeatures.tags = true
+    searchFeatures.attributes = true
     delete routeQuery.category_id
     api.mockImplementation((url: string | (() => string)) => ({
       data: ref(typeof url === 'function'
@@ -40,6 +45,19 @@ describe('Inventory pagination', () => {
   const mountPage = () => mountSuspended(AssetsPage, {
     route: '/assets',
     global: { stubs: { USelectMenu: select, ImportModal: true } }
+  })
+
+  it.each([
+    { tags: false, attributes: false, expected: 'Search names, descriptions, and personal notes.' },
+    { tags: true, attributes: false, expected: 'Search names, descriptions, personal notes, and tags.' },
+    { tags: false, attributes: true, expected: 'Search names, descriptions, personal notes, and attribute values.' },
+    { tags: true, attributes: true, expected: 'Search names, descriptions, personal notes, tags, and attribute values.' }
+  ])('describes enabled fields in the search title (tags=$tags, attributes=$attributes)', async ({ tags, attributes, expected }) => {
+    searchFeatures.tags = tags
+    searchFeatures.attributes = attributes
+    const wrapper = await mountPage()
+    expect(wrapper.get('input[aria-label="Quick search"]').attributes('title')).toBe(expected)
+    wrapper.unmount()
   })
 
   it('applies the category from a library card link', async () => {
