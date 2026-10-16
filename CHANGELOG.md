@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.8.0](https://github.com/lmmendes/attic/compare/v2.7.1...v2.8.0) (2026-10-16)
+
+
+### Features
+
+* **assets:** improve attachment uploads and image gallery ([#130](https://github.com/lmmendes/attic/issues/130)) ([2f5483a](https://github.com/lmmendes/attic/commit/2f5483a13d91d6d49610fd4feaa68a091f7d9cc8))
+* **assets:** Support file upload by drag & drop ([#117](https://github.com/lmmendes/attic/issues/117)) ([358f51a](https://github.com/lmmendes/attic/commit/358f51aee7d26017bff6630261ffcc97e70b3b7e))
+
 ## [2.7.1](https://github.com/lmmendes/attic/compare/v2.7.0...v2.7.1) (2026-10-11)
 
 
