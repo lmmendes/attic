@@ -110,10 +110,10 @@ test.describe('core browser workflows', () => {
     await page.goto('/assets')
     const asset = page.getByRole('row').filter({ hasText: updatedName })
     await expect(asset).toBeVisible()
-    await page.getByPlaceholder('Search by name, tag, or serial number...').fill('Updated by browser')
+    await page.getByRole('textbox', { name: 'Quick search', exact: true }).fill('Updated by browser')
     await expect(page.getByRole('row').filter({ hasText: updatedName })).toHaveCount(1)
 
-    await page.getByPlaceholder('Search by name, tag, or serial number...').fill('does-not-exist')
+    await page.getByRole('textbox', { name: 'Quick search', exact: true }).fill('does-not-exist')
     await expect(page.getByText('No assets match these filters')).toBeVisible()
   })
 
