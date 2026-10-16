@@ -1122,15 +1122,19 @@ function getShortId(): string {
             />
           </div>
 
-          <div class="relative flex min-h-0 flex-1 items-center justify-center px-14 py-3 sm:px-20">
-            <img
-              v-if="imageGallery[activeImageIndex]"
-              :key="imageGallery[activeImageIndex]!.url"
-              :src="imageGallery[activeImageIndex]!.url"
-              :alt="imageGallery[activeImageIndex]!.name"
-              class="max-h-full max-w-full select-none object-contain transition-transform duration-150"
-              :style="{ transform: `scale(${imageZoom})` }"
-            >
+          <div class="relative flex min-h-0 flex-1">
+            <div class="size-full overflow-auto px-14 py-3 sm:px-20">
+              <div class="flex min-h-full min-w-full items-center justify-center">
+                <img
+                  v-if="imageGallery[activeImageIndex]"
+                  :key="imageGallery[activeImageIndex]!.url"
+                  :src="imageGallery[activeImageIndex]!.url"
+                  :alt="imageGallery[activeImageIndex]!.name"
+                  class="max-h-full max-w-full origin-top-left select-none object-contain transition-transform duration-150"
+                  :style="{ transform: `scale(${imageZoom})` }"
+                >
+              </div>
+            </div>
             <UButton
               v-if="imageGallery.length > 1"
               variant="solid"
@@ -1181,24 +1185,26 @@ function getShortId(): string {
             </div>
             <div
               v-if="imageGallery.length > 1"
-              class="flex max-w-full justify-center gap-2 overflow-x-auto"
+              class="max-w-full overflow-x-auto"
             >
-              <button
-                v-for="(image, index) in imageGallery"
-                :key="image.id"
-                type="button"
-                class="size-12 shrink-0 overflow-hidden rounded-lg border-2 transition-opacity sm:size-14"
-                :class="index === activeImageIndex ? 'border-white' : 'border-transparent opacity-55 hover:opacity-100'"
-                :aria-label="`Show image ${index + 1}: ${image.name}`"
-                :aria-current="index === activeImageIndex ? 'true' : undefined"
-                @click="selectGalleryImage(index)"
-              >
-                <img
-                  :src="image.url"
-                  :alt="image.name"
-                  class="size-full object-cover"
+              <div class="flex w-max min-w-full justify-center gap-2">
+                <button
+                  v-for="(image, index) in imageGallery"
+                  :key="image.id"
+                  type="button"
+                  class="size-12 shrink-0 overflow-hidden rounded-lg border-2 transition-opacity sm:size-14"
+                  :class="index === activeImageIndex ? 'border-white' : 'border-transparent opacity-55 hover:opacity-100'"
+                  :aria-label="`Show image ${index + 1}: ${image.name}`"
+                  :aria-current="index === activeImageIndex ? 'true' : undefined"
+                  @click="selectGalleryImage(index)"
                 >
-              </button>
+                  <img
+                    :src="image.url"
+                    :alt="image.name"
+                    class="size-full object-cover"
+                  >
+                </button>
+              </div>
             </div>
           </div>
         </div>
