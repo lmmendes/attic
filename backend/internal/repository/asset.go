@@ -156,14 +156,7 @@ func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter doma
 		argNum++
 	}
 	if filter.Query != "" {
-		searchCondition := fmt.Sprintf("a.search_vector @@ attic_prefix_tsquery($%d)", argNum)
-		if filter.Features == nil || filter.Features.Tags {
-			searchCondition = fmt.Sprintf(`(a.search_vector @@ attic_prefix_tsquery($%d)
-            OR EXISTS (SELECT 1 FROM asset_tags at JOIN tags t ON t.id=at.tag_id
-                WHERE at.asset_id=a.id AND t.organization_id=a.organization_id
-				AND to_tsvector('english', t.name) @@ attic_prefix_tsquery($%d)))`, argNum, argNum)
-		}
-		conditions = append(conditions, searchCondition)
+		conditions = append(conditions, quickSearchPredicate(fmt.Sprintf("$%d", argNum), filter.Features))
 		args = append(args, filter.Query)
 		argNum++
 	}

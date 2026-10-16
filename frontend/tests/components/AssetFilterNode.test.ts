@@ -28,6 +28,16 @@ async function setup(initial: FilterNode) {
 }
 
 describe('filter rule editing', () => {
+  it('describes quick search coverage and keeps text attributes available', async () => {
+    const { wrapper } = await setup({ kind: 'rule', field: 'q', operator: 'search', value: 'model' })
+    expect(wrapper.get('select[aria-label="Rule field"]').text()).toContain('Quick search')
+    expect(wrapper.text()).toContain('personal notes, tags, and attribute values')
+    await wrapper.get('select[aria-label="Rule field"]').setValue('attribute:vendor')
+    expect(wrapper.get('select[aria-label="Rule comparison"]').text()).toContain('Contains')
+    expect(wrapper.text()).not.toContain('personal notes, tags, and attribute values')
+    wrapper.unmount()
+  })
+
   it('preserves selected collections when switching between any and all', async () => {
     const { node, wrapper } = await setup({ kind: 'rule', field: 'collections', operator: 'any', values: ['one', 'two'] })
     await wrapper.get('select[aria-label="Rule comparison"]').setValue('all')

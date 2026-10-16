@@ -392,7 +392,9 @@ function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
         >
           <UInput
             v-model="searchQuery"
-            placeholder="Search by name, tag, or serial number..."
+            placeholder="Search assets..."
+            aria-label="Quick search"
+            title="Search names, descriptions, personal notes, tags, and attribute values"
             icon="i-lucide-search"
             size="lg"
             class="w-full"

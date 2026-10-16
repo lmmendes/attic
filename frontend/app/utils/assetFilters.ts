@@ -2,7 +2,7 @@ import type { Attribute, FilterCriteria, FilterIssue, FilterNode, FilterRule } f
 
 export const criteriaKeys = ['q', 'attribute_q', 'category_id', 'location_id', 'condition_id', 'collection_id'] as const
 export const criteriaLabels: Record<typeof criteriaKeys[number], string> = {
-  q: 'Name / description', attribute_q: 'Attribute values', category_id: 'Category', location_id: 'Location', condition_id: 'Condition', collection_id: 'Collection'
+  q: 'Quick search', attribute_q: 'Attribute values', category_id: 'Category', location_id: 'Location', condition_id: 'Condition', collection_id: 'Collection'
 }
 
 export function normalizeIssuePath(path: string) {
@@ -21,7 +21,7 @@ export function issueLabel(issue: FilterIssue, criteria: FilterCriteria, attribu
   const label = node?.kind === 'rule'
     ? node.field === 'attribute'
       ? attributes.find(a => a.id === node.attribute_id)?.name || 'Attribute'
-      : ({ collections: 'Collections', tags: 'Tags', category: 'Category', location: 'Location', condition: 'Condition', q: 'Name / description', attribute_q: 'Attribute values' })[node.field]
+      : ({ collections: 'Collections', tags: 'Tags', category: 'Category', location: 'Location', condition: 'Condition', q: 'Quick search', attribute_q: 'Attribute values' })[node.field]
     : 'Group'
   return `${label}${indices.length ? ` (rule ${indices.map(i => i + 1).join('.')})` : ''}`
 }
