@@ -169,6 +169,83 @@ async function deleteAttachment(attachment: Attachment) {
 
 // State for attachment thumbnail URLs
 const attachmentUrls = ref<Record<string, string>>({})
+const imageViewerOpen = ref(false)
+const activeImageIndex = ref(0)
+const imageZoom = ref(1)
+
+function resetImageZoom() {
+  imageZoom.value = 1
+}
+
+function changeImageZoom(amount: number) {
+  imageZoom.value = Math.min(3, Math.max(1, Math.round((imageZoom.value + amount) * 10) / 10))
+}
+
+function selectGalleryImage(index: number) {
+  activeImageIndex.value = index
+  resetImageZoom()
+}
+
+const imageGallery = computed(() => {
+  const images = (attachments.value || [])
+    .filter(attachment => isImageAttachment(attachment) && attachmentUrls.value[attachment.id])
+    .map(attachment => ({
+      id: attachment.id,
+      name: attachment.file_name,
+      url: attachmentUrls.value[attachment.id]!
+    }))
+  const mainImageUrl = asset.value?.main_attachment_url
+  if (mainImageUrl) {
+    const mainImageId = asset.value?.main_attachment_id
+    const mainIndex = images.findIndex(image => image.id === mainImageId)
+    if (mainIndex >= 0) {
+      images[mainIndex]!.url = mainImageUrl
+      images.unshift(...images.splice(mainIndex, 1))
+    } else {
+      images.unshift({
+        id: mainImageId || 'main-image',
+        name: asset.value?.main_attachment?.file_name || `${asset.value?.name} image`,
+        url: mainImageUrl
+      })
+    }
+  }
+  return images
+})
+
+function openImageViewer(imageId?: string) {
+  const index = imageGallery.value.findIndex(image => image.id === imageId)
+  if (index < 0) return
+  activeImageIndex.value = index
+  resetImageZoom()
+  imageViewerOpen.value = true
+}
+
+function showAdjacentImage(direction: -1 | 1) {
+  const count = imageGallery.value.length
+  if (count < 2) return
+  selectGalleryImage((activeImageIndex.value + direction + count) % count)
+}
+
+function handleImageViewerKeydown(event: KeyboardEvent) {
+  if (!imageViewerOpen.value) return
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    showAdjacentImage(-1)
+  } else if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    showAdjacentImage(1)
+  }
+}
+
+watch(imageViewerOpen, (open) => {
+  if (typeof window === 'undefined') return
+  if (open) window.addEventListener('keydown', handleImageViewerKeydown)
+  else window.removeEventListener('keydown', handleImageViewerKeydown)
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') window.removeEventListener('keydown', handleImageViewerKeydown)
+})
 
 // Helper to check if attachment is an image
 function isImageAttachment(attachment: Attachment): boolean {
@@ -231,14 +308,13 @@ function triggerUpload() {
 const uploadQueue: File[] = []
 const retryFiles = ref<File[]>([])
 
-async function uploadFiles(files: File[], isQueued = false) {
+async function uploadFiles(files: File[]) {
   if (!files.length || uploading.value) {
     if (uploading.value) uploadQueue.push(...files)
     return
   }
 
   uploading.value = true
-  if (!isQueued) retryFiles.value = []
   let succeeded = 0
   let index = 0
   try {
@@ -286,7 +362,7 @@ async function uploadFiles(files: File[], isQueued = false) {
 
   if (uploadQueue.length) {
     const next = uploadQueue.splice(0)
-    await uploadFiles(next, true)
+    await uploadFiles(next)
   }
 }
 
@@ -415,12 +491,19 @@ function getShortId(): string {
         <!-- Main Image / Placeholder -->
         <div class="relative group">
           <div class="attic-panel flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[24px] bg-gradient-to-br from-attic-50 to-mist-100 dark:from-mist-700 dark:to-mist-800 lg:aspect-square xl:aspect-[4/3]">
-            <img
+            <button
               v-if="asset.main_attachment_url"
-              :src="asset.main_attachment_url"
-              :alt="asset.name"
-              class="w-full h-full object-cover"
+              type="button"
+              class="h-full w-full cursor-zoom-in"
+              :aria-label="`View ${asset.name} image gallery`"
+              @click="openImageViewer(asset.main_attachment_id)"
             >
+              <img
+                :src="asset.main_attachment_url"
+                :alt="asset.name"
+                class="h-full w-full object-cover"
+              >
+            </button>
             <div
               v-else
               class="text-center p-8"
@@ -439,7 +522,7 @@ function getShortId(): string {
             v-if="asset.main_attachment_url"
             class="absolute right-3 top-3 rounded-xl bg-black/50 p-2 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover:opacity-100"
             title="Remove main image"
-            @click="clearMainImage"
+            @click.stop="clearMainImage"
           >
             <UIcon
               name="i-lucide-x"
@@ -842,7 +925,7 @@ function getShortId(): string {
                 name="i-lucide-upload"
                 class="w-4 h-4"
               />
-              Upload File
+              {{ uploading ? 'Uploading…' : 'Add files' }}
             </button>
             <input
               ref="fileInput"
@@ -886,11 +969,19 @@ function getShortId(): string {
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
                   <!-- Show thumbnail for images -->
-                  <img
+                  <button
                     v-if="isImageAttachment(attachment) && attachmentUrls[attachment.id]"
-                    :src="attachmentUrls[attachment.id]"
-                    class="w-full h-full object-cover"
+                    type="button"
+                    class="h-full w-full cursor-zoom-in"
+                    :aria-label="`View ${attachment.file_name}`"
+                    @click="openImageViewer(attachment.id)"
                   >
+                    <img
+                      :src="attachmentUrls[attachment.id]"
+                      :alt="attachment.file_name"
+                      class="h-full w-full object-cover"
+                    >
+                  </button>
                   <UIcon
                     v-else
                     name="i-lucide-file"
@@ -945,23 +1036,38 @@ function getShortId(): string {
           </div>
           <div
             v-else
-            class="p-8 text-center"
+            class="m-4 flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed px-5 py-6 transition-colors"
+            :class="dragging
+              ? 'border-attic-500 bg-attic-50/60 dark:border-attic-400 dark:bg-attic-500/10'
+              : 'border-mist-200 bg-mist-50/40 dark:border-mist-600 dark:bg-mist-800/30'"
           >
-            <UIcon
-              name="i-lucide-file-x"
-              class="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3"
-            />
-            <p class="text-gray-500 dark:text-gray-400 mb-4">
-              No attachments yet
-            </p>
-            <UButton
-              variant="soft"
-              size="sm"
-              :loading="uploading"
-              @click="triggerUpload"
-            >
-              Upload File
-            </UButton>
+            <div class="flex items-center gap-3">
+              <div class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-attic-50 text-attic-500 dark:bg-attic-500/10 dark:text-attic-300">
+                <UIcon
+                  name="i-lucide-upload"
+                  class="size-5"
+                />
+              </div>
+              <div>
+                <p class="text-sm font-bold text-mist-950 dark:text-white">
+                  No attachments yet
+                </p>
+                <p class="mt-1 max-w-xs text-sm text-muted">
+                  Keep photos, receipts, and manuals close at hand.
+                </p>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-center gap-2 text-sm text-muted">
+              <span>Drag files here, or</span>
+              <UButton
+                variant="soft"
+                size="sm"
+                :loading="uploading"
+                @click="triggerUpload"
+              >
+                Choose files
+              </UButton>
+            </div>
           </div>
         </section>
 
@@ -988,6 +1094,122 @@ function getShortId(): string {
         </p>
       </div>
     </div>
+
+    <!-- Image Gallery -->
+    <UModal
+      v-model:open="imageViewerOpen"
+      fullscreen
+      :title="imageGallery[activeImageIndex]?.name || 'Asset image'"
+      description="Browse this asset’s attached images. Use the arrow keys or navigation buttons to move between images."
+    >
+      <template #content>
+        <div class="flex h-[100dvh] w-screen flex-col bg-mist-950 text-white">
+          <div class="flex shrink-0 items-center justify-between gap-4 px-4 py-3 sm:px-6">
+            <div class="min-w-0">
+              <p class="truncate text-sm font-semibold">
+                {{ imageGallery[activeImageIndex]?.name || asset?.name }}
+              </p>
+              <p class="text-xs text-white/60">
+                {{ activeImageIndex + 1 }} of {{ imageGallery.length }} images
+              </p>
+            </div>
+            <UButton
+              variant="ghost"
+              color="neutral"
+              icon="i-lucide-x"
+              aria-label="Close image viewer"
+              @click="imageViewerOpen = false"
+            />
+          </div>
+
+          <div class="relative flex min-h-0 flex-1">
+            <div class="size-full overflow-auto px-14 py-3 sm:px-20">
+              <div class="flex min-h-full min-w-full items-center justify-center">
+                <img
+                  v-if="imageGallery[activeImageIndex]"
+                  :key="imageGallery[activeImageIndex]!.url"
+                  :src="imageGallery[activeImageIndex]!.url"
+                  :alt="imageGallery[activeImageIndex]!.name"
+                  class="max-h-full max-w-full origin-top-left select-none object-contain transition-transform duration-150"
+                  :style="{ transform: `scale(${imageZoom})` }"
+                >
+              </div>
+            </div>
+            <UButton
+              v-if="imageGallery.length > 1"
+              variant="solid"
+              color="neutral"
+              icon="i-lucide-chevron-left"
+              aria-label="Previous image"
+              class="absolute left-2 top-1/2 -translate-y-1/2 sm:left-6"
+              @click="showAdjacentImage(-1)"
+            />
+            <UButton
+              v-if="imageGallery.length > 1"
+              variant="solid"
+              color="neutral"
+              icon="i-lucide-chevron-right"
+              aria-label="Next image"
+              class="absolute right-2 top-1/2 -translate-y-1/2 sm:right-6"
+              @click="showAdjacentImage(1)"
+            />
+          </div>
+
+          <div class="flex shrink-0 flex-col items-center gap-3 px-4 pb-4">
+            <div class="flex items-center gap-2">
+              <UButton
+                variant="ghost"
+                color="neutral"
+                icon="i-lucide-zoom-out"
+                aria-label="Zoom out"
+                :disabled="imageZoom <= 1"
+                @click="changeImageZoom(-0.5)"
+              />
+              <button
+                type="button"
+                class="min-w-12 text-center text-xs tabular-nums text-white/70 hover:text-white"
+                aria-label="Reset zoom"
+                :disabled="imageZoom === 1"
+                @click="resetImageZoom"
+              >
+                {{ Math.round(imageZoom * 100) }}%
+              </button>
+              <UButton
+                variant="ghost"
+                color="neutral"
+                icon="i-lucide-zoom-in"
+                aria-label="Zoom in"
+                :disabled="imageZoom >= 3"
+                @click="changeImageZoom(0.5)"
+              />
+            </div>
+            <div
+              v-if="imageGallery.length > 1"
+              class="max-w-full overflow-x-auto"
+            >
+              <div class="flex w-max min-w-full justify-center gap-2">
+                <button
+                  v-for="(image, index) in imageGallery"
+                  :key="image.id"
+                  type="button"
+                  class="size-12 shrink-0 overflow-hidden rounded-lg border-2 transition-opacity sm:size-14"
+                  :class="index === activeImageIndex ? 'border-white' : 'border-transparent opacity-55 hover:opacity-100'"
+                  :aria-label="`Show image ${index + 1}: ${image.name}`"
+                  :aria-current="index === activeImageIndex ? 'true' : undefined"
+                  @click="selectGalleryImage(index)"
+                >
+                  <img
+                    :src="image.url"
+                    :alt="image.name"
+                    class="size-full object-cover"
+                  >
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </UModal>
 
     <!-- Delete Asset Modal -->
     <UModal
