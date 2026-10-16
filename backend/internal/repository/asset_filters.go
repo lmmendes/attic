@@ -138,6 +138,7 @@ func (c *filterCompiler) param(value any) string {
 	return fmt.Sprintf("$%d", c.start+len(c.args)-1)
 }
 
+// node validates a filter rule or group and compiles its parameterized SQL predicate.
 func (c *filterCompiler) node(n domain.FilterNode, path string, depth int) string {
 	if n.Kind == "group" {
 		if depth >= 5 {
@@ -238,6 +239,7 @@ func (c *filterCompiler) node(n domain.FilterNode, path string, depth int) strin
 	return "(" + strings.Join(parts, join) + ")"
 }
 
+// quick compiles a literal substring search across enabled attribute values.
 func (c *filterCompiler) quick(s string) string {
 	return attributeSearchPredicate(c.param(s), c.features.Plugins)
 }
@@ -257,6 +259,8 @@ func quickSearchPredicate(p string, features *domain.OrganizationFeatures) strin
 	return "(" + strings.Join(parts, " OR ") + ")"
 }
 
+// attributeSearchPredicate matches active attribute values and select labels in the asset's organization.
+// Plugin attributes are included only when plugins is true.
 func attributeSearchPredicate(p string, plugins bool) string {
 	plugin := ""
 	if !plugins {

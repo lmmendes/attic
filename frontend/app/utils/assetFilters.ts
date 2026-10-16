@@ -1,8 +1,16 @@
-import type { Attribute, FilterCriteria, FilterIssue, FilterNode, FilterRule } from '~/types/api'
+import type { Attribute, FilterCriteria, FilterIssue, FilterNode, FilterRule, OrganizationFeatures } from '~/types/api'
 
 export const criteriaKeys = ['q', 'attribute_q', 'category_id', 'location_id', 'condition_id', 'collection_id'] as const
 export const criteriaLabels: Record<typeof criteriaKeys[number], string> = {
   q: 'Quick search', attribute_q: 'Attribute values', category_id: 'Category', location_id: 'Location', condition_id: 'Condition', collection_id: 'Collection'
+}
+
+/** Describe quick-search coverage using only enabled workspace features. */
+export function quickSearchDescription(features: Pick<OrganizationFeatures, 'tags' | 'attributes'>): string {
+  const fields = ['names', 'descriptions', 'personal notes']
+  if (features.tags) fields.push('tags')
+  if (features.attributes) fields.push('attribute values')
+  return `Search ${fields.slice(0, -1).join(', ')}, and ${fields[fields.length - 1]}.`
 }
 
 export function normalizeIssuePath(path: string) {

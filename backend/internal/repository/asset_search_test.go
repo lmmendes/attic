@@ -11,6 +11,7 @@ import (
 	"github.com/lmmendes/attic/internal/testutil"
 )
 
+// TestAssetQuickSearchCoverage verifies consistent search coverage and isolation across all query forms.
 func TestAssetQuickSearchCoverage(t *testing.T) {
 	ctx := context.Background()
 	must := func(err error) {
@@ -84,6 +85,7 @@ func TestAssetQuickSearchCoverage(t *testing.T) {
 	check("attic", 0)
 }
 
+// TestSearchNotesMigration verifies notes backfill and rollback while preserving asset timestamps.
 func TestSearchNotesMigration(t *testing.T) {
 	ctx := context.Background()
 	// Transactional DDL keeps the shared test schema intact even on failure.

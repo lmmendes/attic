@@ -117,6 +117,7 @@ func (r *AssetRepository) GetByIDFull(ctx context.Context, id uuid.UUID) (*domai
 	return asset, nil
 }
 
+// List returns matching active assets and their total count within an organization.
 func (r *AssetRepository) List(ctx context.Context, orgID uuid.UUID, filter domain.AssetFilter, page domain.Pagination) ([]domain.Asset, int, error) {
 	var conditions []string
 	var args []any

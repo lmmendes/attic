@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Attribute, FilterIssue, FilterNode, FilterRule, OrganizationFeatures } from '~/types/api'
-import { newAttributeRule, normalizeIssuePath, operatorLabels, ruleOperators } from '~/utils/assetFilters'
+import { newAttributeRule, normalizeIssuePath, quickSearchDescription, operatorLabels, ruleOperators } from '~/utils/assetFilters'
 
 interface Option { label: string, value: string }
 const props = withDefaults(defineProps<{
@@ -164,7 +164,7 @@ function add(group = false) {
         @update:model-value="operator($event)"
       />
       <p v-if="modelValue.field === 'q'" class="w-full text-xs text-muted">
-        Search names, descriptions, personal notes, tags, and attribute values.
+        {{ quickSearchDescription(features) }}
       </p>
       <template v-if="!['empty', 'not_empty'].includes(modelValue.operator)">
         <USelectMenu

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Collection, Category, Location, Condition, AssetsResponse, AssetFilters, Asset, Attribute, Tag } from '~/types/api'
 import { buildCategoryOptions } from '~/utils/categoryHierarchy'
-import { filterFailure, issueLabel } from '~/utils/assetFilters'
+import { filterFailure, issueLabel, quickSearchDescription } from '~/utils/assetFilters'
 
 const uncategorizedCategoryFilter = 'uncategorized'
 
@@ -394,7 +394,7 @@ function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
             v-model="searchQuery"
             placeholder="Search assets..."
             aria-label="Quick search"
-            title="Search names, descriptions, personal notes, tags, and attribute values"
+            :title="quickSearchDescription(features)"
             icon="i-lucide-search"
             size="lg"
             class="w-full"

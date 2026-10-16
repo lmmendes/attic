@@ -12,6 +12,7 @@ import (
 	"github.com/lmmendes/attic/internal/testutil"
 )
 
+// TestAssetFiltersSQL verifies typed filters, search matching, and feature restrictions against PostgreSQL.
 func TestAssetFiltersSQL(t *testing.T) {
 	ctx := context.Background()
 	must := func(err error) {
