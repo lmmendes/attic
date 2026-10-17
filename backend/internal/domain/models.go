@@ -103,6 +103,7 @@ const (
 	AttributeTypeText    AttributeDataType = "text"
 	AttributeTypeDate    AttributeDataType = "date"
 	AttributeTypeSelect  AttributeDataType = "select"
+	AttributeTypeURL     AttributeDataType = "url"
 )
 
 type AttributeOption struct {

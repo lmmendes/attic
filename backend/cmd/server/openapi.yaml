@@ -1398,7 +1398,7 @@ components:
           format: uuid
         data_type:
           type: string
-          enum: [string, text, number, boolean, date, select]
+          enum: [string, text, number, boolean, date, select, url]
         selection_mode:
           type: string
           enum: [single, multiple]
@@ -1544,7 +1544,7 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 255 }
         key: { type: string, minLength: 1, maxLength: 100 }
-        data_type: { type: string, enum: [string, text, number, boolean, date, select] }
+        data_type: { type: string, enum: [string, text, number, boolean, date, select, url] }
         selection_mode:
           type: string
           enum: [single, multiple]
@@ -1576,7 +1576,7 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 255 }
         key: { type: string, minLength: 1, maxLength: 100 }
-        data_type: { type: string, enum: [string, text, number, boolean, date, select] }
+        data_type: { type: string, enum: [string, text, number, boolean, date, select, url] }
         selection_mode: { type: string, enum: [single, multiple] }
         options:
           $ref: '#/components/schemas/AttributeOptionsUpdate'
@@ -1605,6 +1605,19 @@ components:
           anyOf:
             - $ref: '#/components/schemas/AttributeChanges'
             - $ref: '#/components/schemas/OptionChanges'
+    URLAttributeValue:
+      type: object
+      required: [url]
+      additionalProperties: false
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Absolute HTTP or HTTPS destination, including private hosts and ports.
+        label:
+          type: string
+          description: Optional plain-text link text; defaults to the destination when omitted.
+
     AttributeImpact:
       type: object
       required: [affected_assets, deleted_assets, required_fields_left_empty, current, proposed, confirmation_token]
@@ -1869,6 +1882,7 @@ components:
         quantity:
           type: integer
         attributes:
+          description: Custom values by attribute key. URL fields contain a URLAttributeValue object with url and optional label.
           type: object
           additionalProperties: true
         category:
@@ -1925,6 +1939,7 @@ components:
           type: integer
           default: 1
         attributes:
+          description: Custom values by attribute key. URL fields contain a URLAttributeValue object with url and optional label.
           type: object
           additionalProperties: true
 

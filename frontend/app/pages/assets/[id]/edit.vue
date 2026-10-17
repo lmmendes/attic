@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Asset, Category, Location, Condition, Tag } from '~/types/api'
+import type { AssetAttributeValue, Asset, Category, Location, Condition, Tag } from '~/types/api'
 import { isValidAssetQuantity, QUANTITY_VALIDATION_MESSAGE } from '~/utils/assetValidation'
 import { tagAssignment } from '~/utils/tags'
 
@@ -41,7 +41,7 @@ const form = reactive({
   location_id: undefined as string | undefined,
   condition_id: undefined as string | undefined,
   quantity: 1,
-  attributes: {} as Record<string, string | number | boolean | string[] | undefined>,
+  attributes: {} as Record<string, AssetAttributeValue>,
   purchase_at: '',
   purchase_price: undefined as number | undefined,
   purchase_note: '',
@@ -65,7 +65,7 @@ watch(
         ? Object.fromEntries(
             Object.entries(newAsset.attributes).map(([k, v]) => [
               k,
-              v as string | number | boolean
+              v as AssetAttributeValue
             ])
           )
         : {}
@@ -99,7 +99,7 @@ watch(
         if (requestId !== categoryRequestId) return
         selectedCategory.value = category
         // Initialize attribute values for new category
-        const newAttributes: Record<string, string | number | boolean | string[] | undefined> = {}
+        const newAttributes: Record<string, AssetAttributeValue> = {}
         selectedCategory.value?.attributes?.forEach((ca) => {
           if (ca.attribute) {
             // Preserve existing value if key exists
@@ -123,8 +123,9 @@ watch(
   { immediate: true }
 )
 
-function getDefaultValue(dataType: string): string | number | boolean | undefined {
+function getDefaultValue(dataType: string): AssetAttributeValue {
   switch (dataType) {
+    case 'url':
     case 'select':
       return undefined
     case 'number':
@@ -578,8 +579,14 @@ async function submitForm() {
                       >*</span>
                     </label>
 
+                    <URLAttributeInput
+                      v-if="ca.attribute.data_type === 'url'"
+                      v-model="form.attributes[ca.attribute.key]"
+                      :required="ca.required"
+                      :name="ca.attribute.name"
+                    />
                     <SelectAttributeInput
-                      v-if="ca.attribute.data_type === 'select'"
+                      v-else-if="ca.attribute.data_type === 'select'"
                       :attribute="ca.attribute"
                       :model-value="form.attributes[ca.attribute.key]"
                       :required="ca.required"
