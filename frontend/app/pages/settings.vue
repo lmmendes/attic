@@ -4,6 +4,12 @@ import type { OrganizationFeatures } from '~/types/api'
 definePageMeta({ middleware: 'auth' })
 const { isAdmin, loading: authLoading, fetchSession } = useAuth()
 const { features, load, update } = useFeatures()
+const { settings, load: loadSettings, update: updateSettings } = useOrganizationSettings()
+// Edit a copy, so an unsaved choice doesn't change prices on other pages; it follows the saved value.
+const currency = ref(settings.value.currency)
+watch(() => settings.value.currency, (saved) => {
+  currency.value = saved
+})
 const toast = useToast()
 const saving = ref(false)
 const labels: Array<{ key: keyof OrganizationFeatures, label: string, description: string }> = [
@@ -28,9 +34,11 @@ async function save() {
       ...features.value,
       attributes: features.value.categories
     })
+    await updateSettings({ currency: currency.value })
     toast.add({ title: 'Settings saved', color: 'success' })
   } catch {
-    await load()
+    await Promise.all([load(), loadSettings()])
+    currency.value = settings.value.currency
     toast.add({ title: 'Could not save settings', color: 'error' })
   } finally {
     saving.value = false
@@ -45,7 +53,7 @@ async function save() {
         Settings
       </h1>
       <p class="text-muted mt-2">
-        Choose which inventory features are available to your organization.
+        Choose which inventory features are available to your organization and set its currency.
       </p>
     </div>
     <UCard>
@@ -66,6 +74,22 @@ async function save() {
           <USwitch
             v-model="features[item.key]"
             :aria-label="`Enable ${item.label}`"
+          />
+        </div>
+        <div class="py-5 flex items-center justify-between gap-6">
+          <div>
+            <p class="font-bold text-mist-950 dark:text-white">
+              Currency
+            </p>
+            <p class="text-sm text-muted mt-1">
+              Used for all asset prices. Changing it relabels existing prices; amounts are not converted.
+            </p>
+          </div>
+          <USelectMenu
+            v-model="currency"
+            aria-label="Currency"
+            :items="currencies"
+            class="w-28 shrink-0"
           />
         </div>
       </div>

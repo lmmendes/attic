@@ -10,6 +10,7 @@ const router = useRouter()
 const toast = useToast()
 const apiFetch = useApiFetch()
 const { features } = useFeatures()
+const { settings } = useOrganizationSettings()
 
 const assetUrl = computed(() => `/api/assets/${route.params.id}`)
 const { data: asset, refresh: refreshAsset } = useApi<Asset>(
@@ -426,9 +427,13 @@ function formatBytes(bytes: number) {
 
 function formatCurrency(value?: number) {
   if (value === undefined || value === null) return '-'
+  const currency = settings.value.currency
+  // Prices are stored with 2 decimals; show them even for currencies that usually have none (e.g. JPY).
+  const { maximumFractionDigits = 2 } = new Intl.NumberFormat('en-US', { style: 'currency', currency }).resolvedOptions()
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD'
+    currency,
+    maximumFractionDigits: Math.max(2, maximumFractionDigits)
   }).format(value)
 }
 
