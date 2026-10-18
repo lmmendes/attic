@@ -46,7 +46,7 @@ func validateURLValue(value any, required bool) (map[string]string, error) {
 		return empty()
 	}
 	parsed, err := url.Parse(destination)
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" || strings.ContainsAny(destination, "\\\r\n\t ") {
+	if err != nil || parsed.User != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" || strings.ContainsAny(destination, "\\\r\n\t ") {
 		return nil, fmt.Errorf("enter an absolute HTTP or HTTPS URL with a hostname")
 	}
 	result := map[string]string{"url": destination}

@@ -25,6 +25,8 @@ func TestURLValueValidation(t *testing.T) {
 		{`{"url":"data:text/html,test"}`, false, false},
 		{`{"url":"/documents/1"}`, false, false},
 		{`{"url":"https:///documents/1"}`, false, false},
+		{`{"url":"https://user:password@example.com/documents/1"}`, false, false},
+		{`{"url":"https://user@example.com/documents/1"}`, false, false},
 		{`{"url":"https://example.com\\evil"}`, false, false},
 		{`{"url":42}`, false, false}, {`{"url":"https://example.com","label":42}`, false, false},
 		{`"https://example.com"`, false, false},
