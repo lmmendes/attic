@@ -638,7 +638,7 @@ func (h *PluginHandler) downloadAndStoreImage(ctx context.Context, assetID uuid.
 	}
 
 	// Upload to storage
-	key, err := h.storage.Upload(ctx, filename, contentType, bytes.NewReader(imageData))
+	key, err := h.storage.Upload(ctx, "", filename, contentType, bytes.NewReader(imageData))
 	if err != nil {
 		return fmt.Errorf("uploading to storage: %w", err)
 	}

@@ -97,12 +97,15 @@ func newMockStorage() *mockStorage {
 	}
 }
 
-func (m *mockStorage) Upload(ctx context.Context, filename, contentType string, reader io.Reader) (string, error) {
+func (m *mockStorage) Upload(ctx context.Context, prefix string, filename, contentType string, reader io.Reader) (string, error) {
 	if m.uploadErr != nil {
 		return "", m.uploadErr
 	}
 	data, _ := io.ReadAll(reader)
-	key := "uploads/" + uuid.New().String() + "/" + filename
+	key := uuid.New().String() + "/" + filename
+	if prefix != "" {
+		key = prefix + "/" + key
+	}
 	m.files[key] = data
 	return key, nil
 }
@@ -239,7 +242,7 @@ func (h *testAttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.
 		return
 	}
 
-	key, err := h.storage.Upload(r.Context(), header.Filename, contentType, file)
+	key, err := h.storage.Upload(r.Context(), "", header.Filename, contentType, file)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to upload file")
 		return

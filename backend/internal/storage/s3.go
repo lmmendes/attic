@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/google/uuid"
 )
 
 // S3Client wraps the AWS S3 client for file storage
@@ -67,10 +66,13 @@ func NewS3Client(ctx context.Context, cfg S3Config) (*S3Client, error) {
 }
 
 // Upload uploads a file to S3 and returns the object key
-func (c *S3Client) Upload(ctx context.Context, filename string, contentType string, body io.Reader) (string, error) {
-	key := fmt.Sprintf("%s/%s", uuid.New().String(), filename)
+func (c *S3Client) Upload(ctx context.Context, prefix string, filename string, contentType string, body io.Reader) (string, error) {
+	key, err := newUploadKey(prefix, filename)
+	if err != nil {
+		return "", err
+	}
 
-	_, err := c.client.PutObject(ctx, &s3.PutObjectInput{
+	_, err = c.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(c.bucket),
 		Key:         aws.String(key),
 		Body:        body,

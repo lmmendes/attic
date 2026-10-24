@@ -205,7 +205,11 @@ Open a location’s **Photos** tab to add multiple photos of boxes, shelves, roo
 
 Locations keep their icon until you choose **Set as cover** from a photo’s menu. Choose **Remove cover** to restore the icon without deleting the photo. Deleting the cover also restores the icon; other photos never become covers automatically. Each photo’s menu also offers **Delete photo**. Open a photo to view it full screen; use the arrow keys to browse and Escape to close.
 
-Photos accept JPEG, PNG, or GIF files up to 10 MiB and 40 megapixels each, using the existing local or S3 file storage. Deleting a photo preserves the location and its assets. Deleting a location also cleans up all its photos. Existing location photos are migrated into the gallery without moving their files. Rolling back migration 33 is refused while any location has multiple photos, to prevent data loss.
+Photos accept JPEG, PNG, or GIF files up to 10 MiB and 40 megapixels each, using the existing local or S3 file storage.
+
+Location photos are stored at `<uploads>/locations/<unique-id>/location-photo.<extension>`, beneath the shared `ATTIC_LOCAL_STORAGE_PATH`. S3 uses the same `locations/<unique-id>/location-photo.<extension>` object-key layout in the shared bucket. Asset attachments and imported images keep their existing storage layout.
+
+Deleting a photo preserves the location and its assets. Deleting a location also cleans up all its photos. Existing location photos are migrated into the gallery without moving their files. Rolling back migration 33 is refused while any location has multiple photos, to prevent data loss.
 
 Gallery endpoints (restricted to the current organization and the locations feature):
 

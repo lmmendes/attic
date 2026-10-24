@@ -34,7 +34,7 @@ type locationPhotoStorage struct {
 	onUpload              func()
 }
 
-func (s *locationPhotoStorage) Upload(_ context.Context, name, contentType string, body io.Reader) (string, error) {
+func (s *locationPhotoStorage) Upload(_ context.Context, prefix, name, contentType string, body io.Reader) (string, error) {
 	if s.failUpload {
 		return "", errors.New("upload unavailable")
 	}
@@ -43,7 +43,7 @@ func (s *locationPhotoStorage) Upload(_ context.Context, name, contentType strin
 		return "", err
 	}
 	s.next++
-	key := fmt.Sprintf("photo-%d", s.next)
+	key := fmt.Sprintf("%s/photo-%d/%s", prefix, s.next, name)
 	s.objects[key] = data
 	s.filename = name
 	s.contentType = contentType
@@ -164,7 +164,7 @@ func TestLocationPhotoHTTPIntegration(t *testing.T) {
 	a := upload(loc.ID.String(), imageData, 201)
 	b := upload(loc.ID.String(), imageData, 201)
 	c := upload(loc.ID.String(), imageData, 201)
-	if a.IsCover || b.IsCover || c.IsCover || store.filename != "location-photo.png" || store.contentType != "image/png" {
+	if a.IsCover || b.IsCover || c.IsCover || store.filename != "location-photo.png" || store.contentType != "image/png" || !strings.HasPrefix(a.URL, "https://storage.test/locations/") {
 		t.Fatal("upload selected a cover or used incorrect storage metadata")
 	}
 	photos := list()

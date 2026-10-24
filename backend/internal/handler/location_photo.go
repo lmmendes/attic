@@ -98,7 +98,7 @@ func (h *Handler) UploadLocationPhoto(w http.ResponseWriter, r *http.Request) {
 	}
 	contentType := http.DetectContentType(data)
 	// Use a controlled filename instead of trusting a multipart path or extension.
-	key, err := h.storage.Upload(r.Context(), "location-photo."+extension, contentType, bytes.NewReader(data))
+	key, err := h.storage.Upload(r.Context(), "locations", "location-photo."+extension, contentType, bytes.NewReader(data))
 	if err != nil {
 		writeError(w, 500, "failed to upload photo")
 		return

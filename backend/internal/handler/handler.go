@@ -17,7 +17,7 @@ import (
 
 // FileStorage defines the interface for file storage backends
 type FileStorage interface {
-	Upload(ctx context.Context, filename string, contentType string, body io.Reader) (string, error)
+	Upload(ctx context.Context, prefix string, filename string, contentType string, body io.Reader) (string, error)
 	GetPresignedURL(ctx context.Context, key string, expiry time.Duration) (string, error)
 	Delete(ctx context.Context, key string) error
 }

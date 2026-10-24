@@ -63,6 +63,9 @@ test('Photos tab supports batches, retry, covers, viewer and cleanup across loca
     await expect(page.getByTestId('location-photo')).toHaveCount(3)
     expect(uploadCount).toBe(4)
     expect((await list(id)).map(item => item.file_name).sort()).toEqual(['box.png', 'room.png', 'shelf.png'])
+    for (const item of await list(id)) {
+      expect(new URL(item.url).pathname).toMatch(/\/locations\/[0-9a-f-]{36}\/location-photo\.png$/)
+    }
     await expect(page.getByRole('alert')).toHaveCount(0)
     await expect.poll(() => page.getByTestId('location-photo').first().evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true)
     expect((await list(id)).every(item => !item.is_cover)).toBe(true)

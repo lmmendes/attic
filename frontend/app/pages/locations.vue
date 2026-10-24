@@ -736,62 +736,11 @@ function getLocationIcon(location: Location): string {
                   v-if="locationAssets?.assets?.length"
                   class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
                 >
-                  <!-- Asset Cards -->
-                  <NuxtLink
+                  <AssetCard
                     v-for="asset in locationAssets.assets.slice(0, 7)"
                     :key="asset.id"
-                    :to="`/assets/${asset.id}`"
-                    class="attic-panel attic-panel-interactive group flex cursor-pointer flex-col overflow-hidden rounded-[18px]"
-                  >
-                    <!-- Asset Image Placeholder -->
-                    <div class="relative flex aspect-[2/1] items-center justify-center overflow-hidden bg-gradient-to-br from-attic-50 to-mist-100 dark:from-mist-700 dark:to-mist-800">
-                      <img
-                        v-if="asset.main_attachment_url"
-                        :src="asset.main_attachment_url"
-                        :alt="asset.name"
-                        class="size-full object-cover transition duration-300 group-hover:scale-[1.03]"
-                      >
-                      <UIcon
-                        v-else
-                        name="i-lucide-package"
-                        class="w-10 h-10 text-mist-300 dark:text-mist-500 group-hover:scale-110 transition-transform"
-                      />
-                      <div
-                        v-if="asset.purchase_price"
-                        class="absolute top-2 right-2 bg-white/90 dark:bg-black/80 backdrop-blur px-2 py-0.5 rounded-full text-[10px] font-bold text-mist-950 dark:text-white shadow-sm"
-                      >
-                        {{ formatCurrency(asset.purchase_price) }}
-                      </div>
-                    </div>
-                    <div class="p-4 flex flex-col flex-1">
-                      <div class="flex justify-between items-start mb-1">
-                        <h3 class="font-bold text-mist-950 dark:text-white text-sm line-clamp-1 group-hover:text-attic-500 transition-colors">
-                          {{ asset.name }}
-                        </h3>
-                        <span
-                          v-if="asset.condition"
-                          class="shrink-0 text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded font-medium ml-2"
-                        >
-                          {{ asset.condition.label }}
-                        </span>
-                      </div>
-                      <p
-                        v-if="asset.description"
-                        class="text-xs text-muted mb-3 line-clamp-2"
-                      >
-                        {{ asset.description }}
-                      </p>
-                      <div class="mt-auto flex items-center gap-2 pt-2 border-t border-mist-50 dark:border-mist-600">
-                        <UIcon
-                          name="i-lucide-tag"
-                          class="w-4 h-4 text-muted"
-                        />
-                        <span class="text-[10px] uppercase font-bold text-muted">
-                          {{ asset.category?.name || 'Uncategorized' }}
-                        </span>
-                      </div>
-                    </div>
-                  </NuxtLink>
+                    :asset="asset"
+                  />
 
                   <!-- Add Asset Card -->
                   <NuxtLink
