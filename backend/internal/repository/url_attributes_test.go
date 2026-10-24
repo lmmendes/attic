@@ -132,7 +132,7 @@ func TestURLRequiredInheritanceAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback(ctx)
-	down, err := os.ReadFile("../../migrations/000026_url_attributes.down.sql")
+	down, err := os.ReadFile("../../migrations/000027_url_attributes.down.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func TestURLRequiredInheritanceAndRollback(t *testing.T) {
 	if err = tx.QueryRow(ctx, "SELECT data_type FROM attributes WHERE id=$1", field.ID).Scan(&typ); err != nil || typ != "string" {
 		t.Fatalf("rollback definition: %s %v", typ, err)
 	}
-	up, err := os.ReadFile("../../migrations/000026_url_attributes.up.sql")
+	up, err := os.ReadFile("../../migrations/000027_url_attributes.up.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
