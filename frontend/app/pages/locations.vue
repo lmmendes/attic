@@ -541,6 +541,7 @@ function getLocationIcon(location: Location): string {
                 variant="outline"
                 color="neutral"
                 icon="i-lucide-edit"
+                aria-label="Edit location"
                 @click="openEditModal(selectedLocation)"
               >
                 <span class="hidden sm:inline">Edit</span>
