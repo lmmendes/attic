@@ -158,6 +158,14 @@ func TestAPIKeysRESTAndMCPIntegration(t *testing.T) {
 	foreignLocation, err := fixtures.CreateLocation(ctx, foreignOrg.ID, "Foreign location", nil)
 	must(err)
 	request("POST", "/api/assets", `{"name":"Foreign reference","location_id":"`+foreignLocation.ID.String()+`"}`, secret, nil, 404)
+	for _, suffix := range []string{" x", ` {"ignored":true}`} {
+		request("POST", "/api/assets", `{"name":"Rejected reference","location_id":"`+foreignLocation.ID.String()+`"}`+suffix, secret, nil, 400)
+	}
+	var rejectedAssets int
+	must(db.Pool.QueryRow(ctx, "SELECT count(*) FROM assets WHERE organization_id=$1 AND name='Rejected reference'", org.ID).Scan(&rejectedAssets))
+	if rejectedAssets != 0 {
+		t.Fatal("invalid write body persisted an asset with a foreign location")
+	}
 	forged := httptest.NewRequest("POST", "/api/assets", strings.NewReader(`{"name":"Foreign reference","LOCATION_ID":"`+foreignLocation.ID.String()+`"}`))
 	forged.Header.Set("Content-Type", "multipart/form-data")
 	forged.Header.Set("Authorization", "Bearer "+secret)

@@ -56,9 +56,15 @@ func (h *Handler) checkOperationOrganization(w http.ResponseWriter, r *http.Requ
 		return false
 	}
 	r.Body = io.NopCloser(bytes.NewReader(data))
+	if len(bytes.TrimSpace(data)) == 0 {
+		return true
+	}
+	// Handlers decode one JSON value; validate the entire body before dispatch
+	// so trailing data cannot bypass organization-reference checks.
 	var value any
 	if json.Unmarshal(data, &value) != nil {
-		return true
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return false
 	}
 	tables := map[string]string{"category_id": "categories", "location_id": "locations", "condition_id": "conditions", "collection_id": "collections", "collection_ids": "collections", "tag_ids": "tags", "attribute_id": "attributes", "attribute_ids": "attributes", "main_attachment_id": "attachments", "parent_id": root}
 	var walk func(any) bool

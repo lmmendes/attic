@@ -556,7 +556,7 @@ function formatRelativeDate(dateString: string): string {
                     class="mt-1 whitespace-nowrap text-xs text-muted"
                     :title="user.api_key_last_used_at ? new Date(user.api_key_last_used_at).toLocaleString() : undefined"
                   >
-                    {{ user.api_key_last_used_at ? `Last used ${formatKeyLastUsed(user.api_key_last_used_at).toLowerCase()}` : 'Never used' }}
+                    {{ user.api_key_last_used_at ? `Last used: ${formatKeyLastUsed(user.api_key_last_used_at)}` : 'Never used' }}
                   </p>
                 </td>
 

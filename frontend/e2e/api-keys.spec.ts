@@ -62,7 +62,7 @@ test('private active keys and aggregate usage in the people list', async ({ page
     await page.goto('/users')
     const memberRow = page.getByRole('row').filter({ hasText: memberEmail })
     await expect(memberRow.getByTestId('user-api-key-usage')).toContainText('1 active key')
-    await expect(memberRow.getByTestId('user-api-key-usage')).toContainText('Last used just now')
+    await expect(memberRow.getByTestId('user-api-key-usage')).toContainText('Last used: Just now')
 
     await memberPage.getByRole('button', { name: `Delete Renamed ${marker}`, exact: true }).click()
     await memberPage.getByRole('dialog', { name: 'Delete API key?', exact: true }).getByRole('button', { name: 'Delete key', exact: true }).click()
