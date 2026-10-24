@@ -198,3 +198,21 @@ For more details, visit [getattic.dev](https://getattic.dev).
 ## License
 
 [MIT](LICENSE.md)
+
+### Location photos
+
+Open a location’s **Photos** tab to add multiple photos of boxes, shelves, rooms, and other storage spaces. Choose several files or drag them into the gallery. Uploads run sequentially; successful photos remain saved if another fails, and **Retry failed photos** retries only failed uploads. Photo management is separate from creating or editing a location.
+
+Locations keep their icon until you choose **Set as cover** from a photo’s menu. Choose **Remove cover** to restore the icon without deleting the photo. Deleting the cover also restores the icon; other photos never become covers automatically. Each photo’s menu also offers **Delete photo**. Open a photo to view it full screen; use the arrow keys to browse and Escape to close.
+
+Photos accept JPEG, PNG, or GIF files up to 10 MiB and 40 megapixels each, using the existing local or S3 file storage. Deleting a photo preserves the location and its assets. Deleting a location also cleans up all its photos. Existing location photos are migrated into the gallery without moving their files. Rolling back migration 33 is refused while any location has multiple photos, to prevent data loss.
+
+Gallery endpoints (restricted to the current organization and the locations feature):
+
+- `GET /api/locations/{id}/photos`: list cover first, then creation time and ID.
+- `POST /api/locations/{id}/photos`: add one multipart `file`; returns the created photo.
+- `PUT /api/locations/{id}/photos/{photoId}/cover`: select the cover.
+- `DELETE /api/locations/{id}/photos/{photoId}/cover`: unset this photo as cover without deleting it.
+- `DELETE /api/locations/{id}/photos/{photoId}`: delete a photo.
+
+Location responses include an optional `photo_url` for the cover. Gallery responses include each photo’s ID, filename, cover status, creation time, and URL. S3 URLs expire after 15 minutes; refresh the gallery or location data to renew them.

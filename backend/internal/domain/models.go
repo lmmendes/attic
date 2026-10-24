@@ -149,12 +149,25 @@ type Location struct {
 	Name           string     `json:"name"`
 	Description    *string    `json:"description,omitempty"`
 	Icon           *string    `json:"icon,omitempty"`
+	PhotoKey       *string    `json:"-"`
+	PhotoURL       *string    `json:"photo_url,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 	DeletedAt      *time.Time `json:"-"`
 
 	// Populated by queries
 	Children []Location `json:"children,omitempty"`
+}
+
+// LocationPhoto is an individual image in a location gallery.
+type LocationPhoto struct {
+	ID         uuid.UUID `json:"id"`
+	LocationID uuid.UUID `json:"location_id"`
+	FileKey    string    `json:"-"`
+	FileName   string    `json:"file_name"`
+	IsCover    bool      `json:"is_cover"`
+	CreatedAt  time.Time `json:"created_at"`
+	URL        string    `json:"url"`
 }
 
 // Collection groups assets independently of their category and storage location.

@@ -20,13 +20,13 @@ func NewLocationRepository(pool *pgxpool.Pool) *LocationRepository {
 
 func (r *LocationRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Location, error) {
 	query := `
-		SELECT id, organization_id, parent_id, name, description, icon, created_at, updated_at
+		SELECT id, organization_id, parent_id, name, description, icon, (SELECT file_key FROM location_photos WHERE location_id=locations.id AND is_cover), created_at, updated_at
 		FROM locations
 		WHERE id = $1 AND deleted_at IS NULL
 	`
 	var l domain.Location
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&l.ID, &l.OrganizationID, &l.ParentID, &l.Name, &l.Description, &l.Icon,
+		&l.ID, &l.OrganizationID, &l.ParentID, &l.Name, &l.Description, &l.Icon, &l.PhotoKey,
 		&l.CreatedAt, &l.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -40,7 +40,7 @@ func (r *LocationRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 
 func (r *LocationRepository) List(ctx context.Context, orgID uuid.UUID) ([]domain.Location, error) {
 	query := `
-		SELECT id, organization_id, parent_id, name, description, icon, created_at, updated_at
+		SELECT id, organization_id, parent_id, name, description, icon, (SELECT file_key FROM location_photos WHERE location_id=locations.id AND is_cover), created_at, updated_at
 		FROM locations
 		WHERE organization_id = $1 AND deleted_at IS NULL
 		ORDER BY name
@@ -55,7 +55,7 @@ func (r *LocationRepository) List(ctx context.Context, orgID uuid.UUID) ([]domai
 	for rows.Next() {
 		var l domain.Location
 		if err := rows.Scan(
-			&l.ID, &l.OrganizationID, &l.ParentID, &l.Name, &l.Description, &l.Icon,
+			&l.ID, &l.OrganizationID, &l.ParentID, &l.Name, &l.Description, &l.Icon, &l.PhotoKey,
 			&l.CreatedAt, &l.UpdatedAt,
 		); err != nil {
 			return nil, err

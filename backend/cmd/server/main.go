@@ -370,6 +370,11 @@ func main() {
 			r.Get("/{id}", h.GetLocation)
 			r.Put("/{id}", h.UpdateLocation)
 			r.Delete("/{id}", h.DeleteLocation)
+			r.Get("/{id}/photos", h.ListLocationPhotos)
+			r.Post("/{id}/photos", h.UploadLocationPhoto)
+			r.Delete("/{id}/photos/{photoId}", h.DeleteLocationPhoto)
+			r.Put("/{id}/photos/{photoId}/cover", h.SetLocationCoverPhoto)
+			r.Delete("/{id}/photos/{photoId}/cover", h.UnsetLocationCoverPhoto)
 		})
 
 		// Conditions

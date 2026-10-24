@@ -237,6 +237,127 @@ paths:
         '204':
           description: Location deleted
 
+  /api/locations/{id}/photos:
+    parameters:
+      - $ref: '#/components/parameters/id'
+    get:
+      tags: [Locations]
+      summary: List location photos
+      description: Returns the cover first, followed by creation time and ID. Requires an active location in the current organization and the locations feature.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Location photos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LocationPhoto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Location not found or locations disabled
+    post:
+      tags: [Locations]
+      summary: Add a location photo
+      description: Validates JPEG, PNG or GIF content, with a 10 MiB file limit and a 40-megapixel limit. Uploads do not select a cover; the location keeps its icon until a cover is explicitly selected. Requires an active location in the current organization and the locations feature.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Created photo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationPhoto'
+        '400':
+          description: Invalid ID, missing file, unsupported image, or upload limit exceeded
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Location not found or locations disabled
+        '503':
+          description: File storage is unavailable
+
+  /api/locations/{id}/photos/{photoId}:
+    parameters:
+      - $ref: '#/components/parameters/id'
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags: [Locations]
+      summary: Delete a location photo
+      description: Deletes the photo and its stored file. Deleting the cover restores the location icon without selecting a replacement. Requires an active location in the current organization and the locations feature.
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: Photo deleted
+        '400':
+          description: Invalid location or photo ID
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Location or photo not found, or locations disabled
+
+  /api/locations/{id}/photos/{photoId}/cover:
+    parameters:
+      - $ref: '#/components/parameters/id'
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [Locations]
+      summary: Set the location cover photo
+      description: Selects an existing photo belonging to this active location in the current organization. Requires the locations feature.
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: Cover selected
+        '400':
+          description: Invalid location or photo ID
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Location or photo not found, or locations disabled
+    delete:
+      tags: [Locations]
+      summary: Unset a location cover photo
+      description: Removes this photo’s cover status without deleting it. Restores the location icon if this was the cover. Requires an active location in the current organization and the locations feature.
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: Photo is no longer the cover
+        '400':
+          description: Invalid location or photo ID
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Location or photo not found, or locations disabled
+
+
   /api/conditions:
     get:
       tags: [Conditions]
@@ -1705,12 +1826,37 @@ components:
           type: string
         icon:
           type: string
+        photo_url:
+          type: string
+          format: uri
+          description: URL for the cover photo, when one is available. S3 URLs expire after 15 minutes; refresh location data to renew them.
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+
+    LocationPhoto:
+      type: object
+      required: [id, location_id, file_name, is_cover, created_at, url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        location_id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+        is_cover:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        url:
+          type: string
+          description: Download URL; empty if URL generation is temporarily unavailable. S3 URLs expire after 15 minutes.
 
     LocationInput:
       type: object
