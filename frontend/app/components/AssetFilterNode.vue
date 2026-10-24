@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Attribute, FilterIssue, FilterNode, FilterRule, OrganizationFeatures } from '~/types/api'
-import { newAttributeRule, normalizeIssuePath, operatorLabels, ruleOperators } from '~/utils/assetFilters'
+import { newAttributeRule, normalizeIssuePath, quickSearchDescription, operatorLabels, ruleOperators } from '~/utils/assetFilters'
 
 interface Option { label: string, value: string }
 const props = withDefaults(defineProps<{
@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<{
 }>(), { path: 'expression', depth: 1, issues: () => [] })
 const emit = defineEmits<{ 'update:modelValue': [node: FilterNode], 'remove': [] }>()
 const fields = computed(() => [
-  { label: 'Name / description', value: 'q' },
+  { label: 'Quick search', value: 'q' },
   ...(props.features.tags ? [{ label: 'Tags', value: 'tags' }] : []),
   ...(props.features.attributes ? [{ label: 'All attribute values', value: 'attribute_q' }] : []),
   ...(['collections', 'category', 'location', 'condition'] as const)
@@ -163,6 +163,9 @@ function add(group = false) {
         aria-label="Rule comparison"
         @update:model-value="operator($event)"
       />
+      <p v-if="modelValue.field === 'q'" class="w-full text-xs text-muted">
+        {{ quickSearchDescription(features) }}
+      </p>
       <template v-if="!['empty', 'not_empty'].includes(modelValue.operator)">
         <USelectMenu
           v-if="['any', 'all'].includes(modelValue.operator)"

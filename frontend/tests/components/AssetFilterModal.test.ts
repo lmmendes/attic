@@ -36,7 +36,7 @@ describe('advanced filter drafts', () => {
   it('does not change applied criteria when editing or cancelling a draft', async () => {
     const criteria: FilterCriteria = { version: 1, q: 'original' }
     const { wrapper, apply } = await setup(criteria)
-    await wrapper.get('button[aria-label="Remove Name / description criterion"]').trigger('click')
+    await wrapper.get('button[aria-label="Remove Quick search criterion"]').trigger('click')
     expect(criteria.q).toBe('original')
     await wrapper.findAll('button').find(b => b.text() === 'Cancel')!.trigger('click')
     expect(apply).not.toHaveBeenCalled()

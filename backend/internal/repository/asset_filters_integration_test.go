@@ -12,6 +12,7 @@ import (
 	"github.com/lmmendes/attic/internal/testutil"
 )
 
+// TestAssetFiltersSQL verifies typed filters, search matching, and feature restrictions against PostgreSQL.
 func TestAssetFiltersSQL(t *testing.T) {
 	ctx := context.Background()
 	must := func(err error) {
@@ -59,7 +60,14 @@ func TestAssetFiltersSQL(t *testing.T) {
 		return domain.FilterNode{Kind: "rule", Field: "attribute", AttributeID: a.ID.String(), DataType: a.DataType, Operator: op, Value: value}
 	}
 	for query, want := range map[string]int{"commodore": 1, "MEMO": 2, "0": 3, "false": 2, "1989": 1, "Ruby": 1, "Azure": 2, "Gold": 1, "internal-red": 0, "100%_\\": 1, "%": 1, "_": 1, "\\": 1, "single": 0} {
-		t.Run("quick/"+query, func(t *testing.T) { check(t, domain.FilterCriteria{Version: 1, AttributeQuery: query}, want) })
+		t.Run("quick/"+query, func(t *testing.T) {
+			check(t, domain.FilterCriteria{Version: 1, AttributeQuery: query}, want)
+			check(t, domain.FilterCriteria{Version: 1, Query: query}, want)
+			rows, total, err := repo.List(ctx, org.ID, domain.AssetFilter{Query: query, Features: &features}, domain.Pagination{Limit: 100})
+			if err != nil || total != want || len(rows) != want {
+				t.Fatalf("direct search: rows=%d total=%d want=%d err=%v", len(rows), total, want, err)
+			}
+		})
 	}
 	for _, tc := range []struct {
 		name string
