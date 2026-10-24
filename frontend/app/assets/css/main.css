@@ -162,6 +162,9 @@ a {
   html {
     background: var(--color-mist-900);
   }
+  body {
+    color: var(--color-mist-100);
+  }
   .app-canvas {
     background:
       radial-gradient(circle at 78% -10%, rgba(49, 92, 244, 0.13), transparent 32rem),
