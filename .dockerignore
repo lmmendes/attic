@@ -1,0 +1,33 @@
+# Repository metadata and local tooling
+.git
+.github
+.claude
+.codex
+.agents
+.playwright-cli
+bruno
+
+# Dependencies and generated frontend files
+**/node_modules
+**/.nuxt
+**/.output
+**/.nitro
+**/.data
+**/.cache
+frontend/dist
+backend/cmd/server/dist
+
+# Local backend outputs and uploads
+backend/bin
+backend/server
+backend/uploads
+
+# Test artifacts and local configuration
+**/playwright-report
+**/test-results
+**/*.log
+**/.env
+**/.env.*
+**/.DS_Store
+**/.idea
+**/.vscode

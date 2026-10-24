@@ -54,7 +54,19 @@ function getAttributeValue(key: string): string {
 
 const deleteModalOpen = ref(false)
 const warrantyModalOpen = ref(false)
-void refreshAsset // Mark as used
+const detaching = ref(false)
+async function detachAsset() {
+  if (detaching.value) return
+  detaching.value = true
+  try {
+    await apiFetch(`/api/assets/${route.params.id}/parent`, { method: 'PATCH', body: JSON.stringify({ parent_id: null }) })
+    await refreshAsset()
+    toast.add({ title: 'Asset detached', color: 'success' })
+  } catch (err: unknown) {
+    const failure = err as { data?: { error?: string } }
+    toast.add({ title: failure.data?.error || 'Failed to detach asset', color: 'error' })
+  } finally { detaching.value = false }
+}
 const config = useRuntimeConfig()
 
 // Warranty form
@@ -447,12 +459,6 @@ const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', te
   if (days <= 30) return { color: 'warning', text: `${days} days left` }
   return { color: 'success', text: `${days} days left` }
 })
-
-// Generate short ID
-function getShortId(): string {
-  if (!asset.value?.id) return ''
-  return `ATC-${asset.value.id.slice(0, 4).toUpperCase()}`
-}
 </script>
 
 <template>
@@ -531,35 +537,33 @@ function getShortId(): string {
           </button>
         </div>
 
-        <!-- Asset Intelligence Card -->
-        <div class="attic-panel rounded-[20px] p-4">
-          <div class="mb-3 flex items-center gap-2 text-sm font-bold text-mist-950 dark:text-white">
-            <UIcon
-              name="i-lucide-info"
-              class="w-5 h-5 text-attic-500"
-            />
-            <span>At a glance</span>
+        <!-- Summary below the asset image -->
+        <section
+          v-if="asset.containment_summary"
+          class="attic-panel overflow-hidden rounded-[20px]"
+        >
+          <div class="border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
+            <h3 class="flex items-center gap-2 text-base font-bold text-mist-950 dark:text-white">
+              <UIcon
+                name="i-lucide-calculator"
+                class="size-5 shrink-0 text-attic-500"
+                aria-hidden="true"
+              />
+              Total cost including contents
+            </h3>
           </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div class="rounded-xl bg-mist-50 p-3 dark:bg-mist-700/50">
-              <p class="text-[10px] font-extrabold uppercase tracking-wider text-muted">
-                Asset ID
-              </p>
-              <p class="mt-1 font-mono text-xs font-bold text-attic-500">
-                {{ getShortId() }}
-              </p>
-            </div>
-            <div class="rounded-xl bg-mist-50 p-3 dark:bg-mist-700/50">
-              <p class="text-[10px] font-extrabold uppercase tracking-wider text-muted">
-                Updated
-              </p>
-              <p class="mt-1 truncate text-xs font-bold text-mist-700 dark:text-mist-200">
-                {{ formatDate(asset.updated_at) }}
-              </p>
-            </div>
+          <div class="space-y-2 px-5 py-4">
+            <p class="text-lg font-bold tabular-nums text-default">
+              {{ formatCurrency(asset.containment_summary.total_value) }}
+            </p>
+            <p
+              v-if="asset.containment_summary.unpriced_asset_count"
+              class="text-sm text-muted"
+            >
+              Partial total · {{ asset.containment_summary.unpriced_asset_count }} {{ asset.containment_summary.unpriced_asset_count === 1 ? 'asset has' : 'assets have' }} no purchase price.
+            </p>
           </div>
-        </div>
-
+        </section>
         <!-- Quick Actions (Mobile) -->
         <div class="lg:hidden flex gap-3">
           <UButton
@@ -666,52 +670,34 @@ function getShortId(): string {
           </UButton>
         </div>
 
-        <!-- Description (if present) -->
+        <!-- Description -->
         <section
           v-if="asset.description"
-          class="space-y-2"
+          class="attic-panel overflow-hidden rounded-[20px]"
+          aria-label="Description"
         >
-          <div class="flex items-center justify-between px-2">
-            <h3 class="text-sm font-extrabold text-mist-950 dark:text-white">
+          <div class="border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
+            <h3 class="flex items-center gap-2 text-base font-bold text-mist-950 dark:text-white">
+              <UIcon
+                name="i-lucide-align-left"
+                class="size-5 text-attic-500"
+                aria-hidden="true"
+              />
               Description
             </h3>
           </div>
-          <div class="attic-panel rounded-[18px] p-4">
-            <p class="whitespace-pre-line text-sm leading-relaxed text-mist-700 dark:text-mist-300">
+          <div class="px-5 py-4">
+            <p class="whitespace-pre-wrap break-words text-base leading-relaxed text-mist-700 dark:text-mist-300">
               {{ asset.description }}
             </p>
           </div>
         </section>
 
-        <!-- Personal Notes (if present) -->
-        <section
-          v-if="asset.notes"
-          class="space-y-2"
-        >
-          <div class="flex items-center justify-between px-2">
-            <h3 class="text-sm font-extrabold text-mist-950 dark:text-white">
-              Personal Notes
-            </h3>
-            <NuxtLink
-              :to="`/assets/${route.params.id}/edit`"
-              class="text-attic-500 text-sm font-bold hover:underline flex items-center gap-1"
-            >
-              <UIcon
-                name="i-lucide-edit"
-                class="w-4 h-4"
-              />
-              Edit Notes
-            </NuxtLink>
-          </div>
-          <div class="rounded-[18px] border border-terracotta-100 bg-terracotta-50 p-4 dark:border-terracotta-900/40 dark:bg-terracotta-950/10">
-            <p class="text-sm leading-relaxed text-mist-700 dark:text-mist-300">
-              {{ asset.notes }}
-            </p>
-          </div>
-        </section>
-
         <!-- Structured Attributes List -->
-        <section class="attic-panel overflow-hidden rounded-[20px]">
+        <section
+          class="attic-panel overflow-hidden rounded-[20px]"
+          aria-label="Asset Details"
+        >
           <div class="flex items-center justify-between border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
             <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
               <UIcon
@@ -756,6 +742,81 @@ function getShortId(): string {
                 <span class="text-sm font-bold text-mist-950 dark:text-white">{{ formatDate(asset.created_at) }}</span>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section
+          v-if="asset.parent"
+          class="attic-panel overflow-hidden rounded-[20px]"
+          aria-label="Inside"
+        >
+          <div class="border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
+            <h3 class="flex items-center gap-2 text-base font-bold text-mist-950 dark:text-white">
+              <UIcon
+                name="i-lucide-package"
+                class="size-5 text-attic-500"
+                aria-hidden="true"
+              />
+              Inside
+            </h3>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+            <NuxtLink
+              :to="`/assets/${asset.parent.id}`"
+              class="inline-flex min-w-0 items-center gap-2 break-words font-bold text-attic-500 hover:underline"
+            >
+              <span class="min-w-0 break-words">{{ asset.parent.name }}</span>
+              <UIcon
+                name="i-lucide-arrow-up-right"
+                class="size-4 shrink-0"
+                aria-hidden="true"
+              />
+            </NuxtLink>
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="sm"
+              icon="i-lucide-unlink"
+              :loading="detaching"
+              :disabled="detaching"
+              @click="detachAsset"
+            >
+              Detach
+            </UButton>
+          </div>
+        </section>
+      </div>
+      <AssetContentsBrowser
+        :key="asset.id"
+        :asset="asset"
+        class="lg:col-span-12"
+        @changed="refreshAsset()"
+      />
+      <div class="space-y-5 lg:col-span-12">
+        <!-- Personal Notes (if present) -->
+        <section
+          v-if="asset.notes"
+          class="space-y-2"
+        >
+          <div class="flex items-center justify-between px-2">
+            <h3 class="text-sm font-extrabold text-mist-950 dark:text-white">
+              Personal Notes
+            </h3>
+            <NuxtLink
+              :to="`/assets/${route.params.id}/edit`"
+              class="text-attic-500 text-sm font-bold hover:underline flex items-center gap-1"
+            >
+              <UIcon
+                name="i-lucide-edit"
+                class="w-4 h-4"
+              />
+              Edit Notes
+            </NuxtLink>
+          </div>
+          <div class="rounded-[18px] border border-terracotta-100 bg-terracotta-50 p-4 dark:border-terracotta-900/40 dark:bg-terracotta-950/10">
+            <p class="text-sm leading-relaxed text-mist-700 dark:text-mist-300">
+              {{ asset.notes }}
+            </p>
           </div>
         </section>
 
@@ -1236,7 +1297,7 @@ function getShortId(): string {
             </div>
           </div>
           <p class="text-gray-600 dark:text-gray-300 mb-6">
-            Are you sure you want to delete "<strong>{{ asset?.name }}</strong>"? All associated data will be permanently removed.
+            Are you sure you want to delete "<strong>{{ asset?.name }}</strong>"? All associated data will be permanently removed. Contents will become standalone assets at their current location.
           </p>
           <div class="flex justify-end gap-3">
             <UButton

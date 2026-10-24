@@ -32,7 +32,12 @@ function revealInvalidSection(event: Event) {
 const loading = ref(false)
 const categoryLoading = ref(false)
 const selectedCategory = ref<Category | null>(null)
+const parentValid = ref(true)
+const parentAsset = ref<Asset | null>(null)
+const addedContents = ref<Asset[]>([])
+const removedContents = ref<string[]>([])
 const form = reactive({
+  parent_id: null as string | null,
   collection_ids: [] as string[],
   tag_names: [] as string[],
   name: '',
@@ -48,11 +53,16 @@ const form = reactive({
   notes: ''
 })
 
+watch(parentAsset, (parent) => {
+  if (parent) form.location_id = parent.location_id || undefined
+})
+
 // Initialize form when asset loads
 watch(
   asset,
   (newAsset) => {
     if (newAsset) {
+      form.parent_id = newAsset.parent_id || null
       form.name = newAsset.name
       form.description = newAsset.description || ''
       form.category_id = newAsset.category_id
@@ -203,6 +213,11 @@ const conditionOptions = computed(() => [
 ])
 
 async function submitForm() {
+  if (loading.value) return
+  if (form.parent_id && !parentValid.value) {
+    toast.add({ title: 'Resolve the parent asset before saving', color: 'error' })
+    return
+  }
   if (!form.name) {
     toast.add({ title: 'Name is required', color: 'error' })
     return
@@ -217,9 +232,12 @@ async function submitForm() {
   try {
     const payload = {
       name: form.name,
+      parent_id: form.parent_id,
+      add_child_ids: addedContents.value.map(asset => asset.id),
+      remove_child_ids: removedContents.value,
       description: form.description || undefined,
       category_id: features.value.categories ? form.category_id : undefined,
-      location_id: features.value.locations ? form.location_id || undefined : undefined,
+      location_id: features.value.locations && !form.parent_id ? form.location_id || undefined : undefined,
       collection_ids: features.value.collections ? form.collection_ids : undefined,
       ...(features.value.tags ? tagAssignment(form.tag_names, tags.value || []) : {}),
       condition_id: features.value.conditions ? form.condition_id || undefined : undefined,
@@ -406,7 +424,7 @@ async function submitForm() {
 
               <!-- Location -->
               <div
-                v-if="features.locations"
+                v-if="features.locations && !form.parent_id"
                 class="md:col-span-4 space-y-2"
               >
                 <label
@@ -427,6 +445,14 @@ async function submitForm() {
               </div>
             </div>
 
+            <AssetPicker
+              v-model="form.parent_id"
+              label="Inside"
+              :exclude-subtree-of="String(route.params.id)"
+              :show-location="features.locations"
+              @valid="parentValid = $event"
+              @resolved="parentAsset = $event"
+            />
             <AssetCategoryField
               v-if="features.categories"
               v-model="form.category_id"
@@ -446,6 +472,13 @@ async function submitForm() {
           </section>
 
           <hr class="hidden">
+
+          <AssetContents
+            v-model:added="addedContents"
+            v-model:removed="removedContents"
+            :asset-id="String(route.params.id)"
+            editing
+          />
 
           <!-- Section 2: Additional Details -->
           <details
