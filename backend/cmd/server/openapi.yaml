@@ -1613,10 +1613,10 @@ components:
         url:
           type: string
           format: uri
-          description: Absolute HTTP or HTTPS destination, including private hosts and ports.
+          description: Absolute HTTP or HTTPS URL, including private hosts and ports.
         label:
           type: string
-          description: Optional plain-text link text; defaults to the destination when omitted.
+          description: Optional plain-text link text; defaults to the `url` value when omitted.
 
     AttributeImpact:
       type: object
