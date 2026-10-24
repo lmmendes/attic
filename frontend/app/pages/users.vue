@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatKeyLastUsed } from '~/utils/apiKeys'
+
 definePageMeta({
   middleware: 'auth'
 })
@@ -11,6 +13,8 @@ interface User {
   has_password: boolean
   has_oidc: boolean
   created_at: string
+  api_key_count: number
+  api_key_last_used_at: string | null
 }
 
 const { isAdmin, fetchSession } = useAuth()
@@ -462,6 +466,9 @@ function formatRelativeDate(dateString: string): string {
                 <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted">
                   Auth
                 </th>
+                <th class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-muted">
+                  API keys
+                </th>
                 <th class="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-muted">
                   Actions
                 </th>
@@ -535,6 +542,22 @@ function formatRelativeDate(dateString: string): string {
                       OIDC
                     </span>
                   </div>
+                </td>
+
+                <td
+                  class="px-6 py-4"
+                  data-testid="user-api-key-usage"
+                >
+                  <p class="whitespace-nowrap text-sm font-semibold text-mist-950 dark:text-white">
+                    {{ user.api_key_count || 0 }} active {{ user.api_key_count === 1 ? 'key' : 'keys' }}
+                  </p>
+                  <p
+                    v-if="user.api_key_count"
+                    class="mt-1 whitespace-nowrap text-xs text-muted"
+                    :title="user.api_key_last_used_at ? new Date(user.api_key_last_used_at).toLocaleString() : undefined"
+                  >
+                    {{ user.api_key_last_used_at ? `Last used ${formatKeyLastUsed(user.api_key_last_used_at).toLowerCase()}` : 'Never used' }}
+                  </p>
                 </td>
 
                 <!-- Actions -->

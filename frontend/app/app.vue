@@ -195,6 +195,12 @@ const userMenuItems = computed(() => {
     }]
   ]
 
+  items.push([{
+    label: 'API keys',
+    icon: 'i-lucide-key-round',
+    onSelect: () => { navigateTo('/api-keys') }
+  }])
+
   // Add change password option if not using OIDC
   if (!isOIDCEnabled.value && !isAuthDisabled.value) {
     items.push([{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -232,4 +233,29 @@ func (r *UserRepository) GetOrCreate(ctx context.Context, orgID uuid.UUID, subje
 	}
 
 	return user, true, nil
+}
+
+// APIKeyUsage returns only aggregate activity for active keys in the workspace.
+// No key identifiers, descriptions, prefixes, or permissions leave this query.
+type UserAPIKeyUsage struct {
+	Count      int
+	LastUsedAt *time.Time
+}
+
+func (r *UserRepository) APIKeyUsage(ctx context.Context, orgID uuid.UUID) (map[uuid.UUID]UserAPIKeyUsage, error) {
+	rows, err := r.pool.Query(ctx, `SELECT owner_id,count(*),max(last_used_at) FROM api_keys WHERE organization_id=$1 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at>now()) GROUP BY owner_id`, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	usage := map[uuid.UUID]UserAPIKeyUsage{}
+	for rows.Next() {
+		var owner uuid.UUID
+		var entry UserAPIKeyUsage
+		if err := rows.Scan(&owner, &entry.Count, &entry.LastUsedAt); err != nil {
+			return nil, err
+		}
+		usage[owner] = entry
+	}
+	return usage, rows.Err()
 }

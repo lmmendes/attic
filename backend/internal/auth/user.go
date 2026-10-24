@@ -33,6 +33,10 @@ func NewUserProvisioner(userRepo *repository.UserRepository, orgID uuid.UUID) *U
 // Provision is middleware that ensures a domain user exists for the authenticated user
 func (p *UserProvisioner) Provision(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if GetAPIKey(r.Context()) != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
 		claims := GetClaims(r.Context())
 		if claims == nil {
 			// No authenticated user, continue without provisioning
@@ -68,6 +72,10 @@ func (p *UserProvisioner) Provision(next http.Handler) http.Handler {
 // session. Unlike OIDC provisioning, this must never create an account.
 func (p *UserProvisioner) LoadLocalUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if GetAPIKey(r.Context()) != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
 		claims := GetClaims(r.Context())
 		if claims == nil {
 			http.Error(w, `{"error":"authentication required"}`, http.StatusUnauthorized)
