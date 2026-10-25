@@ -78,17 +78,21 @@ type LocationRepository interface {
 
 // AssetFilter defines filters for asset queries
 type AssetFilter struct {
-	CollectionID  *uuid.UUID
-	CategoryID    *uuid.UUID
-	Uncategorized bool
-	LocationID    *uuid.UUID
-	ConditionID   *uuid.UUID
-	TagIDs        []uuid.UUID
-	TagMatch      string
-	Query         string // Full-text search query
-	Attributes    map[string]any
-	Criteria      *FilterCriteria
-	Features      *OrganizationFeatures
+	DescendantOf       *uuid.UUID
+	ParentID           *uuid.UUID
+	ExcludeSubtreeOf   *uuid.UUID
+	ExcludeAncestorsOf *uuid.UUID
+	CollectionID       *uuid.UUID
+	CategoryID         *uuid.UUID
+	Uncategorized      bool
+	LocationID         *uuid.UUID
+	ConditionID        *uuid.UUID
+	TagIDs             []uuid.UUID
+	TagMatch           string
+	Query              string // Full-text search query
+	Attributes         map[string]any
+	Criteria           *FilterCriteria
+	Features           *OrganizationFeatures
 }
 
 // Pagination defines pagination parameters

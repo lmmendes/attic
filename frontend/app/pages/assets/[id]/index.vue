@@ -56,7 +56,19 @@ function getAttributeValue(key: string): string {
 
 const deleteModalOpen = ref(false)
 const warrantyModalOpen = ref(false)
-void refreshAsset // Mark as used
+const detaching = ref(false)
+async function detachAsset() {
+  if (detaching.value) return
+  detaching.value = true
+  try {
+    await apiFetch(`/api/assets/${route.params.id}/parent`, { method: 'PATCH', body: JSON.stringify({ parent_id: null }) })
+    await refreshAsset()
+    toast.add({ title: 'Asset detached', color: 'success' })
+  } catch (err: unknown) {
+    const failure = err as { data?: { error?: string } }
+    toast.add({ title: failure.data?.error || 'Failed to detach asset', color: 'error' })
+  } finally { detaching.value = false }
+}
 const config = useRuntimeConfig()
 
 // Warranty form
@@ -447,12 +459,6 @@ const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', te
   if (days <= 30) return { color: 'warning', text: `${days} days left` }
   return { color: 'success', text: `${days} days left` }
 })
-
-// Generate short ID
-function getShortId(): string {
-  if (!asset.value?.id) return ''
-  return `ATC-${asset.value.id.slice(0, 4).toUpperCase()}`
-}
 </script>
 
 <template>
@@ -484,108 +490,12 @@ function getShortId(): string {
 
     <div
       v-if="asset"
-      class="grid grid-cols-1 gap-6 lg:grid-cols-12"
+      class="space-y-6"
     >
-      <!-- Left Column: Visual Anchor -->
-      <div class="flex flex-col gap-4 lg:col-span-5 xl:col-span-4">
-        <!-- Main Image / Placeholder -->
-        <div class="relative group">
-          <div class="attic-panel flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[24px] bg-gradient-to-br from-attic-50 to-mist-100 dark:from-mist-700 dark:to-mist-800 lg:aspect-square xl:aspect-[4/3]">
-            <button
-              v-if="asset.main_attachment_url"
-              type="button"
-              class="h-full w-full cursor-zoom-in"
-              :aria-label="`View ${asset.name} image gallery`"
-              @click="openImageViewer(asset.main_attachment_id)"
-            >
-              <img
-                :src="asset.main_attachment_url"
-                :alt="asset.name"
-                class="h-full w-full object-cover"
-              >
-            </button>
-            <div
-              v-else
-              class="text-center p-8"
-            >
-              <UIcon
-                name="i-lucide-package"
-                class="mx-auto mb-3 size-16 text-attic-200 dark:text-mist-600"
-              />
-              <p class="text-sm text-gray-400">
-                No image available
-              </p>
-            </div>
-          </div>
-          <!-- Clear main image button (shown on hover when image exists) -->
-          <button
-            v-if="asset.main_attachment_url"
-            class="absolute right-3 top-3 rounded-xl bg-black/50 p-2 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover:opacity-100"
-            title="Remove main image"
-            @click.stop="clearMainImage"
-          >
-            <UIcon
-              name="i-lucide-x"
-              class="w-4 h-4"
-            />
-          </button>
-        </div>
-
-        <!-- Asset Intelligence Card -->
-        <div class="attic-panel rounded-[20px] p-4">
-          <div class="mb-3 flex items-center gap-2 text-sm font-bold text-mist-950 dark:text-white">
-            <UIcon
-              name="i-lucide-info"
-              class="w-5 h-5 text-attic-500"
-            />
-            <span>At a glance</span>
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div class="rounded-xl bg-mist-50 p-3 dark:bg-mist-700/50">
-              <p class="text-[10px] font-extrabold uppercase tracking-wider text-muted">
-                Asset ID
-              </p>
-              <p class="mt-1 font-mono text-xs font-bold text-attic-500">
-                {{ getShortId() }}
-              </p>
-            </div>
-            <div class="rounded-xl bg-mist-50 p-3 dark:bg-mist-700/50">
-              <p class="text-[10px] font-extrabold uppercase tracking-wider text-muted">
-                Updated
-              </p>
-              <p class="mt-1 truncate text-xs font-bold text-mist-700 dark:text-mist-200">
-                {{ formatDate(asset.updated_at) }}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Quick Actions (Mobile) -->
-        <div class="lg:hidden flex gap-3">
-          <UButton
-            :to="`/assets/${route.params.id}/edit`"
-            variant="outline"
-            class="flex-1"
-            icon="i-lucide-pencil"
-          >
-            Edit Asset
-          </UButton>
-          <UButton
-            color="error"
-            variant="soft"
-            icon="i-lucide-trash-2"
-            :aria-label="`Delete ${asset.name}`"
-            :title="`Delete ${asset.name}`"
-            @click="deleteModalOpen = true"
-          />
-        </div>
-      </div>
-
-      <!-- Right Column: Content & Metadata -->
-      <div class="space-y-5 lg:col-span-7 xl:col-span-8">
+      <header class="space-y-3">
         <!-- Header & Title -->
         <div class="flex flex-col items-start justify-between gap-4 md:flex-row">
-          <div class="space-y-1">
+          <div class="min-w-0 space-y-1">
             <div class="mb-2 flex items-center gap-2">
               <span
                 v-if="features.categories"
@@ -598,21 +508,11 @@ function getShortId(): string {
                 class="text-xs font-semibold text-muted"
               >{{ asset.condition.label }}</span>
             </div>
-            <h1 class="text-3xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-4xl">
+            <h1 class="break-words text-3xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-4xl">
               {{ asset.name }}
             </h1>
-            <p
-              v-if="features.locations"
-              class="mt-2 flex items-center gap-1.5 text-sm font-medium text-muted"
-            >
-              <UIcon
-                name="i-lucide-map-pin"
-                class="size-4"
-              />
-              {{ asset.location?.name || 'No location assigned' }}
-            </p>
           </div>
-          <div class="hidden lg:flex gap-3 shrink-0">
+          <div class="flex gap-2 shrink-0">
             <UButton
               :to="`/assets/${route.params.id}/edit`"
               variant="outline"
@@ -625,6 +525,8 @@ function getShortId(): string {
               color="error"
               variant="ghost"
               icon="i-lucide-trash-2"
+              :aria-label="`Delete ${asset.name}`"
+              :title="`Delete ${asset.name}`"
               @click="deleteModalOpen = true"
             >
               Delete
@@ -632,6 +534,28 @@ function getShortId(): string {
           </div>
         </div>
 
+        <section
+          v-if="asset.parent"
+          aria-label="Inside"
+          class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+        >
+          <span class="text-muted">Inside</span>
+          <NuxtLink
+            :to="`/assets/${asset.parent.id}`"
+            class="min-w-0 break-words font-semibold text-attic-500 hover:underline"
+          >{{ asset.parent.name }}</NuxtLink>
+          <UButton
+            variant="ghost"
+            color="neutral"
+            size="xs"
+            icon="i-lucide-unlink"
+            :loading="detaching"
+            :disabled="detaching"
+            @click="detachAsset"
+          >
+            Detach
+          </UButton>
+        </section>
         <div
           v-if="features.collections && asset.collections?.length"
           class="flex flex-wrap gap-2"
@@ -665,31 +589,156 @@ function getShortId(): string {
             {{ tag.name }}
           </UButton>
         </div>
-
-        <!-- Description (if present) -->
-        <section
-          v-if="asset.description"
-          class="space-y-2"
-        >
-          <div class="flex items-center justify-between px-2">
-            <h3 class="text-sm font-extrabold text-mist-950 dark:text-white">
-              Description
-            </h3>
+      </header>
+      <div class="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <!-- Main Image / Placeholder -->
+        <div class="attic-panel relative group self-start overflow-hidden rounded-[20px]">
+          <div
+            class="flex items-center justify-center overflow-hidden bg-mist-50 dark:bg-mist-800/50"
+            :class="asset.main_attachment_url ? 'aspect-[4/3] max-h-72 lg:max-h-none' : 'h-24 lg:h-52'"
+          >
+            <button
+              v-if="asset.main_attachment_url"
+              type="button"
+              class="h-full w-full cursor-zoom-in"
+              :aria-label="`View ${asset.name} image gallery`"
+              @click="openImageViewer(asset.main_attachment_id)"
+            >
+              <img
+                :src="asset.main_attachment_url"
+                :alt="asset.name"
+                class="h-full w-full object-cover"
+              >
+            </button>
+            <div
+              v-else
+              class="flex items-center gap-3 p-4 lg:flex-col lg:gap-2"
+            >
+              <UIcon
+                name="i-lucide-package"
+                class="size-8 text-mist-300 dark:text-mist-600 lg:size-10"
+              />
+              <p class="text-sm text-gray-400">
+                No image available
+              </p>
+            </div>
           </div>
-          <div class="attic-panel rounded-[18px] p-4">
-            <p class="whitespace-pre-line text-sm leading-relaxed text-mist-700 dark:text-mist-300">
+          <!-- Clear main image button (shown on hover when image exists) -->
+          <button
+            v-if="asset.main_attachment_url"
+            class="absolute right-3 top-3 rounded-xl bg-black/50 p-2 text-white opacity-100 transition-opacity hover:bg-black/70 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+            title="Remove main image"
+            @click.stop="clearMainImage"
+          >
+            <UIcon
+              name="i-lucide-x"
+              class="w-4 h-4"
+            />
+          </button>
+        </div>
+
+        <div class="min-w-0 space-y-6">
+          <section
+            v-if="asset.description"
+            aria-label="Description"
+            class="attic-panel overflow-hidden rounded-[20px]"
+          >
+            <h2 class="border-b border-mist-100 bg-mist-50/60 px-4 py-3.5 text-base font-bold text-default dark:border-mist-700 dark:bg-mist-800/50 sm:px-5">
+              Description
+            </h2>
+            <p class="whitespace-pre-wrap break-words px-4 py-4 text-sm leading-relaxed text-mist-700 dark:text-mist-300 sm:px-5">
               {{ asset.description }}
             </p>
-          </div>
-        </section>
-
+          </section>
+          <section
+            aria-label="Asset Details"
+            class="attic-panel overflow-hidden rounded-[20px]"
+          >
+            <h2 class="flex items-center gap-2 border-b border-mist-100 bg-mist-50/60 px-4 py-3.5 text-base font-bold text-default dark:border-mist-700 dark:bg-mist-800/50 sm:px-5">
+              <UIcon
+                name="i-lucide-clipboard-list"
+                class="size-4 text-attic-500"
+              />Asset details
+            </h2>
+            <dl class="grid grid-cols-2 gap-x-6 gap-y-5 p-4 sm:grid-cols-3 sm:p-5">
+              <div
+                v-if="features.locations"
+                class="min-w-0"
+              >
+                <dt class="text-xs text-muted">
+                  Location
+                </dt>
+                <dd class="mt-1 break-words text-sm font-semibold text-default">
+                  {{ asset.location?.name || 'Not assigned' }}
+                </dd>
+              </div>
+              <div
+                v-if="features.conditions"
+                class="min-w-0"
+              >
+                <dt class="text-xs text-muted">
+                  Condition
+                </dt>
+                <dd class="mt-1 break-words text-sm font-semibold text-default">
+                  {{ asset.condition?.label || 'Not specified' }}
+                </dd>
+              </div>
+              <div>
+                <dt class="text-xs text-muted">
+                  Quantity
+                </dt>
+                <dd class="mt-1 text-sm font-semibold text-default">
+                  {{ asset.quantity }}
+                </dd>
+              </div>
+              <div>
+                <dt class="text-xs text-muted">
+                  Unit purchase price
+                </dt>
+                <dd class="mt-1 text-sm font-semibold tabular-nums text-default">
+                  {{ asset.purchase_price == null ? 'Not priced' : formatCurrency(asset.purchase_price) }}
+                </dd>
+              </div>
+              <div>
+                <dt class="text-xs text-muted">
+                  Purchase date
+                </dt>
+                <dd class="mt-1 text-sm font-semibold text-default">
+                  {{ formatDate(asset.purchase_at) }}
+                </dd>
+              </div>
+              <div>
+                <dt class="text-xs text-muted">
+                  Created
+                </dt>
+                <dd class="mt-1 text-sm font-semibold text-default">
+                  {{ formatDate(asset.created_at) }}
+                </dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+      </div>
+      <AssetContentsBrowser
+        :key="asset.id"
+        :asset="asset"
+        :summary="asset.containment_summary"
+        @changed="refreshAsset()"
+      />
+      <div class="space-y-6">
         <!-- Personal Notes (if present) -->
         <section
           v-if="asset.notes"
-          class="space-y-2"
+          aria-label="Personal Notes"
+          class="attic-panel overflow-hidden rounded-[20px]"
         >
-          <div class="flex items-center justify-between px-2">
-            <h3 class="text-sm font-extrabold text-mist-950 dark:text-white">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-mist-100 bg-mist-50/60 px-4 py-3.5 dark:border-mist-700 dark:bg-mist-800/50 sm:px-5">
+            <h3 class="flex items-center gap-2 text-base font-bold text-mist-950 dark:text-white">
+              <UIcon
+                name="i-lucide-notebook-pen"
+                class="size-5 text-attic-500"
+                aria-hidden="true"
+              />
               Personal Notes
             </h3>
             <NuxtLink
@@ -703,59 +752,10 @@ function getShortId(): string {
               Edit Notes
             </NuxtLink>
           </div>
-          <div class="rounded-[18px] border border-terracotta-100 bg-terracotta-50 p-4 dark:border-terracotta-900/40 dark:bg-terracotta-950/10">
-            <p class="text-sm leading-relaxed text-mist-700 dark:text-mist-300">
+          <div class="bg-terracotta-50/50 px-4 py-4 dark:bg-terracotta-950/10 sm:px-5">
+            <p class="whitespace-pre-wrap break-words text-sm leading-relaxed text-mist-700 dark:text-mist-300">
               {{ asset.notes }}
             </p>
-          </div>
-        </section>
-
-        <!-- Structured Attributes List -->
-        <section class="attic-panel overflow-hidden rounded-[20px]">
-          <div class="flex items-center justify-between border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
-            <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
-              <UIcon
-                name="i-lucide-clipboard-list"
-                class="w-5 h-5 text-attic-500"
-              />
-              Asset Details
-            </h3>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 divide-y divide-x-0 md:divide-x md:divide-y-0 divide-gray-100 dark:divide-gray-700">
-            <div class="divide-y divide-gray-100 dark:divide-gray-700">
-              <div
-                v-if="features.locations"
-                class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50"
-              >
-                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Location</span>
-                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ asset.location?.name || '-' }}</span>
-              </div>
-              <div
-                v-if="features.conditions"
-                class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50"
-              >
-                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Condition</span>
-                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ asset.condition?.label || '-' }}</span>
-              </div>
-              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
-                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Quantity</span>
-                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ asset.quantity }}</span>
-              </div>
-            </div>
-            <div class="divide-y divide-gray-100 dark:divide-gray-700">
-              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
-                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Purchase Date</span>
-                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ formatDate(asset.purchase_at) }}</span>
-              </div>
-              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
-                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Purchase Price</span>
-                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ formatCurrency(asset.purchase_price) }}</span>
-              </div>
-              <div class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50">
-                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Created</span>
-                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ formatDate(asset.created_at) }}</span>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -1250,7 +1250,7 @@ function getShortId(): string {
             </div>
           </div>
           <p class="text-gray-600 dark:text-gray-300 mb-6">
-            Are you sure you want to delete "<strong>{{ asset?.name }}</strong>"? All associated data will be permanently removed.
+            Are you sure you want to delete "<strong>{{ asset?.name }}</strong>"? All associated data will be permanently removed. Contents will become standalone assets at their current location.
           </p>
           <div class="flex justify-end gap-3">
             <UButton

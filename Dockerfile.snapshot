@@ -1,5 +1,7 @@
-# Stage 1: Build frontend
-FROM oven/bun:latest AS frontend-builder
+# syntax=docker/dockerfile:1
+
+# Stage 1: Build the static frontend once on the native platform
+FROM --platform=$BUILDPLATFORM oven/bun:latest AS frontend-builder
 
 WORKDIR /app/frontend
 
@@ -7,15 +9,12 @@ COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
 
 COPY frontend/ .
-COPY backend/cmd/server/ /app/backend/cmd/server/
 
 # nuxt.config.ts outputs to ../backend/cmd/server/dist
 RUN bun run build
 
 # Stage 2: Build backend
-FROM golang:1.27-alpine AS backend-builder
-
-ARG ATTIC_TMDB_API_KEY=""
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS backend-builder
 
 WORKDIR /app/backend
 
@@ -29,7 +28,12 @@ COPY backend/ .
 # Copy frontend build output (nuxt generates to backend/cmd/server/dist)
 COPY --from=frontend-builder /app/backend/cmd/server/dist ./cmd/server/dist
 
-RUN CGO_ENABLED=0 GOOS=linux go build \
+ARG TARGETOS
+ARG TARGETARCH
+ARG ATTIC_TMDB_API_KEY=""
+
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
     -ldflags="-w -s -X github.com/lmmendes/attic/internal/plugin/tmdb.APIKey=${ATTIC_TMDB_API_KEY}" \
     -o /app/attic ./cmd/server
 
