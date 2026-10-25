@@ -4,49 +4,63 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"sort"
 	"strings"
-
-	"golang.org/x/text/currency"
 )
 
-// Current ISO 4217 codes are shared with the frontend. Refresh currencies.json
-// from its recorded SIX source when the maintenance agency publishes updates,
-// and synchronize frontend/app/data/currencies.json (verified by frontend tests).
+// Refresh the single registry from its recorded SIX source when the ISO 4217
+// maintenance agency publishes updates. Names and entities are retained for
+// future use; validation and the settings helper expose current monetary codes.
 //
 //go:embed currencies.json
 var currencyRegistryFS embed.FS
+
+type currencyRecord struct {
+	Code     string   `json:"code"`
+	Name     string   `json:"name"`
+	Entities []string `json:"entities"`
+}
+
+type currencyRegistry struct {
+	Source     string           `json:"source"`
+	Published  string           `json:"published"`
+	Currencies []currencyRecord `json:"currencies"`
+}
 
 var currentCurrencyCodes = func() map[string]struct{} {
 	data, err := currencyRegistryFS.ReadFile("currencies.json")
 	if err != nil {
 		panic(err)
 	}
-	var registry struct {
-		Codes []string `json:"codes"`
-	}
+	var registry currencyRegistry
 	if err := json.Unmarshal(data, &registry); err != nil {
 		panic(err)
 	}
-	codes := make(map[string]struct{}, len(registry.Codes))
-	for _, code := range registry.Codes {
-		codes[code] = struct{}{}
+	codes := make(map[string]struct{}, len(registry.Currencies))
+	for _, entry := range registry.Currencies {
+		if entry.Code != "XXX" && entry.Code != "XTS" {
+			codes[entry.Code] = struct{}{}
+		}
 	}
 	return codes
 }()
 
-// NormalizeCurrency accepts current ISO 4217 codes and preserves support for
-// historical codes already recognized by the backend's existing currency table.
+// AvailableCurrencies returns the current monetary codes accepted by validation.
+// A new sorted slice is returned so callers cannot modify the registry.
+func AvailableCurrencies() []string {
+	codes := make([]string, 0, len(currentCurrencyCodes))
+	for code := range currentCurrencyCodes {
+		codes = append(codes, code)
+	}
+	sort.Strings(codes)
+	return codes
+}
+
+// NormalizeCurrency accepts only current monetary codes from the registry.
 func NormalizeCurrency(value string) (string, error) {
 	code := strings.ToUpper(strings.TrimSpace(value))
-	if code == "XXX" || code == "XTS" {
-		return "", errors.New("currency must identify a monetary currency")
+	if _, ok := currentCurrencyCodes[code]; !ok {
+		return "", errors.New("unsupported current currency")
 	}
-	if _, ok := currentCurrencyCodes[code]; ok {
-		return code, nil
-	}
-	unit, err := currency.ParseISO(code)
-	if err != nil {
-		return "", err
-	}
-	return unit.String(), nil
+	return code, nil
 }

@@ -1,24 +1,5 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { currencies, formatPurchasePrice, formatPurchaseTotal } from '../../app/utils/currency'
-import registry from '../../app/data/currencies.json'
-
-describe('currency picker', () => {
-  it('uses the published registry shared with the backend', () => {
-    const backendRegistry = JSON.parse(readFileSync(resolve(process.cwd(), '../backend/internal/domain/currencies.json'), 'utf8'))
-    expect(registry).toEqual(backendRegistry)
-    expect(currencies).toEqual(registry.codes.filter(code => code !== 'XXX' && code !== 'XTS'))
-    expect(currencies).not.toContain('XXX')
-    expect(currencies).not.toContain('XTS')
-    expect(currencies).toEqual(expect.arrayContaining(['CZK', 'EUR', 'USD', 'MRU', 'SLE', 'VES', 'XCG', 'ZWG']))
-    expect(new Set(currencies).size).toBe(currencies.length)
-    for (const currency of currencies) {
-      expect(currency).toMatch(/^[A-Z]{3}$/)
-      expect(() => formatPurchasePrice(12, currency)).not.toThrow()
-    }
-  })
-})
+import { formatPurchasePrice, formatPurchaseTotal } from '../../app/utils/currency'
 
 describe('purchase price formatting', () => {
   it('always shows two decimals for zero-decimal currencies', () => {

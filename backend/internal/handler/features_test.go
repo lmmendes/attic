@@ -102,7 +102,7 @@ func TestUpdateOrganizationSettingsAcceptsCurrentCurrencies(t *testing.T) {
 }
 
 func TestUpdateOrganizationSettingsRejectsInvalidCurrency(t *testing.T) {
-	for _, body := range []string{`{"currency":"xxx"}`, `{"currency":"XTS"}`, `{"currency":"EURO"}`, `{"currency":"ZZZ"}`, `{"currency":""}`, `{}`} {
+	for _, body := range []string{`{"currency":"DEM"}`, `{"currency":"frf"}`, `{"currency":"xxx"}`, `{"currency":"XTS"}`, `{"currency":"EURO"}`, `{"currency":"ZZZ"}`, `{"currency":""}`, `{}`} {
 		repo := &mockOrganizationFeatureRepository{}
 		h := handlerWithFeatureRepository(repo)
 		recorder := httptest.NewRecorder()

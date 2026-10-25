@@ -2,44 +2,53 @@ package domain
 
 import (
 	"encoding/json"
+	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
 
-func TestNormalizeCurrencyAcceptsPublishedRegistry(t *testing.T) {
+func TestCurrentCurrencyRegistryMetadata(t *testing.T) {
 	data, err := currencyRegistryFS.ReadFile("currencies.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var registry struct {
-		Source    string   `json:"source"`
-		Published string   `json:"published"`
-		Codes     []string `json:"codes"`
-	}
+	var registry currencyRegistry
 	if err := json.Unmarshal(data, &registry); err != nil {
 		t.Fatal(err)
 	}
-	if registry.Source == "" || registry.Published == "" || len(registry.Codes) < 150 {
-		t.Fatal("missing currency registry provenance or codes")
+	if registry.Source == "" || !regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`).MatchString(registry.Published) || len(registry.Currencies) < 150 {
+		t.Fatal("missing currency registry provenance or entries")
 	}
 	seen := make(map[string]bool)
-	valid := regexp.MustCompile(`^[A-Z]{3}$`)
-	for _, code := range registry.Codes {
-		if !valid.MatchString(code) || seen[code] {
-			t.Fatalf("invalid or duplicate currency code: %q", code)
+	codes := make([]string, 0, len(registry.Currencies))
+	for _, entry := range registry.Currencies {
+		if !regexp.MustCompile(`^[A-Z]{3}$`).MatchString(entry.Code) || seen[entry.Code] || entry.Code == "XXX" || entry.Code == "XTS" {
+			t.Fatalf("invalid, duplicate, or non-monetary code: %q", entry.Code)
 		}
-		seen[code] = true
-		normalized, err := NormalizeCurrency(" " + strings.ToLower(code) + " ")
-		if code == "XXX" || code == "XTS" {
-			if err == nil {
-				t.Errorf("accepted non-currency sentinel %s", code)
+		seen[entry.Code] = true
+		if strings.TrimSpace(entry.Name) == "" || len(entry.Entities) == 0 || !sort.StringsAreSorted(entry.Entities) {
+			t.Fatalf("invalid metadata for %s: %+v", entry.Code, entry)
+		}
+		entities := make(map[string]bool)
+		for _, entity := range entry.Entities {
+			if strings.TrimSpace(entity) == "" || entities[entity] {
+				t.Fatalf("empty or repeated entity for %s", entry.Code)
 			}
-			continue
+			entities[entity] = true
 		}
-		if err != nil || normalized != code {
-			t.Errorf("currency %s: %q, %v", code, normalized, err)
+		if entry.Code == "EUR" && (entry.Name != "Euro" || !entities["AUSTRIA"] || !entities["BELGIUM"]) {
+			t.Fatalf("expected currency name and multiple associated entities: %+v", entry)
 		}
+		codes = append(codes, entry.Code)
+		normalized, err := NormalizeCurrency(" " + strings.ToLower(entry.Code) + " ")
+		if err != nil || normalized != entry.Code {
+			t.Errorf("currency %s: %q, %v", entry.Code, normalized, err)
+		}
+	}
+	if !sort.StringsAreSorted(codes) || !reflect.DeepEqual(codes, AvailableCurrencies()) {
+		t.Fatal("registry and available codes must have the same sorted contents")
 	}
 	for _, code := range []string{"MRU", "SLE", "VES", "XCG", "ZWG", "USD", "EUR", "JPY"} {
 		if !seen[code] {
@@ -48,17 +57,19 @@ func TestNormalizeCurrencyAcceptsPublishedRegistry(t *testing.T) {
 	}
 }
 
-func TestNormalizeCurrencyPreservesHistoricalCodes(t *testing.T) {
-	code, err := NormalizeCurrency(" dem ")
-	if err != nil || code != "DEM" {
-		t.Fatalf("historical currency: %q %v", code, err)
+func TestAvailableCurrenciesReturnsIndependentSlice(t *testing.T) {
+	original := AvailableCurrencies()
+	copy := AvailableCurrencies()
+	copy[0] = "ZZZ"
+	if !reflect.DeepEqual(original, AvailableCurrencies()) {
+		t.Fatal("caller modified the supported currency set")
 	}
 }
 
-func TestNormalizeCurrencyRejectsInvalidCodes(t *testing.T) {
-	for _, input := range []string{"", "ZZZ", "EURO", "123", "U$D", "XXX", "XTS"} {
+func TestNormalizeCurrencyRejectsHistoricalAndInvalidCodes(t *testing.T) {
+	for _, input := range []string{"DEM", " frf ", "", "ZZZ", "EURO", "123", "U$D", "XXX", "XTS"} {
 		if _, err := NormalizeCurrency(input); err == nil {
-			t.Errorf("accepted invalid currency %q", input)
+			t.Errorf("accepted unsupported currency %q", input)
 		}
 	}
 }

@@ -67,6 +67,16 @@ func (h *Handler) GetOrganizationSettings(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, settings)
 }
 
+// CurrencyOptionsResponse contains the current currency choices for Settings.
+type CurrencyOptionsResponse struct {
+	Currencies []string `json:"currencies"`
+}
+
+// GetOrganizationCurrencies returns available codes without querying settings.
+func (h *Handler) GetOrganizationCurrencies(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, CurrencyOptionsResponse{Currencies: domain.AvailableCurrencies()})
+}
+
 // UpdateOrganizationSettings replaces organization-wide preferences. Changing the
 // currency relabels all existing asset prices; amounts are never converted.
 func (h *Handler) UpdateOrganizationSettings(w http.ResponseWriter, r *http.Request) {

@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import { ref } from 'vue'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import SettingsPage from '../../app/pages/settings.vue'
+
+const { currencyApi, loadCurrencies } = vi.hoisted(() => ({ currencyApi: vi.fn(), loadCurrencies: vi.fn() }))
+mockNuxtImport('useApi', () => currencyApi)
+const currencyCatalog = ref<{ currencies: string[] } | null>({ currencies: ['CZK', 'EUR', 'GBP', 'USD'] })
+const currencyStatus = ref('success')
+const currencyError = ref<Error | null>(null)
 
 const { features, featureRef, settingsRef, settingsLoaded, settingsError, authLoading, fetchSession, load, update, loadSettings, updateSettings, toast } = vi.hoisted(() => {
   const features = {
@@ -37,26 +44,31 @@ mockNuxtImport('useOrganizationSettings', () => () => ({
 mockNuxtImport('useToast', () => () => ({ add: toast }))
 
 const currencyMenu = {
-  props: ['modelValue'],
+  props: ['modelValue', 'items', 'disabled'],
   emits: ['update:modelValue'],
-  template: '<button aria-label="Currency" @click="$emit(\'update:modelValue\', \'CZK\')">{{ modelValue }}</button>'
+  template: '<button aria-label="Currency" :disabled="disabled" :data-options="items.join(\',\')" @click="$emit(\'update:modelValue\', \'CZK\')">{{ modelValue }}</button>'
 }
 
 const button = (wrapper: Awaited<ReturnType<typeof mountSuspended>>, label: string) =>
   wrapper.findAll('button').find(element => element.text().includes(label))!
 
-describe('organization feature settings', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    authLoading.value = false
-    Object.keys(features).forEach(key => features[key as keyof typeof features] = true)
-    update.mockResolvedValue(features)
-    settingsRef.value = { currency: 'USD' }
-    settingsLoaded.value = true
-    settingsError.value = null
-    updateSettings.mockResolvedValue(settingsRef.value)
-  })
+beforeEach(() => {
+  vi.clearAllMocks()
+  currencyCatalog.value = { currencies: ['CZK', 'EUR', 'GBP', 'USD'] }
+  currencyStatus.value = 'success'
+  currencyError.value = null
+  loadCurrencies.mockReset().mockResolvedValue(undefined)
+  currencyApi.mockReturnValue({ data: currencyCatalog, status: currencyStatus, error: currencyError, refresh: loadCurrencies })
+  authLoading.value = false
+  Object.keys(features).forEach(key => features[key as keyof typeof features] = true)
+  update.mockResolvedValue(features)
+  settingsRef.value = { currency: 'USD' }
+  settingsLoaded.value = true
+  settingsError.value = null
+  updateSettings.mockResolvedValue(settingsRef.value)
+})
 
+describe('organization feature settings', () => {
   it('renders loaded features without restarting the app feature gate', async () => {
     const wrapper = await mountSuspended(SettingsPage)
     await flushPromises()
@@ -235,6 +247,74 @@ describe('organization feature settings', () => {
     await flushPromises()
     expect(update).toHaveBeenCalledOnce()
     expect(updateSettings).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+})
+
+describe('server-provided currency choices', () => {
+  it('loads choices when Settings opens and uses the returned code list', async () => {
+    currencyCatalog.value = null
+    currencyStatus.value = 'idle'
+    loadCurrencies.mockImplementationOnce(async () => {
+      currencyCatalog.value = { currencies: ['EUR', 'USD'] }
+      currencyStatus.value = 'success'
+    })
+    const wrapper = await mountSuspended(SettingsPage, { global: { stubs: { USelectMenu: currencyMenu } } })
+    await flushPromises()
+    expect(currencyApi).toHaveBeenCalledWith('/api/organization/settings/currencies', { immediate: false })
+    expect(loadCurrencies).toHaveBeenCalledOnce()
+    expect(wrapper.get('button[aria-label="Currency"]').attributes('data-options')).toBe('EUR,USD')
+    wrapper.unmount()
+  })
+
+  it('blocks currency changes while choices load, without blocking feature saves', async () => {
+    currencyStatus.value = 'pending'
+    const wrapper = await mountSuspended(SettingsPage, { global: { stubs: { USelectMenu: currencyMenu } } })
+    expect(wrapper.get('[role="status"]').text()).toContain('Loading currency choices')
+    expect(wrapper.get('button[aria-label="Currency"]').attributes('disabled')).toBeDefined()
+    expect(button(wrapper, 'Save settings').attributes('disabled')).toBeDefined()
+    await button(wrapper, 'Save settings').trigger('click')
+    expect(updateSettings).not.toHaveBeenCalled()
+    await button(wrapper, 'Save features').trigger('click')
+    await flushPromises()
+    expect(update).toHaveBeenCalledOnce()
+    currencyStatus.value = 'success'
+    await flushPromises()
+    expect(button(wrapper, 'Save settings').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('preserves the selected draft and retries failed currency choices', async () => {
+    const wrapper = await mountSuspended(SettingsPage, { global: { stubs: { USelectMenu: currencyMenu } } })
+    await wrapper.get('button[aria-label="Currency"]').trigger('click')
+    currencyStatus.value = 'error'
+    currencyError.value = new Error('offline')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('Currency choices could not be loaded')
+    expect(wrapper.get('button[aria-label="Currency"]').text()).toBe('CZK')
+    expect(button(wrapper, 'Save settings').attributes('disabled')).toBeDefined()
+    await button(wrapper, 'Save features').trigger('click')
+    await flushPromises()
+    expect(update).toHaveBeenCalledOnce()
+    loadCurrencies.mockImplementationOnce(async () => {
+      currencyError.value = null
+      currencyStatus.value = 'success'
+    })
+    await button(wrapper, 'Retry currencies').trigger('click')
+    await flushPromises()
+    expect(loadCurrencies).toHaveBeenCalledOnce()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.get('button[aria-label="Currency"]').text()).toBe('CZK')
+    await button(wrapper, 'Save settings').trigger('click')
+    expect(updateSettings).toHaveBeenCalledWith({ currency: 'CZK' })
+    wrapper.unmount()
+  })
+
+  it('treats an empty successful catalog as unavailable', async () => {
+    currencyCatalog.value = { currencies: [] }
+    const wrapper = await mountSuspended(SettingsPage)
+    expect(wrapper.get('[role="alert"]').text()).toContain('Currency choices could not be loaded')
+    expect(button(wrapper, 'Save settings').attributes('disabled')).toBeDefined()
     wrapper.unmount()
   })
 })
