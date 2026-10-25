@@ -146,7 +146,7 @@ const secondaryNavigation = [
   { label: 'Attributes', to: '/attributes', icon: 'i-lucide-sliders-horizontal' },
   { label: 'Conditions', to: '/conditions', icon: 'i-lucide-activity' },
   { label: 'Warranties', to: '/warranties', icon: 'i-lucide-shield-check' },
-  { label: 'Plugins', to: '/plugins', icon: 'i-lucide-puzzle' }
+  { label: 'Import sources', to: '/plugins', icon: 'i-lucide-puzzle' }
 ]
 
 const navigation = computed(() => {
@@ -593,7 +593,7 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
 
         <!-- Mobile FAB -->
         <NuxtLink
-          v-if="!isAssetForm"
+          v-if="!isAssetForm && route.path.replace(/\/$/, '') !== '/plugins'"
           to="/assets/new"
           aria-label="Add asset"
           title="Add asset"

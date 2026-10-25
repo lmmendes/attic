@@ -1,419 +1,442 @@
 <script setup lang="ts">
 import type { Plugin, PluginsResponse } from '~/types/api'
+import { compareImportSources, importProvider, importSetupGroups, importSourceIcon, type ImportSetupGroup } from '~/utils/importSources'
 
-definePageMeta({
-  middleware: 'auth'
-})
+definePageMeta({ middleware: 'auth' })
 
-const { data: pluginsData, status } = useApi<PluginsResponse>('/api/plugins')
-
-const plugins = computed(() => pluginsData.value?.plugins || [])
-const activePlugins = computed(() => plugins.value.filter(plugin => getPluginStatus(plugin) === 'active').length)
-const pluginsNeedingSetup = computed(() => plugins.value.filter(plugin => getPluginStatus(plugin) === 'disabled').length)
+const { data, status, error, refresh } = useApi<PluginsResponse>('/api/plugins')
+const { features } = useFeatures()
+const plugins = computed(() => data.value?.plugins || [])
+const configured = computed(() => plugins.value.filter(plugin => plugin.enabled).sort(compareImportSources))
+const setupGroups = computed(() => importSetupGroups(plugins.value))
+const setupCount = computed(() => plugins.value.filter(plugin => !plugin.enabled).length)
 const importModalOpen = ref(false)
 const selectedPluginId = ref<string>()
+const panelOpen = ref(false)
+const detailSource = ref<Plugin | null>(null)
+const setupGroup = ref<ImportSetupGroup | null>(null)
+const panelTitle = computed(() => setupGroup.value ? `Connect ${setupGroup.value.provider.name}` : detailSource.value?.category_name || 'Source details')
+const panelDescription = computed(() => setupGroup.value
+  ? `Enable ${setupGroup.value.label} imports on your Attic server.`
+  : `${detailSource.value ? importProvider(detailSource.value).name : 'Catalog'} source details`)
+let panelTrigger: HTMLElement | null = null
+let pendingImport: Plugin | null = null
 
-// Track which plugins have expanded attributes
-const expandedAttributes = ref<Set<string>>(new Set())
-
-function toggleAttributes(pluginId: string) {
-  if (expandedAttributes.value.has(pluginId)) {
-    expandedAttributes.value.delete(pluginId)
-  } else {
-    expandedAttributes.value.add(pluginId)
-  }
+function showDetails(plugin: Plugin, event: MouseEvent) {
+  panelTrigger = event.currentTarget as HTMLElement
+  setupGroup.value = null
+  detailSource.value = plugin
+  panelOpen.value = true
 }
 
-function isExpanded(pluginId: string): boolean {
-  return expandedAttributes.value.has(pluginId)
+function showSetup(group: ImportSetupGroup, event: MouseEvent) {
+  panelTrigger = event.currentTarget as HTMLElement
+  detailSource.value = null
+  setupGroup.value = group
+  panelOpen.value = true
 }
 
 function startImport(plugin: Plugin) {
+  if (panelOpen.value) {
+    pendingImport = plugin
+    panelOpen.value = false
+    return
+  }
   selectedPluginId.value = plugin.id
   importModalOpen.value = true
 }
 
-function getPluginIcon(plugin: Plugin): string {
-  const identity = `${plugin.id} ${plugin.name}`.toLowerCase()
-  if (plugin.id === 'rebrickable_sets') return 'i-lucide-brick-wall'
-  if (plugin.id === 'rebrickable_minifigs') return 'i-lucide-person-standing'
-  if (identity.includes('book')) return 'i-lucide-book-open'
-  if (identity.includes('movie') || identity.includes('tmdb')) return 'i-lucide-film'
-  if (identity.includes('game')) return 'i-lucide-gamepad-2'
-  if (identity.includes('music')) return 'i-lucide-music'
-  return 'i-lucide-database-zap'
+function afterPanelClose() {
+  if (pendingImport) {
+    const plugin = pendingImport
+    pendingImport = null
+    startImport(plugin)
+  }
 }
 
-function getPluginStatus(plugin: Plugin): 'active' | 'disabled' {
-  return plugin.enabled ? 'active' : 'disabled'
-}
-
-function isIGDBPlugin(plugin: Plugin): boolean {
-  return plugin.id === 'igdb_games' || plugin.name.toLowerCase() === 'igdb'
-}
-
-// Get attribute color based on index for visual variety
-function getAttributeStyle(index: number): { bg: string, text: string, border: string } {
-  const styles = [
-    { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-200 dark:border-amber-800/30' },
-    { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-800/30' },
-    { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-300', border: 'border-emerald-200 dark:border-emerald-800/30' },
-    { bg: 'bg-rose-50 dark:bg-rose-900/20', text: 'text-rose-700 dark:text-rose-300', border: 'border-rose-200 dark:border-rose-800/30' }
-  ]
-  return styles[index % styles.length]!
+function restorePanelFocus(event: Event) {
+  event.preventDefault()
+  panelTrigger?.focus()
 }
 </script>
 
 <template>
-  <div class="space-y-5 pb-6">
-    <!-- Page Header -->
-    <header class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-      <div>
-        <p class="mb-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
-          Connected sources
-        </p>
-        <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
-          Import plugins
-        </h1>
-        <p class="mt-1 max-w-2xl text-sm text-muted">
-          Add assets faster using trusted metadata from external catalogs.
-        </p>
-      </div>
-      <div class="attic-panel flex divide-x divide-mist-100 rounded-xl px-2 py-2 dark:divide-mist-700">
-        <div class="px-3">
-          <p class="text-[10px] font-bold uppercase text-muted">
-            Active
-          </p>
-          <p class="font-black text-mist-950 dark:text-white">
-            {{ activePlugins }}
-          </p>
-        </div>
-        <div class="px-3">
-          <p class="text-[10px] font-bold uppercase text-muted">
-            Needs setup
-          </p>
-          <p class="font-black text-mist-950 dark:text-white">
-            {{ pluginsNeedingSetup }}
-          </p>
-        </div>
-      </div>
+  <div class="mx-auto max-w-5xl space-y-6 pb-20 sm:pb-6">
+    <header>
+      <p class="mb-1.5 text-[11px] font-extrabold uppercase tracking-[0.16em] text-attic-500">
+        Catalog import
+      </p>
+      <h1 class="text-2xl font-extrabold tracking-[-0.04em] text-mist-950 dark:text-white md:text-3xl">
+        Import sources
+      </h1>
+      <p class="mt-2 text-sm leading-6 text-muted">
+        Find an item and add its details automatically.
+      </p>
     </header>
 
-    <!-- Loading State -->
     <div
       v-if="status === 'pending'"
-      class="flex items-center justify-center py-20"
+      role="status"
+      class="attic-panel flex items-center gap-3 rounded-2xl p-6 text-sm text-muted"
     >
       <UIcon
         name="i-lucide-loader-2"
-        class="w-8 h-8 text-attic-500 animate-spin"
+        class="size-5 animate-spin text-attic-500"
       />
+      Loading import sources…
     </div>
-
-    <!-- Empty State -->
+    <div
+      v-else-if="error || status === 'error'"
+      role="alert"
+      class="attic-panel space-y-3 rounded-2xl p-6"
+    >
+      <h2 class="font-bold text-mist-950 dark:text-white">
+        Couldn’t load import sources
+      </h2>
+      <p class="text-sm text-muted">
+        Please try again to see your available catalogs.
+      </p>
+      <UButton
+        variant="outline"
+        icon="i-lucide-refresh-cw"
+        class="min-h-11"
+        @click="refresh()"
+      >
+        Try again
+      </UButton>
+    </div>
     <div
       v-else-if="plugins.length === 0"
-      class="attic-panel overflow-hidden rounded-[20px]"
+      class="attic-panel rounded-2xl px-6 py-12 text-center"
     >
-      <div class="flex flex-col items-center justify-center py-20 px-4 text-center">
-        <div class="size-16 rounded-full bg-mist-100 dark:bg-mist-700 flex items-center justify-center mb-4">
-          <UIcon
-            name="i-lucide-puzzle"
-            class="w-8 h-8 text-muted"
-          />
-        </div>
-        <h3 class="text-lg font-bold text-mist-950 dark:text-white mb-2">
-          No Plugins Available
-        </h3>
-        <p class="text-sm text-muted max-w-sm">
-          Import plugins will appear here when they are configured.
-        </p>
-      </div>
+      <UIcon
+        name="i-lucide-library"
+        class="mb-3 size-8 text-attic-500"
+      />
+      <h2 class="font-bold text-mist-950 dark:text-white">
+        No import sources available
+      </h2>
+      <p class="mt-2 text-sm text-muted">
+        Catalogs will appear here when they are available on your Attic server.
+      </p>
     </div>
-
-    <!-- Plugin Cards Grid -->
-    <div
-      v-else
-      class="grid grid-cols-1 gap-4 lg:grid-cols-2"
-    >
-      <div
-        v-for="plugin in plugins"
-        :key="plugin.id"
-        class="flex flex-col overflow-hidden rounded-[20px] border shadow-sm"
-        :class="plugin.enabled
-          ? 'bg-white dark:bg-mist-800 border-mist-100 dark:border-mist-700'
-          : 'bg-mist-50 dark:bg-mist-900 border-mist-200 dark:border-mist-700 opacity-75'"
+    <template v-else>
+      <section
+        v-if="configured.length"
+        aria-labelledby="configured-heading"
       >
-        <!-- Card Header -->
-        <div class="mb-4 flex items-start justify-between gap-3 p-5 pb-0">
-          <div class="flex min-w-0 items-center gap-3">
+        <div class="mb-3 flex items-center gap-2.5">
+          <h2
+            id="configured-heading"
+            class="text-sm font-bold text-mist-800 dark:text-mist-100"
+          >
+            Configured
+          </h2>
+          <span class="rounded-md bg-attic-50 px-2 py-0.5 text-xs font-bold text-attic-600 dark:bg-attic-500/15 dark:text-attic-300">{{ configured.length }}</span>
+        </div>
+        <ul class="attic-panel divide-y divide-mist-100 overflow-hidden rounded-2xl dark:divide-mist-700/60">
+          <li
+            v-for="plugin in configured"
+            :key="plugin.id"
+            class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-mist-50/70 dark:hover:bg-mist-700/20 sm:flex-nowrap sm:gap-4 sm:px-5"
+          >
             <div
-              class="flex size-11 shrink-0 items-center justify-center rounded-2xl"
-              :class="plugin.enabled ? 'bg-attic-50 text-attic-500 dark:bg-attic-500/10' : 'bg-mist-100 text-muted dark:bg-mist-700'"
+              class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-attic-50 text-attic-500 dark:bg-attic-500/10"
+              aria-hidden="true"
             >
               <UIcon
-                :name="getPluginIcon(plugin)"
+                :name="importSourceIcon(plugin)"
                 class="size-5"
               />
             </div>
-            <div class="min-w-0">
-              <h3
-                class="truncate text-lg font-extrabold"
-                :class="plugin.enabled ? 'text-mist-950 dark:text-white' : 'text-muted dark:text-mist-400'"
-              >
-                {{ plugin.name }}
-              </h3>
-              <p class="text-xs text-muted">
-                {{ plugin.category_name }} catalog
-              </p>
-            </div>
-          </div>
-          <span
-            class="px-2.5 py-0.5 rounded-full text-xs font-semibold border"
-            :class="{
-              'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800/30': getPluginStatus(plugin) === 'active',
-              'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800/30': getPluginStatus(plugin) === 'disabled'
-            }"
-          >
-            {{ getPluginStatus(plugin) === 'active' ? 'Active' : 'Needs setup' }}
-          </span>
-        </div>
-
-        <!-- Card Content -->
-        <div class="flex-grow space-y-4 px-5">
-          <!-- Description -->
-          <p class="min-h-10 text-sm leading-5 text-muted">
-            {{ plugin.description }}
-          </p>
-
-          <!-- Category -->
-          <div class="flex flex-wrap items-center gap-2 rounded-xl bg-mist-50 px-3 py-2.5 dark:bg-mist-700/40">
-            <div class="flex min-w-0 flex-1 items-center gap-2">
-              <UIcon
-                name="i-lucide-folder"
-                class="size-4 shrink-0 text-muted"
-              />
-              <span class="truncate text-xs font-bold text-mist-700 dark:text-mist-200">
+            <div class="min-w-0 flex-1 basis-[calc(100%-3.5rem)] sm:basis-auto">
+              <h3 class="break-words text-sm font-bold leading-5 text-mist-950 dark:text-white sm:text-base">
                 {{ plugin.category_name }}
-              </span>
-              <span
-                v-if="plugin.category_id"
-                class="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase"
+              </h3>
+              <p class="mt-0.5 text-xs leading-5 text-muted">
+                {{ importProvider(plugin).name }}
+              </p>
+            </div>
+            <div class="ml-[3.25rem] flex w-full items-center justify-between gap-2 sm:ml-0 sm:w-auto sm:shrink-0">
+              <UButton
+                color="neutral"
+                variant="ghost"
+                class="min-h-11 rounded-lg px-3 text-xs font-semibold text-muted"
+                :aria-label="`Details for ${plugin.category_name}`"
+                @click="showDetails(plugin, $event)"
               >
-                Created
-              </span>
-              <span
-                v-else
-                class="text-[10px] font-semibold text-muted"
+                Details
+              </UButton>
+              <UButton
+                class="min-h-11 rounded-lg px-4 font-bold"
+                icon="i-lucide-download"
+                :aria-label="`Import ${plugin.category_name}`"
+                @click="startImport(plugin)"
               >
-                {{ plugin.enabled ? 'Initialization failed' : 'Created when enabled' }}
-              </span>
+                Import
+              </UButton>
             </div>
-            <span class="text-[11px] font-semibold text-muted">
-              {{ plugin.search_fields.length }} search · {{ plugin.attributes.length }} imported fields
-            </span>
-          </div>
-
-          <div
-            v-if="isExpanded(plugin.id)"
-            class="space-y-4 rounded-xl border border-mist-100 p-3 dark:border-mist-700"
+          </li>
+        </ul>
+      </section>
+      <section
+        v-if="setupGroups.length"
+        aria-labelledby="setup-heading"
+      >
+        <div class="mb-3 flex items-center gap-2.5">
+          <h2
+            id="setup-heading"
+            class="text-sm font-bold text-mist-800 dark:text-mist-100"
           >
-            <div class="space-y-2">
-              <p class="text-[10px] font-bold uppercase tracking-wider text-muted">
-                Search by
-              </p>
-              <div class="flex flex-wrap gap-1.5">
-                <span
-                  v-for="field in plugin.search_fields"
-                  :key="field.key"
-                  class="rounded-lg bg-mist-100 px-2 py-1 text-[11px] font-semibold text-muted dark:bg-mist-700"
-                >{{ field.label }}</span>
-              </div>
-            </div>
-            <div class="space-y-2">
-              <p class="text-[10px] font-bold uppercase tracking-wider text-muted">
-                Imported fields
-              </p>
-              <div class="flex flex-wrap gap-1.5">
-                <span
-                  v-for="(attr, index) in plugin.attributes"
-                  :key="attr.key"
-                  class="rounded-lg border px-2 py-1 text-[11px] font-medium"
-                  :class="[getAttributeStyle(index).bg, getAttributeStyle(index).text, getAttributeStyle(index).border]"
-                >
-                  {{ attr.name }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            class="inline-flex items-center gap-1 text-xs font-bold text-muted transition-colors hover:text-attic-500"
-            :aria-expanded="isExpanded(plugin.id)"
-            @click="toggleAttributes(plugin.id)"
-          >
-            <UIcon
-              :name="isExpanded(plugin.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-              class="size-3.5"
-            />
-            {{ isExpanded(plugin.id) ? 'Hide technical details' : 'View technical details' }}
-          </button>
-        </div>
-
-        <!-- Card Footer -->
-        <div class="mt-5 border-t border-mist-100 p-5 dark:border-mist-700">
-          <!-- Disabled Reason -->
-          <div
-            v-if="!plugin.enabled && plugin.disabled_reason"
-            class="mb-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30"
-          >
-            <div class="flex items-start gap-2">
-              <UIcon
-                name="i-lucide-alert-triangle"
-                class="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0"
-              />
-              <p class="text-xs text-amber-700 dark:text-amber-300">
-                {{ plugin.disabled_reason }}
-              </p>
-            </div>
-          </div>
-
-          <div
-            v-if="plugin.id.startsWith('rebrickable_') && !plugin.enabled"
-            class="mb-4 min-w-0 rounded-xl border border-attic-200 bg-attic-50/70 p-4 dark:border-attic-500/30 dark:bg-attic-500/10"
-          >
-            <h4 class="text-xs font-extrabold text-mist-950 dark:text-white">
-              Connect Rebrickable
-            </h4>
-            <ol class="mt-2 list-decimal space-y-1 pl-4 text-xs leading-5 text-muted">
-              <li>
-                Create a free account and generate an API key at
-                <a
-                  href="https://rebrickable.com/api/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="font-bold text-attic-600 underline underline-offset-2 dark:text-attic-300"
-                >Rebrickable</a>.
-              </li>
-              <li>Set <code class="break-all font-mono text-[11px]">ATTIC_REBRICKABLE_API_KEY</code> on your Attic server, then restart Attic.</li>
-            </ol>
-            <p class="mt-2 text-xs leading-5 text-muted">
-              One key enables both LEGO Sets and LEGO Minifigures.
-            </p>
-          </div>
-
-          <!-- IGDB setup instructions -->
-          <div
-            v-if="isIGDBPlugin(plugin) && !plugin.enabled"
-            class="mb-4 rounded-xl border border-attic-200 bg-attic-50/70 p-4 dark:border-attic-500/30 dark:bg-attic-500/10"
-          >
-            <div class="flex items-start gap-2.5">
-              <UIcon
-                name="i-lucide-key-round"
-                class="mt-0.5 size-4 shrink-0 text-attic-500"
-              />
-              <div class="min-w-0 space-y-2.5">
-                <div>
-                  <h4 class="text-xs font-extrabold text-mist-950 dark:text-white">
-                    Connect IGDB
-                  </h4>
-                  <p class="mt-1 text-xs leading-5 text-muted">
-                    IGDB uses Twitch application credentials. Create a Twitch application to get both values, then add them to your Attic server.
-                  </p>
-                </div>
-                <ol class="list-decimal space-y-1 pl-4 text-xs leading-5 text-muted">
-                  <li>
-                    Open the
-                    <a
-                      href="https://dev.twitch.tv/console/apps"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="font-bold text-attic-600 underline decoration-attic-300 underline-offset-2 hover:text-attic-700 dark:text-attic-300 dark:hover:text-attic-200"
-                    >Twitch Developer Console</a>.
-                  </li>
-                  <li>Register an application and copy its <strong class="font-bold text-mist-700 dark:text-mist-200">Client ID</strong> and <strong class="font-bold text-mist-700 dark:text-mist-200">Client Secret</strong>.</li>
-                  <li>Set <code class="rounded bg-white/80 px-1 py-0.5 font-mono text-[11px] text-mist-700 dark:bg-mist-800 dark:text-mist-200">ATTIC_IGDB_CLIENT_ID</code> and <code class="rounded bg-white/80 px-1 py-0.5 font-mono text-[11px] text-mist-700 dark:bg-mist-800 dark:text-mist-200">ATTIC_IGDB_CLIENT_SECRET</code>, then restart Attic.</li>
-                </ol>
-                <p class="text-[11px] leading-4 text-muted">
-                  Keep the Client Secret private. Attic exchanges it for a short-lived access token and stores that token only in memory.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <UButton
-            v-if="plugin.enabled"
-            block
-            icon="i-lucide-download"
-            class="rounded-xl font-bold shadow-primary"
-            @click="startImport(plugin)"
-          >
-            Import with {{ plugin.name }}
-          </UButton>
-          <div
-            v-else
-            class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-mist-200 dark:border-mist-600 text-muted dark:text-mist-500 font-bold text-sm cursor-not-allowed"
-          >
-            <UIcon
-              name="i-lucide-download"
-              class="w-4 h-4"
-            />
-            Unavailable
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Info Section -->
-    <section class="attic-panel overflow-hidden rounded-[20px]">
-      <div class="flex flex-col gap-3 border-b border-mist-100 p-5 dark:border-mist-700 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 class="font-extrabold text-mist-950 dark:text-white">
-            From catalog to collection
+            Needs setup
           </h2>
-          <p class="text-xs text-muted">
-            Plugins fill the metadata; you keep control of the final record.
-          </p>
+          <span class="rounded-md bg-mist-100 px-2 py-0.5 text-xs font-bold text-muted dark:bg-mist-700">{{ setupCount }}</span>
         </div>
-        <UButton
-          to="/assets"
-          variant="soft"
-          icon="i-lucide-package-open"
-          class="rounded-xl"
+        <p
+          v-if="!configured.length"
+          class="mb-3 text-sm leading-6 text-muted"
         >
-          View assets
-        </UButton>
-      </div>
-
-      <div class="grid gap-px bg-mist-100 dark:bg-mist-700 md:grid-cols-3">
-        <div
-          v-for="step in [
-            { number: '01', icon: 'i-lucide-search', title: 'Find the item', copy: 'Choose a source and search using its supported identifiers.' },
-            { number: '02', icon: 'i-lucide-list-checks', title: 'Review the match', copy: 'Compare results and select the correct edition or release.' },
-            { number: '03', icon: 'i-lucide-package-plus', title: 'Import and refine', copy: 'Create the asset with metadata, then add your location and notes.' }
-          ]"
-          :key="step.number"
-          class="bg-white p-5 dark:bg-mist-800"
-        >
-          <div class="mb-3 flex items-center justify-between">
-            <div class="flex size-9 items-center justify-center rounded-xl bg-attic-50 text-attic-500 dark:bg-attic-500/10">
+          Connect a catalog to start importing items.
+        </p>
+        <ul class="attic-panel divide-y divide-mist-100 overflow-hidden rounded-2xl dark:divide-mist-700/60">
+          <li
+            v-for="group in setupGroups"
+            :key="group.provider.id"
+            class="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap sm:gap-4 sm:px-5"
+          >
+            <div
+              class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-mist-100 text-mist-500 dark:bg-mist-700 dark:text-mist-300"
+              aria-hidden="true"
+            >
               <UIcon
-                :name="step.icon"
-                class="size-4.5"
+                :name="importSourceIcon(group.sources[0]!)"
+                class="size-5"
               />
             </div>
-            <span class="font-mono text-xs font-bold text-mist-300">{{ step.number }}</span>
-          </div>
-          <h3 class="text-sm font-extrabold text-mist-950 dark:text-white">
-            {{ step.title }}
+            <div class="min-w-0 flex-1 basis-[calc(100%-3.5rem)] sm:basis-auto">
+              <h3 class="break-words text-sm font-bold leading-5 text-mist-800 dark:text-mist-100 sm:text-base">
+                {{ group.label }}
+              </h3>
+              <p class="mt-0.5 text-xs leading-5 text-muted">
+                {{ group.provider.name }} · Server setup required
+              </p>
+            </div>
+            <UButton
+              color="neutral"
+              variant="outline"
+              class="ml-[3.25rem] min-h-11 rounded-lg text-xs font-semibold sm:ml-0 sm:shrink-0"
+              :aria-label="`Setup instructions for ${group.provider.name}`"
+              @click="showSetup(group, $event)"
+            >
+              Setup instructions
+            </UButton>
+          </li>
+        </ul>
+      </section>
+    </template>
+
+    <details class="group border-t border-mist-200 pt-4 dark:border-mist-700">
+      <summary class="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold text-muted [&::-webkit-details-marker]:hidden">
+        <span class="flex items-center gap-2"><UIcon
+          name="i-lucide-circle-help"
+          class="size-4"
+        />How importing works</span>
+        <UIcon
+          name="i-lucide-chevron-down"
+          class="size-4 transition-transform group-open:rotate-180"
+        />
+      </summary>
+      <ol class="mt-3 grid gap-4 pb-3 sm:grid-cols-3">
+        <li
+          v-for="(step, index) in [
+            { title: 'Find the item', copy: 'Choose a source and search using its supported identifiers.' },
+            { title: 'Review the match', copy: 'Compare results and select the correct edition or release.' },
+            { title: 'Import and refine', copy: 'Create the asset with metadata, then add your location and notes.' }
+          ]"
+          :key="step.title"
+          class="text-sm leading-6"
+        >
+          <h3 class="font-bold text-mist-800 dark:text-mist-100">
+            {{ index + 1 }}. {{ step.title }}
           </h3>
-          <p class="mt-1 text-xs leading-5 text-muted">
+          <p class="mt-1 text-muted">
             {{ step.copy }}
           </p>
+        </li>
+      </ol>
+    </details>
+
+    <USlideover
+      v-model:open="panelOpen"
+      :title="panelTitle"
+      :description="panelDescription"
+      :ui="{ content: 'w-full sm:max-w-lg', header: 'pr-14', title: 'break-words', footer: 'justify-between', close: 'min-h-11 min-w-11' }"
+      :content="{ onCloseAutoFocus: restorePanelFocus }"
+      @after:leave="afterPanelClose"
+    >
+      <template #body>
+        <div
+          v-if="detailSource"
+          class="space-y-7 text-mist-800 dark:text-mist-100"
+        >
+          <p class="text-sm leading-6 text-muted">
+            {{ detailSource.description }}
+          </p>
+          <section aria-labelledby="search-methods-heading">
+            <h3
+              id="search-methods-heading"
+              class="mb-3 text-sm font-bold"
+            >
+              Search by
+            </h3>
+            <ul class="flex flex-wrap gap-2">
+              <li
+                v-for="field in detailSource.search_fields"
+                :key="field.key"
+                class="rounded-lg bg-mist-100 px-3 py-1.5 text-sm text-mist-700 dark:bg-mist-700 dark:text-mist-100"
+              >
+                {{ field.label }}
+              </li>
+            </ul>
+          </section>
+          <section
+            v-if="features.attributes && detailSource.attributes.length"
+            aria-labelledby="imported-fields-heading"
+          >
+            <h3
+              id="imported-fields-heading"
+              class="mb-3 text-sm font-bold"
+            >
+              Imported fields
+            </h3>
+            <dl class="divide-y divide-mist-100 dark:divide-mist-700">
+              <div
+                v-for="attr in detailSource.attributes"
+                :key="attr.key"
+                class="flex justify-between gap-4 py-2.5 text-sm"
+              >
+                <dt class="min-w-0 break-words">
+                  {{ attr.name }}
+                </dt>
+                <dd class="shrink-0 capitalize text-muted">
+                  {{ attr.data_type }}
+                </dd>
+              </div>
+            </dl>
+          </section>
+          <section
+            v-if="features.categories"
+            aria-labelledby="import-category-heading"
+            class="rounded-xl bg-mist-50 p-4 dark:bg-mist-800"
+          >
+            <h3
+              id="import-category-heading"
+              class="text-sm font-bold"
+            >
+              Category
+            </h3>
+            <p class="mt-2 text-sm text-muted">
+              {{ detailSource.category_name }}
+            </p>
+            <p class="mt-1 text-xs leading-5 text-muted">
+              {{ detailSource.category_id ? 'Imported items are added to this category.' : 'This category will be initialized when you import an item.' }}
+            </p>
+          </section>
+          <p class="text-xs leading-5 text-muted">
+            Configured on your server. Availability and credentials are checked when you search or import.
+          </p>
         </div>
-      </div>
-    </section>
+        <div
+          v-else-if="setupGroup"
+          class="space-y-6 text-mist-800 dark:text-mist-100"
+        >
+          <div class="rounded-xl bg-mist-50 p-4 dark:bg-mist-800">
+            <p class="text-xs font-bold uppercase tracking-wide text-muted">
+              Enables imports for
+            </p>
+            <ul class="mt-2 space-y-1 text-sm font-semibold">
+              <li
+                v-for="source in setupGroup.sources"
+                :key="source.id"
+              >
+                {{ source.category_name }}
+              </li>
+            </ul>
+          </div>
+          <template v-if="setupGroup.provider.credentials.length">
+            <ol class="list-decimal space-y-5 pl-5 text-sm leading-6 text-muted marker:font-bold marker:text-attic-500">
+              <li>
+                <p>{{ setupGroup.provider.instruction }}</p>
+                <a
+                  :href="setupGroup.provider.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="mt-1 inline-flex min-h-11 items-center gap-1.5 font-bold text-attic-600 underline underline-offset-4 dark:text-attic-300"
+                >
+                  {{ setupGroup.provider.linkLabel }}<UIcon
+                    name="i-lucide-arrow-up-right"
+                    class="size-4"
+                  />
+                </a>
+              </li>
+              <li>
+                Set {{ setupGroup.provider.credentials.length === 1 ? 'this environment variable' : 'these environment variables' }} on your Attic server:
+                <ul class="mt-3 space-y-2">
+                  <li
+                    v-for="credential in setupGroup.provider.credentials"
+                    :key="credential"
+                    class="rounded-lg border border-mist-200 bg-mist-50 px-3 py-2 dark:border-mist-700 dark:bg-mist-800"
+                  >
+                    <code class="break-all text-xs font-semibold text-mist-800 dark:text-mist-100">{{ credential }}</code>
+                  </li>
+                </ul>
+              </li>
+              <li>Restart Attic, then reload this page.</li>
+            </ol>
+            <p
+              v-if="setupGroup.provider.note"
+              class="rounded-xl border border-attic-200 bg-attic-50/60 p-4 text-sm leading-6 text-mist-700 dark:border-attic-500/30 dark:bg-attic-500/10 dark:text-mist-200"
+            >
+              {{ setupGroup.provider.note }}
+            </p>
+            <p class="text-xs leading-5 text-muted">
+              Credentials stay on your server. Ask your server administrator to complete setup if you don’t manage the deployment.
+            </p>
+          </template>
+          <div
+            v-else
+            class="space-y-3 text-sm leading-6 text-muted"
+          >
+            <p
+              v-for="source in setupGroup.sources"
+              :key="source.id"
+              class="break-words"
+            >
+              {{ source.disabled_reason || 'Contact your server administrator to configure this source.' }}
+            </p>
+          </div>
+        </div>
+      </template>
+      <template #footer>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          class="min-h-11 rounded-lg"
+          @click="panelOpen = false"
+        >
+          Close
+        </UButton>
+        <UButton
+          v-if="detailSource?.enabled"
+          icon="i-lucide-download"
+          class="min-h-11 rounded-lg font-bold"
+          :aria-label="`Import ${detailSource.category_name}`"
+          @click="startImport(detailSource)"
+        >
+          Import
+        </UButton>
+      </template>
+    </USlideover>
 
     <ImportModal
       v-model:open="importModalOpen"

@@ -43,13 +43,29 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000
         }
       })
       await page.goto('/plugins')
-      await expect(page.getByRole('heading', { name: 'Connect Rebrickable', exact: true })).toHaveCount(2)
-      await expect(page.getByRole('button', { name: /^Import with Rebrickable/ })).toHaveCount(0)
+      const setupButton = page.getByRole('button', { name: 'Setup instructions for Rebrickable', exact: true })
+      await expect(setupButton).toHaveCount(1)
+      await setupButton.click()
+      const setupPanel = page.getByRole('dialog', { name: 'Connect Rebrickable', exact: true })
+      await expect(setupPanel.locator('code')).toHaveText('ATTIC_REBRICKABLE_API_KEY')
+      await expect(setupPanel.getByText('One key enables both LEGO Sets and LEGO Minifigures.')).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(setupPanel).toHaveCount(0)
+      await expect(setupButton).toBeFocused()
+      await expect(page.getByRole('button', { name: /^Import LEGO/ })).toHaveCount(0)
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy()
       enabled = true
       await page.reload()
       for (const source of sources) {
-        await page.getByRole('button', { name: `Import with ${source.name}`, exact: true }).click()
+        if (source.id === 'rebrickable_sets') {
+          await page.getByRole('button', { name: `Details for ${source.category}`, exact: true }).click()
+          const panel = page.getByRole('dialog', { name: source.category, exact: true })
+          await expect(panel.getByRole('heading', { name: 'Imported fields', exact: true })).toBeVisible()
+          await panel.getByRole('button', { name: `Import ${source.category}`, exact: true }).click()
+          await expect(panel).toHaveCount(0)
+        } else {
+          await page.getByRole('button', { name: `Import ${source.category}`, exact: true }).click()
+        }
         const dialog = page.getByRole('dialog')
         await expect(dialog.getByRole('heading', { name: `Search ${source.name}`, exact: true })).toBeVisible()
         await dialog.getByPlaceholder('Search...').fill(source.title)
