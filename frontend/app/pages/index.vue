@@ -6,6 +6,7 @@ definePageMeta({ middleware: 'auth' })
 
 const { user } = useAuth()
 const { features } = useFeatures()
+const { settings } = useOrganizationSettings()
 const { data: categories } = useApi<Category[]>('/api/categories', { immediate: features.value.categories })
 const { data: locations } = useApi<Location[]>('/api/locations', { immediate: features.value.locations })
 const { data: collections, error: collectionsError } = useApi<Collection[]>('/api/collections', { immediate: features.value.collections })
@@ -58,9 +59,7 @@ const assetsPageUrl = computed(() => dashboardUrls.value.inventory)
 const { data: assets } = useApi<{ assets: Asset[], total: number }>(() => assetsUrl.value)
 const { data: assetStats } = useApi<AssetStats>(() => assetStatsUrl.value)
 
-const formatCurrency = (value: number) => new Intl.NumberFormat('en-US', {
-  style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0
-}).format(value)
+const formatCurrency = (value: number) => formatPurchaseTotal(value, settings.value.currency)
 
 const greeting = computed(() => {
   const hour = new Date().getHours()
