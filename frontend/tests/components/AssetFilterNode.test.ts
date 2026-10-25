@@ -10,7 +10,7 @@ const select = {
   template: '<select :value="modelValue" :multiple="multiple" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>'
 }
 
-async function setup(initial: FilterNode) {
+async function setup(initial: FilterNode, flags = { tags: true, attributes: true }) {
   const node = ref(initial)
   const wrapper = await mountSuspended(defineComponent({
     setup() {
@@ -19,7 +19,7 @@ async function setup(initial: FilterNode) {
         'onUpdate:modelValue': (value: FilterNode) => { node.value = value },
         'attributes': [{ id: 'vendor', name: 'Vendor', key: 'vendor', data_type: 'string', organization_id: '', created_at: '', updated_at: '' }],
         'options': { collections: [{ label: 'Computers', value: 'one' }, { label: 'Favorites', value: 'two' }] },
-        'features': { attributes: true, categories: true, collections: true, tags: true, locations: true, conditions: true, plugins: true, warranties: true },
+        'features': { attributes: true, categories: true, collections: true, tags: true, locations: true, conditions: true, plugins: true, warranties: true, ...flags },
         'ruleCount': 1
       })
     }
@@ -28,6 +28,26 @@ async function setup(initial: FilterNode) {
 }
 
 describe('filter rule editing', () => {
+  it('describes quick search coverage and keeps text attributes available', async () => {
+    const { wrapper } = await setup({ kind: 'rule', field: 'q', operator: 'search', value: 'model' })
+    expect(wrapper.get('select[aria-label="Rule field"]').text()).toContain('Quick search')
+    expect(wrapper.text()).toContain('personal notes, tags, and attribute values')
+    await wrapper.get('select[aria-label="Rule field"]').setValue('attribute:vendor')
+    expect(wrapper.get('select[aria-label="Rule comparison"]').text()).toContain('Contains')
+    expect(wrapper.text()).not.toContain('personal notes, tags, and attribute values')
+    wrapper.unmount()
+  })
+
+  it.each([
+    [{ tags: false, attributes: false }, 'Search names, descriptions, and personal notes.'],
+    [{ tags: true, attributes: false }, 'Search names, descriptions, personal notes, and tags.'],
+    [{ tags: false, attributes: true }, 'Search names, descriptions, personal notes, and attribute values.']
+  ])('describes enabled search fields for %o', async (flags, expected) => {
+    const { wrapper } = await setup({ kind: 'rule', field: 'q', operator: 'search', value: 'model' }, flags)
+    expect(wrapper.get('p').text()).toBe(expected)
+    wrapper.unmount()
+  })
+
   it('preserves selected collections when switching between any and all', async () => {
     const { node, wrapper } = await setup({ kind: 'rule', field: 'collections', operator: 'any', values: ['one', 'two'] })
     await wrapper.get('select[aria-label="Rule comparison"]').setValue('all')

@@ -37,6 +37,7 @@ watch(attribute, (attr) => {
 
 // Data types available
 const dataTypes = [
+  { value: 'url', label: 'URL', icon: 'i-lucide-link', description: 'A web link with optional display text' },
   { value: 'select', label: 'Select', icon: 'i-lucide-list-filter', description: 'Choose one or multiple configured options' },
   { value: 'string', label: 'String', icon: 'i-lucide-type', description: 'Short text, names, or identifiers' },
   { value: 'text', label: 'Text', icon: 'i-lucide-align-left', description: 'Long form text or descriptions' },
@@ -52,6 +53,7 @@ const impactModal = useTemplateRef('impactModal')
 // Get style for selected type
 function getTypeStyle(type: string): { bgColor: string, textColor: string, borderColor: string } {
   switch (type) {
+    case 'url':
     case 'string':
       return {
         bgColor: 'bg-slate-100 dark:bg-slate-800',
