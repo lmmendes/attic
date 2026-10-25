@@ -50,7 +50,7 @@ func TestIGDBURLMigration(t *testing.T) {
 		"https://example.com/a%20b?q=hello%20world#fragment", "http://[::1]:8000/game",
 		"https://example.com/ends-in-v", "\u00a0https://example.com/unicode-trim\u3000", "\u00a0\u3000",
 		"http://example.com/#a?%zz", "http://example.com/?good=%zz#a?%zz", "http://example.com/#a?%20",
-		"http://[fe80::1%25]", "http://[fe80::1%25en%0a]", "http://[fe80::1%25en%2f]", "http://[fe80::1%25en%00]",
+		"http://[fe80::1%25en%C3%A9]", "http://[fe80::1%25ené]", "http://[fe80::1%25]", "http://[fe80::1%25en%0a]", "http://[fe80::1%25en%2f]", "http://[fe80::1%25en%00]",
 		"http://[fe80::1%25en%20]", "http://example.com/path\u2000space", "http://example.com/path\u00a0space",
 		"http://%C3%A9.example.com", "http://<example>.com", "http://exa\"mple.com",
 		"http://example.com/?bad=%zz", "http://example.com/#bad%zz", "http://example.com/%",

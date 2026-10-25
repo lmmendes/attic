@@ -54,7 +54,7 @@ BEGIN
             IF zone = '' THEN RETURN NULL; END IF;
             FOR escape_code IN SELECT (regexp_matches(zone, '%([[:xdigit:]]{2})', 'g'))[1] LOOP
                 decoded := get_byte(decode(escape_code, 'hex'), 0);
-                IF decoded = 0 THEN RETURN NULL; END IF;
+                IF decoded = 0 OR decoded > 127 THEN RETURN NULL; END IF;
                 IF decoded < 128 AND decoded <> 32 AND decoded <> 37
                    AND chr(decoded) !~ '^[A-Za-z0-9!$&''()*+,;=:\[\]<>"._~-]$' THEN
                     RETURN NULL;
