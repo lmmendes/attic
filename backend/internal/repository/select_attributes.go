@@ -688,7 +688,7 @@ func validateSelectAsset(ctx context.Context, tx pgx.Tx, a *domain.Asset) error 
 		required = required && fieldsEnabled
 		v, present := values[key]
 		if dataType == "url" {
-			value, err := validateURLValue(v, required)
+			value, err := domain.NormalizeURLAttribute(v, required)
 			if err != nil {
 				return invalidAttribute(fmt.Sprintf("%s: %s", key, err))
 			}

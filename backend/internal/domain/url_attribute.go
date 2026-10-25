@@ -1,4 +1,4 @@
-package repository
+package domain
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// validateURLValue validates and normalizes the structured value without fetching its destination.
-func validateURLValue(value any, required bool) (map[string]string, error) {
+// NormalizeURLAttribute validates and normalizes the structured value without fetching its destination.
+func NormalizeURLAttribute(value any, required bool) (map[string]string, error) {
 	empty := func() (map[string]string, error) {
 		if required {
 			return nil, fmt.Errorf("a URL is required")

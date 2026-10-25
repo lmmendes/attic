@@ -36,7 +36,7 @@ func TestURLValueValidation(t *testing.T) {
 			if err := json.Unmarshal([]byte(tc.raw), &value); err != nil {
 				t.Fatal(err)
 			}
-			_, err := validateURLValue(value, tc.required)
+			_, err := domain.NormalizeURLAttribute(value, tc.required)
 			if (err == nil) != tc.valid {
 				t.Fatalf("valid=%v, error=%v", tc.valid, err)
 			}

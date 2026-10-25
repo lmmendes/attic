@@ -3,7 +3,10 @@ package database
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -18,6 +21,8 @@ func New(ctx context.Context, databaseURL string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parsing database URL: %w", err)
 	}
+
+	config.ConnConfig.OnNotice = logMigrationNotice
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
@@ -40,4 +45,11 @@ func (db *DB) Close() {
 // Health checks database connectivity
 func (db *DB) Health(ctx context.Context) error {
 	return db.Pool.Ping(ctx)
+}
+
+// Migration notices carry identifiers and rejection reasons, never raw URLs.
+func logMigrationNotice(_ *pgconn.PgConn, notice *pgconn.Notice) {
+	if notice.Severity == "WARNING" && strings.HasPrefix(notice.Message, "plugin URL migration:") {
+		slog.Warn(notice.Message)
+	}
 }
