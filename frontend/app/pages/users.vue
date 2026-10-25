@@ -630,9 +630,9 @@ function formatRelativeDate(dateString: string): string {
               <p class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-attic-500">
                 New account
               </p>
-              <h3 class="text-lg font-extrabold text-mist-950 dark:text-white">
+              <p class="text-lg font-extrabold text-mist-950 dark:text-white">
                 Add a person
-              </h3>
+              </p>
               <p class="text-xs text-muted">
                 Create their sign-in and choose household access.
               </p>
@@ -780,9 +780,9 @@ function formatRelativeDate(dateString: string): string {
               <p class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-attic-500">
                 Account settings
               </p>
-              <h3 class="truncate text-lg font-extrabold text-mist-950 dark:text-white">
+              <p class="truncate text-lg font-extrabold text-mist-950 dark:text-white">
                 Edit {{ selectedUser?.name || selectedUser?.email.split('@')[0] }}
-              </h3>
+              </p>
               <p class="truncate text-xs text-muted">
                 {{ selectedUser?.email }}
               </p>

@@ -11,7 +11,8 @@
     "typecheck": "nuxt typecheck",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "tsc": "tsc"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.147",
@@ -29,12 +30,13 @@
     "@testing-library/user-event": "^14.6.8",
     "@testing-library/vue": "^8.1.0",
     "@types/node": "^26.6.4",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "@vue/test-utils": "^2.5.1",
     "eslint": "^10.13.0",
     "happy-dom": "^21.0.4",
     "msw": "^3.0.2",
     "tailwindcss": "4.3.3",
-    "typescript": "^7.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "undici": "^8.12.3",
     "vite": "^8.3.5",
     "vitest": "^5.0.5",
