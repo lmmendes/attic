@@ -66,11 +66,11 @@ func Test_OIDCSessionRepository_Lifecycle(t *testing.T) {
 
 func Test_OIDCSessionMigration_Rollback(t *testing.T) {
 	ctx := context.Background()
-	down, err := migrations.FS.ReadFile("000029_oidc_sessions.down.sql")
+	down, err := migrations.FS.ReadFile("000031_oidc_sessions.down.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
-	up, err := migrations.FS.ReadFile("000029_oidc_sessions.up.sql")
+	up, err := migrations.FS.ReadFile("000031_oidc_sessions.up.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
