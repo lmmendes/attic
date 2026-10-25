@@ -35,6 +35,8 @@ function startImport(plugin: Plugin) {
 
 function getPluginIcon(plugin: Plugin): string {
   const identity = `${plugin.id} ${plugin.name}`.toLowerCase()
+  if (plugin.id === 'rebrickable_sets') return 'i-lucide-brick-wall'
+  if (plugin.id === 'rebrickable_minifigs') return 'i-lucide-person-standing'
   if (identity.includes('book')) return 'i-lucide-book-open'
   if (identity.includes('movie') || identity.includes('tmdb')) return 'i-lucide-film'
   if (identity.includes('game')) return 'i-lucide-gamepad-2'
@@ -275,6 +277,30 @@ function getAttributeStyle(index: number): { bg: string, text: string, border: s
                 {{ plugin.disabled_reason }}
               </p>
             </div>
+          </div>
+
+          <div
+            v-if="plugin.id.startsWith('rebrickable_') && !plugin.enabled"
+            class="mb-4 min-w-0 rounded-xl border border-attic-200 bg-attic-50/70 p-4 dark:border-attic-500/30 dark:bg-attic-500/10"
+          >
+            <h4 class="text-xs font-extrabold text-mist-950 dark:text-white">
+              Connect Rebrickable
+            </h4>
+            <ol class="mt-2 list-decimal space-y-1 pl-4 text-xs leading-5 text-muted">
+              <li>
+                Create a free account and generate an API key at
+                <a
+                  href="https://rebrickable.com/api/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="font-bold text-attic-600 underline underline-offset-2 dark:text-attic-300"
+                >Rebrickable</a>.
+              </li>
+              <li>Set <code class="break-all font-mono text-[11px]">ATTIC_REBRICKABLE_API_KEY</code> on your Attic server, then restart Attic.</li>
+            </ol>
+            <p class="mt-2 text-xs leading-5 text-muted">
+              One key enables both LEGO Sets and LEGO Minifigures.
+            </p>
           </div>
 
           <!-- IGDB setup instructions -->
