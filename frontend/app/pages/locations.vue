@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Location, Asset } from '~/types/api'
+import type { Location, Asset, AssetStats } from '~/types/api'
 import { getLocationNameError } from '~/utils/locationValidation'
 
 definePageMeta({
@@ -27,10 +27,20 @@ const { data: locationAssets, refresh: refreshAssets } = useApi<{ assets: Asset[
   { immediate: false, watch: false }
 )
 
+// Purchase value of every asset in the location (not just the loaded page), including quantities
+const locationStatsUrl = computed(() =>
+  selectedLocation.value ? `/api/assets/stats?location_id=${selectedLocation.value.id}` : ''
+)
+const { data: locationStats, refresh: refreshLocationStats } = useApi<AssetStats>(
+  () => locationStatsUrl.value,
+  { key: 'location-asset-stats', immediate: false, watch: false }
+)
+
 // Watch selected location to fetch assets
 watch(selectedLocation, (loc) => {
   if (loc) {
     refreshAssets()
+    refreshLocationStats()
   }
 })
 
@@ -305,12 +315,6 @@ const formatCurrency = (value: number) => {
   }).format(value)
 }
 
-// Calculate total value of assets in location
-const totalValue = computed(() => {
-  if (!locationAssets.value?.assets) return 0
-  return locationAssets.value.assets.reduce((sum, asset) => sum + (asset.purchase_price || 0), 0)
-})
-
 // Get icon for location based on explicit icon or fallback by name
 function getLocationIcon(location: Location): string {
   if (location.icon) return location.icon
@@ -582,7 +586,7 @@ function getLocationIcon(location: Location): string {
                           Total value
                         </p>
                         <p class="text-2xl font-black text-white">
-                          {{ formatCurrency(totalValue) }}
+                          {{ formatCurrency(locationStats?.total_value ?? 0) }}
                         </p>
                       </div>
                     </div>
