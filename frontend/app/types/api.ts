@@ -17,7 +17,22 @@ export interface OrganizationFeatures {
   plugins: boolean
 }
 
-export type AttributeDataType = 'string' | 'number' | 'boolean' | 'text' | 'date' | 'select'
+export interface CurrencyOptionsResponse {
+  currencies: string[]
+}
+
+export interface OrganizationSettings {
+  currency: string // ISO 4217 code of every asset price; amounts are never converted
+}
+
+export type AttributeDataType = 'string' | 'number' | 'boolean' | 'text' | 'date' | 'select' | 'url'
+
+export interface URLAttributeValue {
+  url: string
+  label?: string
+}
+
+export type AssetAttributeValue = string | number | boolean | string[] | URLAttributeValue | undefined
 
 export interface AttributeOptionInput {
   id?: string

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Asset, Category, Location, Condition, Tag } from '~/types/api'
+import type { AssetAttributeValue, Asset, Category, Location, Condition, Tag } from '~/types/api'
 import { isValidAssetQuantity, QUANTITY_VALIDATION_MESSAGE } from '~/utils/assetValidation'
 import { tagAssignment } from '~/utils/tags'
 
@@ -12,6 +12,7 @@ const router = useRouter()
 const toast = useToast()
 const apiFetch = useApiFetch()
 const { features } = useFeatures()
+const { settings } = useOrganizationSettings()
 
 const assetUrl = computed(() => `/api/assets/${route.params.id}`)
 const { data: asset, status: assetStatus, clear: clearAsset } = useApi<Asset>(
@@ -46,7 +47,7 @@ const form = reactive({
   location_id: undefined as string | undefined,
   condition_id: undefined as string | undefined,
   quantity: 1,
-  attributes: {} as Record<string, string | number | boolean | string[] | undefined>,
+  attributes: {} as Record<string, AssetAttributeValue>,
   purchase_at: '',
   purchase_price: undefined as number | undefined,
   purchase_note: '',
@@ -75,7 +76,7 @@ watch(
         ? Object.fromEntries(
             Object.entries(newAsset.attributes).map(([k, v]) => [
               k,
-              v as string | number | boolean
+              v as AssetAttributeValue
             ])
           )
         : {}
@@ -109,7 +110,7 @@ watch(
         if (requestId !== categoryRequestId) return
         selectedCategory.value = category
         // Initialize attribute values for new category
-        const newAttributes: Record<string, string | number | boolean | string[] | undefined> = {}
+        const newAttributes: Record<string, AssetAttributeValue> = {}
         selectedCategory.value?.attributes?.forEach((ca) => {
           if (ca.attribute) {
             // Preserve existing value if key exists
@@ -133,8 +134,9 @@ watch(
   { immediate: true }
 )
 
-function getDefaultValue(dataType: string): string | number | boolean | undefined {
+function getDefaultValue(dataType: string): AssetAttributeValue {
   switch (dataType) {
+    case 'url':
     case 'select':
       return undefined
     case 'number':
@@ -611,8 +613,14 @@ async function submitForm() {
                       >*</span>
                     </label>
 
+                    <URLAttributeInput
+                      v-if="ca.attribute.data_type === 'url'"
+                      v-model="form.attributes[ca.attribute.key]"
+                      :required="ca.required"
+                      :name="ca.attribute.name"
+                    />
                     <SelectAttributeInput
-                      v-if="ca.attribute.data_type === 'select'"
+                      v-else-if="ca.attribute.data_type === 'select'"
                       :attribute="ca.attribute"
                       :model-value="form.attributes[ca.attribute.key]"
                       :required="ca.required"
@@ -717,14 +725,14 @@ async function submitForm() {
                   Purchase Price
                 </label>
                 <div class="relative">
-                  <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 pointer-events-none">$</span>
+                  <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 pointer-events-none">{{ settings.currency }}</span>
                   <input
                     v-model.number="form.purchase_price"
                     type="number"
                     step="0.01"
                     min="0"
                     placeholder="0.00"
-                    class="block w-full rounded-xl border-mist-200 bg-white py-3 pl-8 pr-4 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
+                    class="block w-full rounded-xl border-mist-200 bg-white py-3 pl-14 pr-4 text-sm text-mist-950 shadow-sm placeholder:text-dimmed focus:border-attic-500 focus:ring-attic-500 dark:border-mist-600 dark:bg-mist-800 dark:text-white"
                   >
                 </div>
               </div>

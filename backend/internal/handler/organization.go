@@ -56,6 +56,48 @@ func (h *Handler) UpdateOrganizationFeatures(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, http.StatusOK, features)
 }
 
+// GetOrganizationSettings returns organization-wide preferences. Like the
+// feature switches, reading them is available to all users.
+func (h *Handler) GetOrganizationSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := h.repos.Organizations.GetSettings(r.Context(), h.orgID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get organization settings")
+		return
+	}
+	writeJSON(w, http.StatusOK, settings)
+}
+
+// CurrencyOptionsResponse contains the current currency choices for Settings.
+type CurrencyOptionsResponse struct {
+	Currencies []string `json:"currencies"`
+}
+
+// GetOrganizationCurrencies returns available codes without querying settings.
+func (h *Handler) GetOrganizationCurrencies(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, CurrencyOptionsResponse{Currencies: domain.AvailableCurrencies()})
+}
+
+// UpdateOrganizationSettings replaces organization-wide preferences. Changing the
+// currency relabels all existing asset prices; amounts are never converted.
+func (h *Handler) UpdateOrganizationSettings(w http.ResponseWriter, r *http.Request) {
+	var req domain.OrganizationSettings
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	code, err := domain.NormalizeCurrency(req.Currency)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "currency must be a known ISO 4217 currency code")
+		return
+	}
+	settings := &domain.OrganizationSettings{Currency: code}
+	if err := h.repos.Organizations.UpdateSettings(r.Context(), h.orgID, settings); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update organization settings")
+		return
+	}
+	writeJSON(w, http.StatusOK, settings)
+}
+
 func decodeMap(raw map[string]any, target any) error {
 	// Reuse the same JSON semantics as request decoding without accepting
 	// unknown fields a second time.

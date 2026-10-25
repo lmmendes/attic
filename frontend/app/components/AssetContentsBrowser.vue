@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { formatPurchasePrice } from '~/utils/currency'
 import type { Asset, AssetsResponse } from '~/types/api'
 
 const props = defineProps<{ asset: Asset }>()
 const emit = defineEmits<{ changed: [] }>()
+const { settings } = useOrganizationSettings()
 const apiFetch = useApiFetch()
 const toast = useToast()
 const active = ref(props.asset.id)
@@ -208,7 +210,7 @@ watch(() => props.asset, (asset) => {
   known[asset.id] = { ...asset, child_count: branches[asset.id]?.total ?? asset.child_count }
 })
 function price(asset: Asset) {
-  return asset.purchase_price == null ? 'Price unknown' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(asset.purchase_price * asset.quantity)
+  return asset.purchase_price == null ? 'Price unknown' : formatPurchasePrice(asset.purchase_price * asset.quantity, settings.value.currency)
 }
 </script>
 

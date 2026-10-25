@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatPurchasePrice } from '~/utils/currency'
 import type { Asset, Warranty, Attachment, Category } from '~/types/api'
 
 definePageMeta({
@@ -10,6 +11,7 @@ const router = useRouter()
 const toast = useToast()
 const apiFetch = useApiFetch()
 const { features } = useFeatures()
+const { settings } = useOrganizationSettings()
 
 const assetUrl = computed(() => `/api/assets/${route.params.id}`)
 const { data: asset, refresh: refreshAsset } = useApi<Asset>(
@@ -181,6 +183,83 @@ async function deleteAttachment(attachment: Attachment) {
 
 // State for attachment thumbnail URLs
 const attachmentUrls = ref<Record<string, string>>({})
+const imageViewerOpen = ref(false)
+const activeImageIndex = ref(0)
+const imageZoom = ref(1)
+
+function resetImageZoom() {
+  imageZoom.value = 1
+}
+
+function changeImageZoom(amount: number) {
+  imageZoom.value = Math.min(3, Math.max(1, Math.round((imageZoom.value + amount) * 10) / 10))
+}
+
+function selectGalleryImage(index: number) {
+  activeImageIndex.value = index
+  resetImageZoom()
+}
+
+const imageGallery = computed(() => {
+  const images = (attachments.value || [])
+    .filter(attachment => isImageAttachment(attachment) && attachmentUrls.value[attachment.id])
+    .map(attachment => ({
+      id: attachment.id,
+      name: attachment.file_name,
+      url: attachmentUrls.value[attachment.id]!
+    }))
+  const mainImageUrl = asset.value?.main_attachment_url
+  if (mainImageUrl) {
+    const mainImageId = asset.value?.main_attachment_id
+    const mainIndex = images.findIndex(image => image.id === mainImageId)
+    if (mainIndex >= 0) {
+      images[mainIndex]!.url = mainImageUrl
+      images.unshift(...images.splice(mainIndex, 1))
+    } else {
+      images.unshift({
+        id: mainImageId || 'main-image',
+        name: asset.value?.main_attachment?.file_name || `${asset.value?.name} image`,
+        url: mainImageUrl
+      })
+    }
+  }
+  return images
+})
+
+function openImageViewer(imageId?: string) {
+  const index = imageGallery.value.findIndex(image => image.id === imageId)
+  if (index < 0) return
+  activeImageIndex.value = index
+  resetImageZoom()
+  imageViewerOpen.value = true
+}
+
+function showAdjacentImage(direction: -1 | 1) {
+  const count = imageGallery.value.length
+  if (count < 2) return
+  selectGalleryImage((activeImageIndex.value + direction + count) % count)
+}
+
+function handleImageViewerKeydown(event: KeyboardEvent) {
+  if (!imageViewerOpen.value) return
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    showAdjacentImage(-1)
+  } else if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    showAdjacentImage(1)
+  }
+}
+
+watch(imageViewerOpen, (open) => {
+  if (typeof window === 'undefined') return
+  if (open) window.addEventListener('keydown', handleImageViewerKeydown)
+  else window.removeEventListener('keydown', handleImageViewerKeydown)
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') window.removeEventListener('keydown', handleImageViewerKeydown)
+})
 
 // Helper to check if attachment is an image
 function isImageAttachment(attachment: Attachment): boolean {
@@ -233,37 +312,113 @@ async function clearMainImage() {
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
+const dragging = ref(false)
+let dragDepth = 0
 
 function triggerUpload() {
   fileInput.value?.click()
 }
 
-async function handleFileUpload(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
+const uploadQueue: File[] = []
+const retryFiles = ref<File[]>([])
+
+async function uploadFiles(files: File[]) {
+  if (!files.length || uploading.value) {
+    if (uploading.value) uploadQueue.push(...files)
+    return
+  }
 
   uploading.value = true
+  let succeeded = 0
+  let index = 0
   try {
-    const formData = new FormData()
-    formData.append('file', file)
+    for (; index < files.length; index++) {
+      const file = files[index]!
+      const formData = new FormData()
+      formData.append('file', file)
 
-    await fetch(`${config.public.apiBase}/api/assets/${route.params.id}/attachments`, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include'
+      const response = await fetch(`${config.public.apiBase}/api/assets/${route.params.id}/attachments`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      })
+      if (!response.ok) {
+        throw new Error(`Upload failed with status ${response.status}`)
+      }
+      succeeded++
+    }
+
+    toast.add({
+      title: succeeded > 1 ? `${succeeded} files uploaded` : 'File uploaded',
+      color: 'success'
     })
-
-    toast.add({ title: 'File uploaded', color: 'success' })
-    refreshAttachments()
-    // Refresh asset in case this was auto-set as main image
-    refreshAsset()
   } catch {
-    toast.add({ title: 'Failed to upload file', color: 'error' })
+    const remaining = files.slice(index)
+    if (succeeded === 0) {
+      toast.add({ title: 'Failed to upload file', color: 'error' })
+    } else {
+      toast.add({
+        title: `Uploaded ${succeeded} of ${files.length} files`,
+        color: 'warning'
+      })
+    }
+    if (remaining.length) {
+      retryFiles.value = [...retryFiles.value, ...remaining]
+    }
   } finally {
+    if (succeeded > 0) {
+      refreshAttachments()
+      // Refresh asset in case this was auto-set as main image
+      refreshAsset()
+    }
     uploading.value = false
-    input.value = ''
   }
+
+  if (uploadQueue.length) {
+    const next = uploadQueue.splice(0)
+    await uploadFiles(next)
+  }
+}
+
+async function handleFileUpload(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = input.files
+  if (!files?.length) return
+  await uploadFiles(Array.from(files))
+  input.value = ''
+}
+
+function retryUpload() {
+  const files = retryFiles.value
+  if (!files.length || uploading.value) return
+  retryFiles.value = []
+  void uploadFiles(files)
+}
+
+function onDragEnter(event: DragEvent) {
+  if (!event.dataTransfer?.types.includes('Files')) return
+  event.preventDefault()
+  dragDepth++
+  dragging.value = true
+}
+
+function onDragOver(event: DragEvent) {
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+}
+
+function onDragLeave(event: DragEvent) {
+  event.preventDefault()
+  dragDepth = Math.max(0, dragDepth - 1)
+  if (dragDepth === 0) dragging.value = false
+}
+
+function onDrop(event: DragEvent) {
+  event.preventDefault()
+  dragDepth = 0
+  dragging.value = false
+  const files = event.dataTransfer?.files
+  if (files?.length) void uploadFiles(Array.from(files))
 }
 
 function formatDate(dateStr?: string) {
@@ -285,10 +440,8 @@ function formatBytes(bytes: number) {
 
 function formatCurrency(value?: number) {
   if (value === undefined || value === null) return '-'
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(value)
+  // Preserve currency-specific precision while showing at least two decimals.
+  return formatPurchasePrice(value, settings.value.currency)
 }
 
 function daysUntilExpiry(endDate?: string) {
@@ -344,12 +497,19 @@ const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', te
         <!-- Main Image / Placeholder -->
         <div class="relative group">
           <div class="attic-panel flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[24px] bg-gradient-to-br from-attic-50 to-mist-100 dark:from-mist-700 dark:to-mist-800 lg:aspect-square xl:aspect-[4/3]">
-            <img
+            <button
               v-if="asset.main_attachment_url"
-              :src="asset.main_attachment_url"
-              :alt="asset.name"
-              class="w-full h-full object-cover"
+              type="button"
+              class="h-full w-full cursor-zoom-in"
+              :aria-label="`View ${asset.name} image gallery`"
+              @click="openImageViewer(asset.main_attachment_id)"
             >
+              <img
+                :src="asset.main_attachment_url"
+                :alt="asset.name"
+                class="h-full w-full object-cover"
+              >
+            </button>
             <div
               v-else
               class="text-center p-8"
@@ -368,7 +528,7 @@ const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', te
             v-if="asset.main_attachment_url"
             class="absolute right-3 top-3 rounded-xl bg-black/50 p-2 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover:opacity-100"
             title="Remove main image"
-            @click="clearMainImage"
+            @click.stop="clearMainImage"
           >
             <UIcon
               name="i-lucide-x"
@@ -685,7 +845,14 @@ const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', te
                 class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50"
               >
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ ca.attribute?.name }}</span>
-                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ getAttributeValue(ca.attribute?.key || '') }}</span>
+                <URLAttributeDisplay
+                  v-if="ca.attribute?.data_type === 'url'"
+                  :value="asset?.attributes?.[ca.attribute.key]"
+                />
+                <span
+                  v-else
+                  class="min-w-0 break-all text-sm font-bold text-mist-950 dark:text-white"
+                >{{ getAttributeValue(ca.attribute?.key || '') }}</span>
               </div>
             </div>
             <div class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -695,7 +862,14 @@ const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', te
                 class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50"
               >
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ ca.attribute?.name }}</span>
-                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ getAttributeValue(ca.attribute?.key || '') }}</span>
+                <URLAttributeDisplay
+                  v-if="ca.attribute?.data_type === 'url'"
+                  :value="asset?.attributes?.[ca.attribute.key]"
+                />
+                <span
+                  v-else
+                  class="min-w-0 break-all text-sm font-bold text-mist-950 dark:text-white"
+                >{{ getAttributeValue(ca.attribute?.key || '') }}</span>
               </div>
             </div>
           </div>
@@ -789,7 +963,26 @@ const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', te
         </section>
 
         <!-- Attachments Section -->
-        <section class="attic-panel overflow-hidden rounded-[20px]">
+        <section
+          class="attic-panel relative overflow-hidden rounded-[20px]"
+          :class="{ 'ring-2 ring-attic-500 dark:ring-attic-400': dragging }"
+          @dragenter="onDragEnter"
+          @dragover="onDragOver"
+          @dragleave="onDragLeave"
+          @drop="onDrop"
+        >
+          <div
+            v-if="dragging"
+            class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-attic-500/10"
+          >
+            <div class="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-attic-500 shadow-lg dark:bg-mist-800 dark:text-attic-300">
+              <UIcon
+                name="i-lucide-upload"
+                class="w-4 h-4"
+              />
+              Drop files to upload
+            </div>
+          </div>
           <div class="flex items-center justify-between border-b border-mist-100 bg-mist-50/60 px-5 py-3.5 dark:border-mist-700 dark:bg-mist-800/50">
             <h3 class="text-base font-bold flex items-center gap-2 text-mist-950 dark:text-white">
               <UIcon
@@ -807,14 +1000,37 @@ const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', te
                 name="i-lucide-upload"
                 class="w-4 h-4"
               />
-              Upload File
+              {{ uploading ? 'Uploading…' : 'Add files' }}
             </button>
             <input
               ref="fileInput"
               type="file"
+              multiple
               class="hidden"
               @change="handleFileUpload"
             >
+          </div>
+          <div
+            v-if="retryFiles.length"
+            class="flex items-center justify-between gap-3 border-b border-terracotta-100 bg-terracotta-50 px-5 py-2.5 dark:border-terracotta-900/40 dark:bg-terracotta-950/10"
+          >
+            <span class="text-xs font-semibold text-terracotta-700 dark:text-terracotta-300">
+              {{ retryFiles.length }} {{ retryFiles.length > 1 ? 'files' : 'file' }} not uploaded
+            </span>
+            <div class="flex items-center gap-2">
+              <button
+                class="text-xs font-bold text-terracotta-700 hover:underline dark:text-terracotta-300"
+                @click="retryUpload"
+              >
+                Retry
+              </button>
+              <button
+                class="text-xs font-bold text-muted hover:underline"
+                @click="retryFiles = []"
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
           <div
             v-if="attachments?.length"
@@ -828,11 +1044,19 @@ const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', te
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
                   <!-- Show thumbnail for images -->
-                  <img
+                  <button
                     v-if="isImageAttachment(attachment) && attachmentUrls[attachment.id]"
-                    :src="attachmentUrls[attachment.id]"
-                    class="w-full h-full object-cover"
+                    type="button"
+                    class="h-full w-full cursor-zoom-in"
+                    :aria-label="`View ${attachment.file_name}`"
+                    @click="openImageViewer(attachment.id)"
                   >
+                    <img
+                      :src="attachmentUrls[attachment.id]"
+                      :alt="attachment.file_name"
+                      class="h-full w-full object-cover"
+                    >
+                  </button>
                   <UIcon
                     v-else
                     name="i-lucide-file"
@@ -887,23 +1111,38 @@ const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', te
           </div>
           <div
             v-else
-            class="p-8 text-center"
+            class="m-4 flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed px-5 py-6 transition-colors"
+            :class="dragging
+              ? 'border-attic-500 bg-attic-50/60 dark:border-attic-400 dark:bg-attic-500/10'
+              : 'border-mist-200 bg-mist-50/40 dark:border-mist-600 dark:bg-mist-800/30'"
           >
-            <UIcon
-              name="i-lucide-file-x"
-              class="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3"
-            />
-            <p class="text-gray-500 dark:text-gray-400 mb-4">
-              No attachments yet
-            </p>
-            <UButton
-              variant="soft"
-              size="sm"
-              :loading="uploading"
-              @click="triggerUpload"
-            >
-              Upload File
-            </UButton>
+            <div class="flex items-center gap-3">
+              <div class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-attic-50 text-attic-500 dark:bg-attic-500/10 dark:text-attic-300">
+                <UIcon
+                  name="i-lucide-upload"
+                  class="size-5"
+                />
+              </div>
+              <div>
+                <p class="text-sm font-bold text-mist-950 dark:text-white">
+                  No attachments yet
+                </p>
+                <p class="mt-1 max-w-xs text-sm text-muted">
+                  Keep photos, receipts, and manuals close at hand.
+                </p>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-center gap-2 text-sm text-muted">
+              <span>Drag files here, or</span>
+              <UButton
+                variant="soft"
+                size="sm"
+                :loading="uploading"
+                @click="triggerUpload"
+              >
+                Choose files
+              </UButton>
+            </div>
           </div>
         </section>
 
@@ -930,6 +1169,122 @@ const warrantyStatus = computed((): { color: 'error' | 'warning' | 'success', te
         </p>
       </div>
     </div>
+
+    <!-- Image Gallery -->
+    <UModal
+      v-model:open="imageViewerOpen"
+      fullscreen
+      :title="imageGallery[activeImageIndex]?.name || 'Asset image'"
+      description="Browse this asset’s attached images. Use the arrow keys or navigation buttons to move between images."
+    >
+      <template #content>
+        <div class="flex h-[100dvh] w-screen flex-col bg-mist-950 text-white">
+          <div class="flex shrink-0 items-center justify-between gap-4 px-4 py-3 sm:px-6">
+            <div class="min-w-0">
+              <p class="truncate text-sm font-semibold">
+                {{ imageGallery[activeImageIndex]?.name || asset?.name }}
+              </p>
+              <p class="text-xs text-white/60">
+                {{ activeImageIndex + 1 }} of {{ imageGallery.length }} images
+              </p>
+            </div>
+            <UButton
+              variant="ghost"
+              color="neutral"
+              icon="i-lucide-x"
+              aria-label="Close image viewer"
+              @click="imageViewerOpen = false"
+            />
+          </div>
+
+          <div class="relative flex min-h-0 flex-1">
+            <div class="size-full overflow-auto px-14 py-3 sm:px-20">
+              <div class="flex min-h-full min-w-full items-center justify-center">
+                <img
+                  v-if="imageGallery[activeImageIndex]"
+                  :key="imageGallery[activeImageIndex]!.url"
+                  :src="imageGallery[activeImageIndex]!.url"
+                  :alt="imageGallery[activeImageIndex]!.name"
+                  class="max-h-full max-w-full origin-top-left select-none object-contain transition-transform duration-150"
+                  :style="{ transform: `scale(${imageZoom})` }"
+                >
+              </div>
+            </div>
+            <UButton
+              v-if="imageGallery.length > 1"
+              variant="solid"
+              color="neutral"
+              icon="i-lucide-chevron-left"
+              aria-label="Previous image"
+              class="absolute left-2 top-1/2 -translate-y-1/2 sm:left-6"
+              @click="showAdjacentImage(-1)"
+            />
+            <UButton
+              v-if="imageGallery.length > 1"
+              variant="solid"
+              color="neutral"
+              icon="i-lucide-chevron-right"
+              aria-label="Next image"
+              class="absolute right-2 top-1/2 -translate-y-1/2 sm:right-6"
+              @click="showAdjacentImage(1)"
+            />
+          </div>
+
+          <div class="flex shrink-0 flex-col items-center gap-3 px-4 pb-4">
+            <div class="flex items-center gap-2">
+              <UButton
+                variant="ghost"
+                color="neutral"
+                icon="i-lucide-zoom-out"
+                aria-label="Zoom out"
+                :disabled="imageZoom <= 1"
+                @click="changeImageZoom(-0.5)"
+              />
+              <button
+                type="button"
+                class="min-w-12 text-center text-xs tabular-nums text-white/70 hover:text-white"
+                aria-label="Reset zoom"
+                :disabled="imageZoom === 1"
+                @click="resetImageZoom"
+              >
+                {{ Math.round(imageZoom * 100) }}%
+              </button>
+              <UButton
+                variant="ghost"
+                color="neutral"
+                icon="i-lucide-zoom-in"
+                aria-label="Zoom in"
+                :disabled="imageZoom >= 3"
+                @click="changeImageZoom(0.5)"
+              />
+            </div>
+            <div
+              v-if="imageGallery.length > 1"
+              class="max-w-full overflow-x-auto"
+            >
+              <div class="flex w-max min-w-full justify-center gap-2">
+                <button
+                  v-for="(image, index) in imageGallery"
+                  :key="image.id"
+                  type="button"
+                  class="size-12 shrink-0 overflow-hidden rounded-lg border-2 transition-opacity sm:size-14"
+                  :class="index === activeImageIndex ? 'border-white' : 'border-transparent opacity-55 hover:opacity-100'"
+                  :aria-label="`Show image ${index + 1}: ${image.name}`"
+                  :aria-current="index === activeImageIndex ? 'true' : undefined"
+                  @click="selectGalleryImage(index)"
+                >
+                  <img
+                    :src="image.url"
+                    :alt="image.name"
+                    class="size-full object-cover"
+                  >
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </UModal>
 
     <!-- Delete Asset Modal -->
     <UModal

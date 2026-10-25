@@ -10,6 +10,7 @@ import { createFetch } from 'ofetch'
 import type { Asset } from '../../app/types/api'
 import AssetPicker from '../../app/components/AssetPicker.vue'
 import AssetContents from '../../app/components/AssetContents.vue'
+import AssetContentsNode from '../../app/components/AssetContentsNode.vue'
 import AssetContentsBrowser from '../../app/components/AssetContentsBrowser.vue'
 import NewAsset from '../../app/pages/assets/new.vue'
 import EditAsset from '../../app/pages/assets/[id]/edit.vue'
@@ -22,7 +23,8 @@ const fetchGlobals = await vi.hoisted(async () => {
   return original
 })
 
-const { route, toast, flags } = vi.hoisted(() => ({
+const { route, toast, flags, currencySettings } = vi.hoisted(() => ({
+  currencySettings: { value: { currency: 'USD' } },
   route: { params: { id: 'pc' }, query: {} as Record<string, string> },
   toast: vi.fn(),
   flags: { locations: true, categories: false, collections: false, tags: false, conditions: false, warranties: false, plugins: false, attributes: false }
@@ -33,6 +35,7 @@ mockNuxtImport('useRuntimeConfig', () => () => ({ public: { apiBase: 'http://att
 mockNuxtImport('useFeatures', () => () => ({ features: ref(flags) }))
 mockNuxtImport('useRoute', () => () => route)
 mockNuxtImport('useToast', () => () => ({ add: toast }))
+mockNuxtImport('useOrganizationSettings', () => () => ({ settings: currencySettings }))
 
 const server = setupServer()
 const saves: { method: string, body: Record<string, unknown> }[] = []
@@ -75,6 +78,7 @@ beforeEach(() => {
   listQueries.length = 0
   route.params.id = 'pc'
   route.query = {}
+  currencySettings.value.currency = 'USD'
   flags.locations = true
   assets = {
     pc: fixture('pc', 'Gaming PC', { location_id: 'garage', location: { id: 'garage', name: 'Garage', organization_id: 'org', created_at: '', updated_at: '' } }),
@@ -108,6 +112,17 @@ beforeEach(() => {
 })
 
 describe('Asset containment', () => {
+  it('uses the organization currency and preserves fractional contents prices', async () => {
+    currencySettings.value.currency = 'EUR'
+    assets.gpu!.purchase_price = 0.25
+    assets.gpu!.quantity = 2
+    const row = await mounted(AssetContentsNode, { props: { asset: assets.gpu! } })
+    expect(row.text()).toContain('€0.50')
+    const browser = await mounted(AssetContentsBrowser, { props: { asset: assets.pc! } })
+    await settle(() => expect(browser.get('ul[aria-label="Asset results"]').text()).toContain('€0.50'))
+    expect(browser.text()).not.toContain('$')
+  })
+
   it('loads branches lazily and browses direct contents without eager grandchildren', async () => {
     assets.motherboard = fixture('motherboard', 'Motherboard', { parent_id: 'pc', child_count: 1 })
     assets.ram = fixture('ram', '32 GB RAM', { parent_id: 'motherboard', child_count: 0 })

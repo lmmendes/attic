@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { formatPurchasePrice } from '~/utils/currency'
 import type { Asset } from '~/types/api'
 
 const props = defineProps<{ asset: Asset, editing?: boolean, removed?: boolean }>()
 const emit = defineEmits<{ remove: [], undo: [] }>()
+const { settings } = useOrganizationSettings()
 const price = computed(() => props.asset.purchase_price == null
   ? 'Price unknown'
-  : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(props.asset.purchase_price * props.asset.quantity))
+  : formatPurchasePrice(props.asset.purchase_price * props.asset.quantity, settings.value.currency))
 </script>
 
 <template>
