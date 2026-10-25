@@ -168,8 +168,9 @@ function getCategoryStyle(category: Category): { icon: string, bgColor: string, 
 // Get attribute style by type
 function getAttributeStyle(dataType: string): { icon: string, bgColor: string, textColor: string } {
   switch (dataType) {
+    case 'url':
     case 'string':
-      return { icon: 'i-lucide-type', bgColor: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-600 dark:text-blue-400' }
+      return { icon: dataType === 'url' ? 'i-lucide-link' : 'i-lucide-type', bgColor: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-600 dark:text-blue-400' }
     case 'number':
       return { icon: 'i-lucide-hash', bgColor: 'bg-amber-50 dark:bg-amber-900/20', textColor: 'text-amber-600 dark:text-amber-400' }
     case 'boolean':

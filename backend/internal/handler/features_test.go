@@ -14,11 +14,13 @@ import (
 )
 
 type mockOrganizationFeatureRepository struct {
-	features    *domain.OrganizationFeatures
-	getCalls    int
-	updated     *domain.OrganizationFeatures
-	featuresErr error
-	updateErr   error
+	features        *domain.OrganizationFeatures
+	getCalls        int
+	updated         *domain.OrganizationFeatures
+	featuresErr     error
+	updateErr       error
+	settings        *domain.OrganizationSettings
+	updatedSettings *domain.OrganizationSettings
 }
 
 func (m *mockOrganizationFeatureRepository) GetByID(context.Context, uuid.UUID) (*domain.Organization, error) {
@@ -45,6 +47,76 @@ func (m *mockOrganizationFeatureRepository) GetFeatures(context.Context, uuid.UU
 func (m *mockOrganizationFeatureRepository) UpdateFeatures(_ context.Context, _ uuid.UUID, features *domain.OrganizationFeatures) error {
 	m.updated = features
 	return m.updateErr
+}
+
+func (m *mockOrganizationFeatureRepository) GetSettings(context.Context, uuid.UUID) (*domain.OrganizationSettings, error) {
+	return m.settings, nil
+}
+
+func (m *mockOrganizationFeatureRepository) UpdateSettings(_ context.Context, _ uuid.UUID, settings *domain.OrganizationSettings) error {
+	m.updatedSettings = settings
+	return nil
+}
+
+func TestGetOrganizationSettingsReturnsCurrency(t *testing.T) {
+	repo := &mockOrganizationFeatureRepository{settings: &domain.OrganizationSettings{Currency: "GBP"}}
+	h := handlerWithFeatureRepository(repo)
+	recorder := httptest.NewRecorder()
+
+	h.GetOrganizationSettings(recorder, httptest.NewRequest(http.MethodGet, "/api/organization/settings", nil))
+
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "{\"currency\":\"GBP\"}\n" {
+		t.Fatalf("unexpected response %d: %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestUpdateOrganizationSettingsNormalizesCurrency(t *testing.T) {
+	repo := &mockOrganizationFeatureRepository{}
+	h := handlerWithFeatureRepository(repo)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPut, "/api/organization/settings", strings.NewReader(`{"currency":" gbp "}`))
+
+	h.UpdateOrganizationSettings(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
+	}
+	if repo.updatedSettings == nil || repo.updatedSettings.Currency != "GBP" {
+		t.Fatalf("expected GBP to be persisted, got %+v", repo.updatedSettings)
+	}
+}
+
+func TestUpdateOrganizationSettingsAcceptsCurrentCurrencies(t *testing.T) {
+	for _, code := range []string{"MRU", "SLE", "VES", "XCG", "ZWG"} {
+		t.Run(code, func(t *testing.T) {
+			repo := &mockOrganizationFeatureRepository{}
+			h := handlerWithFeatureRepository(repo)
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodPut, "/api/organization/settings", strings.NewReader(`{"currency":"`+strings.ToLower(code)+`"}`))
+			h.UpdateOrganizationSettings(recorder, request)
+			if recorder.Code != http.StatusOK || repo.updatedSettings == nil || repo.updatedSettings.Currency != code {
+				t.Fatalf("current currency %s: %d %s", code, recorder.Code, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestUpdateOrganizationSettingsRejectsInvalidCurrency(t *testing.T) {
+	for _, body := range []string{`{"currency":"DEM"}`, `{"currency":"frf"}`, `{"currency":"xxx"}`, `{"currency":"XTS"}`, `{"currency":"EURO"}`, `{"currency":"ZZZ"}`, `{"currency":""}`, `{}`} {
+		repo := &mockOrganizationFeatureRepository{}
+		h := handlerWithFeatureRepository(repo)
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPut, "/api/organization/settings", strings.NewReader(body))
+
+		h.UpdateOrganizationSettings(recorder, request)
+
+		if recorder.Code != http.StatusBadRequest {
+			t.Errorf("%s: expected status %d, got %d", body, http.StatusBadRequest, recorder.Code)
+		}
+		if repo.updatedSettings != nil {
+			t.Errorf("%s: invalid settings were persisted", body)
+		}
+	}
 }
 
 func handlerWithFeatureRepository(repo domain.OrganizationRepository) *Handler {

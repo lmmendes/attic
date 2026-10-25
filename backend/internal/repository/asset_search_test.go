@@ -96,7 +96,7 @@ func TestSearchNotesMigration(t *testing.T) {
 	defer tx.Rollback(ctx)
 	apply := func(direction string) {
 		t.Helper()
-		sql, err := os.ReadFile("../../migrations/000028_search_notes." + direction + ".sql")
+		sql, err := os.ReadFile("../../migrations/000029_search_notes." + direction + ".sql")
 		if err != nil {
 			t.Fatal(err)
 		}

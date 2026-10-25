@@ -30,6 +30,11 @@ type OrganizationFeatures struct {
 	Plugins     bool `json:"plugins"`
 }
 
+// OrganizationSettings holds organization-wide preferences.
+type OrganizationSettings struct {
+	Currency string `json:"currency"` // ISO 4217 code of every asset price; amounts are never converted
+}
+
 // UserRole represents the user's role in the system
 type UserRole string
 
@@ -103,6 +108,7 @@ const (
 	AttributeTypeText    AttributeDataType = "text"
 	AttributeTypeDate    AttributeDataType = "date"
 	AttributeTypeSelect  AttributeDataType = "select"
+	AttributeTypeURL     AttributeDataType = "url"
 )
 
 type AttributeOption struct {

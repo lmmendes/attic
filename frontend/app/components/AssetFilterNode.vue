@@ -163,7 +163,10 @@ function add(group = false) {
         aria-label="Rule comparison"
         @update:model-value="operator($event)"
       />
-      <p v-if="modelValue.field === 'q'" class="w-full text-xs text-muted">
+      <p
+        v-if="modelValue.field === 'q'"
+        class="w-full text-xs text-muted"
+      >
         {{ quickSearchDescription(features) }}
       </p>
       <template v-if="!['empty', 'not_empty'].includes(modelValue.operator)">

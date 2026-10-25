@@ -28,7 +28,7 @@ func TestAssetFiltersSQL(t *testing.T) {
 	repo := NewAssetRepository(testDB.Pool)
 	features := domain.OrganizationFeatures{Attributes: true, Categories: true, Collections: true, Tags: true, Locations: true, Conditions: true, Plugins: true}
 	attrs := map[string]*domain.Attribute{}
-	for key, typ := range map[string]domain.AttributeDataType{"s": "string", "t": "text", "n": "number", "b": "boolean", "d": "date"} {
+	for key, typ := range map[string]domain.AttributeDataType{"s": "string", "t": "text", "n": "number", "b": "boolean", "d": "date", "link": "url"} {
 		a, err := f.CreateAttribute(ctx, org.ID, key, key, typ)
 		must(err)
 		attrs[key] = a
@@ -39,7 +39,7 @@ func TestAssetFiltersSQL(t *testing.T) {
 	exec(`INSERT INTO attribute_options(id,attribute_id,label,value) VALUES ($1,$4,'Ruby label','internal-red'),($2,$5,'Azure label','internal-blue'),($3,$5,'Gold label','internal-gold')`, o1, o2, o3, single, multi)
 	for i, raw := range []string{
 		`{"s":"Commodore 100%_\\ literal","t":"Long Memo","n":0,"b":false,"d":"1989-01-01","single":"internal-red","multi":["internal-blue","internal-gold"]}`,
-		`{"s":"Other","t":"memo","n":10,"b":true,"d":"1990-01-01","multi":["internal-blue"]}`,
+		`{"link":{"url":"https://paperless.local:8000/documents/123/?page=2#preview","label":"View invoice"},"s":"Other","t":"memo","n":10,"b":true,"d":"1990-01-01","multi":["internal-blue"]}`,
 		`{"s":"","t":null,"n":"broken","b":"false","d":"2024-02-30","multi":[]}`,
 		`{}`, `{"n":null,"d":123}`, `{"n":[],"d":"not-a-date"}`,
 	} {
@@ -59,7 +59,7 @@ func TestAssetFiltersSQL(t *testing.T) {
 		a := attrs[key]
 		return domain.FilterNode{Kind: "rule", Field: "attribute", AttributeID: a.ID.String(), DataType: a.DataType, Operator: op, Value: value}
 	}
-	for query, want := range map[string]int{"commodore": 1, "MEMO": 2, "0": 3, "false": 2, "1989": 1, "Ruby": 1, "Azure": 2, "Gold": 1, "internal-red": 0, "100%_\\": 1, "%": 1, "_": 1, "\\": 1, "single": 0} {
+	for query, want := range map[string]int{"commodore": 1, "MEMO": 2, "0": 3, "false": 2, "1989": 1, "Ruby": 1, "Azure": 2, "Gold": 1, "internal-red": 0, "100%_\\": 1, "%": 1, "_": 1, "\\": 1, "single": 0, "paperless.local": 1, "view invoice": 1} {
 		t.Run("quick/"+query, func(t *testing.T) {
 			check(t, domain.FilterCriteria{Version: 1, AttributeQuery: query}, want)
 			check(t, domain.FilterCriteria{Version: 1, Query: query}, want)
@@ -69,6 +69,20 @@ func TestAssetFiltersSQL(t *testing.T) {
 			}
 		})
 	}
+	for _, tc := range []struct {
+		op    string
+		value any
+		want  int
+	}{
+		{"eq", "https://paperless.local:8000/documents/123/?page=2#preview", 1},
+		{"contains", "PAPERLESS", 1}, {"contains", "View invoice", 0},
+		{"empty", nil, 5}, {"not_empty", nil, 1},
+	} {
+		t.Run("url/"+tc.op, func(t *testing.T) {
+			check(t, domain.FilterCriteria{Version: 1, Expression: &domain.FilterNode{Kind: "group", Match: "all", Children: []domain.FilterNode{rule("link", tc.op, tc.value)}}}, tc.want)
+		})
+	}
+
 	for _, tc := range []struct {
 		name string
 		n    domain.FilterNode
