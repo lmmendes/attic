@@ -86,8 +86,23 @@ func TestUpdateOrganizationSettingsNormalizesCurrency(t *testing.T) {
 	}
 }
 
+func TestUpdateOrganizationSettingsAcceptsCurrentCurrencies(t *testing.T) {
+	for _, code := range []string{"MRU", "SLE", "VES", "XCG", "ZWG"} {
+		t.Run(code, func(t *testing.T) {
+			repo := &mockOrganizationFeatureRepository{}
+			h := handlerWithFeatureRepository(repo)
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodPut, "/api/organization/settings", strings.NewReader(`{"currency":"`+strings.ToLower(code)+`"}`))
+			h.UpdateOrganizationSettings(recorder, request)
+			if recorder.Code != http.StatusOK || repo.updatedSettings == nil || repo.updatedSettings.Currency != code {
+				t.Fatalf("current currency %s: %d %s", code, recorder.Code, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestUpdateOrganizationSettingsRejectsInvalidCurrency(t *testing.T) {
-	for _, body := range []string{`{"currency":"EURO"}`, `{"currency":"ZZZ"}`, `{"currency":""}`, `{}`} {
+	for _, body := range []string{`{"currency":"DEM"}`, `{"currency":"frf"}`, `{"currency":"xxx"}`, `{"currency":"XTS"}`, `{"currency":"EURO"}`, `{"currency":"ZZZ"}`, `{"currency":""}`, `{}`} {
 		repo := &mockOrganizationFeatureRepository{}
 		h := handlerWithFeatureRepository(repo)
 		recorder := httptest.NewRecorder()

@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import type { OrganizationFeatures } from '~/types/api'
+import type { OrganizationFeatures, CurrencyOptionsResponse } from '~/types/api'
 
 definePageMeta({ middleware: 'auth' })
 const { isAdmin, loading: authLoading, fetchSession } = useAuth()
 const { features, load, update } = useFeatures()
 const { settings, loaded: settingsLoaded, error: settingsError, load: loadSettings, update: updateSettings } = useOrganizationSettings()
+const { data: currencyCatalog, status: currencyStatus, error: currencyError, refresh: loadCurrencies } = useApi<CurrencyOptionsResponse>(
+  '/api/organization/settings/currencies', { immediate: false }
+)
+const currencies = computed(() => currencyCatalog.value?.currencies || [])
+const currenciesReady = computed(() => currencyStatus.value === 'success' && !currencyError.value && currencies.value.length > 0)
+const currencyLoadFailed = computed(() => !!currencyError.value || currencyStatus.value === 'error' || (currencyStatus.value === 'success' && currencies.value.length === 0))
 // Edit a copy, so unsaved changes (e.g. the currency) don't affect other pages; it follows the saved values.
 const draft = ref({ ...settings.value })
 watch(settings, (saved) => {
@@ -27,7 +33,10 @@ onMounted(async () => {
   if (authLoading.value) await fetchSession()
   if (!isAdmin.value) return navigateTo('/')
   // Recovers from a failed load at login, so the real currency is shown before anyone can save.
-  if (!settingsLoaded.value) await loadSettings()
+  await Promise.all([
+    ...(!settingsLoaded.value ? [loadSettings()] : []),
+    ...(!currenciesReady.value ? [loadCurrencies()] : [])
+  ])
 })
 
 // Each section saves with one request, so a save is never half-done.
@@ -48,7 +57,7 @@ async function saveFeatures() {
 }
 
 async function saveGeneralSettings() {
-  if (!settingsLoaded.value) return
+  if (savingGeneral.value || !settingsLoaded.value || !currenciesReady.value || !currencies.value.includes(draft.value.currency)) return
   savingGeneral.value = true
   try {
     await updateSettings({ ...draft.value })
@@ -127,9 +136,31 @@ async function saveGeneralSettings() {
           v-model="draft.currency"
           aria-label="Currency"
           :items="currencies"
-          :disabled="!settingsLoaded"
+          :disabled="!settingsLoaded || !currenciesReady"
           class="w-28 shrink-0"
         />
+      </div>
+      <p
+        v-if="currencyStatus === 'pending'"
+        role="status"
+        class="mb-4 text-sm text-muted"
+      >
+        Loading currency choices…
+      </p>
+      <div
+        v-else-if="currencyLoadFailed"
+        role="alert"
+        class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-error/10 px-4 py-3 text-sm text-error"
+      >
+        <span>Currency choices could not be loaded. Your selected currency is unchanged.</span>
+        <UButton
+          size="sm"
+          color="error"
+          variant="soft"
+          @click="loadCurrencies()"
+        >
+          Retry currencies
+        </UButton>
       </div>
       <div
         v-if="settingsError"
@@ -149,7 +180,7 @@ async function saveGeneralSettings() {
       <div class="mt-6 flex justify-end">
         <UButton
           :loading="savingGeneral"
-          :disabled="!settingsLoaded"
+          :disabled="!settingsLoaded || !currenciesReady || !currencies.includes(draft.currency)"
           @click="saveGeneralSettings"
         >
           Save settings

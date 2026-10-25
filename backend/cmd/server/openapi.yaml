@@ -113,11 +113,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrganizationSettings'
         '400':
-          description: currency is missing or not a known ISO 4217 currency code (e.g. ZZZ)
+          description: currency is missing or not a current monetary ISO 4217 currency code (e.g. DEM, ZZZ, XXX, XTS)
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           description: Admin access required
+
+  /api/organization/settings/currencies:
+    get:
+      tags: [Organization]
+      summary: List available currencies
+      description: >-
+        Available to every signed-in user. Returns sorted, unique current monetary
+        ISO 4217 codes accepted when saving organization settings. Historical,
+        unknown, no-currency (XXX), and testing (XTS) codes are excluded.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Available currency choices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyOptionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /api/categories:
     get:
@@ -1988,6 +2008,18 @@ components:
         offset:
           type: integer
 
+    CurrencyOptionsResponse:
+      type: object
+      required: [currencies]
+      properties:
+        currencies:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            pattern: '^[A-Z]{3}$'
+          example: [EUR, JPY, MRU, USD]
+
     OrganizationSettings:
       type: object
       required: [currency]
@@ -1995,7 +2027,7 @@ components:
         currency:
           type: string
           description: >-
-            ISO 4217 code that every asset price is shown in. Trimmed and uppercased on save.
+            Current monetary ISO 4217 code that every asset price is shown in. Trimmed and uppercased on save; available choices are returned by the currencies helper endpoint.
           example: EUR
 
     Warranty:

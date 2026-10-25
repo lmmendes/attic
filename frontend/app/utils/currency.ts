@@ -1,7 +1,24 @@
 export const DEFAULT_CURRENCY = 'USD'
 
-// Recent ISO 4217 codes missing from the backend's table (golang.org/x/text/currency), which rejects them.
-const BACKEND_UNSUPPORTED = new Set(['MRU', 'SLE', 'VES', 'XCG', 'ZWG'])
+export function formatPurchasePrice(value: number, currency: string): string {
+  const { minimumFractionDigits = 2, maximumFractionDigits = 2 } = new Intl.NumberFormat('en-US', {
+    style: 'currency', currency
+  }).resolvedOptions()
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency', currency,
+    minimumFractionDigits: Math.max(2, minimumFractionDigits),
+    maximumFractionDigits: Math.max(2, maximumFractionDigits)
+  }).format(value)
+}
 
-// Every ISO 4217 code the runtime knows that the backend accepts; curate a shortlist if the long menu gets in the way.
-export const currencies = Intl.supportedValuesOf('currency').filter(code => !BACKEND_UNSUPPORTED.has(code))
+// Whole totals stay concise; fractional totals retain the currency's precision.
+export function formatPurchaseTotal(value: number, currency: string): string {
+  const { maximumFractionDigits = 2 } = new Intl.NumberFormat('en-US', {
+    style: 'currency', currency
+  }).resolvedOptions()
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency', currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: Math.max(2, maximumFractionDigits)
+  }).format(value)
+}

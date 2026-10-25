@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatPurchasePrice } from '~/utils/currency'
 import type { Asset, Warranty, Attachment, Category } from '~/types/api'
 
 definePageMeta({
@@ -427,14 +428,8 @@ function formatBytes(bytes: number) {
 
 function formatCurrency(value?: number) {
   if (value === undefined || value === null) return '-'
-  const currency = settings.value.currency
-  // Prices are stored with 2 decimals; show them even for currencies that usually have none (e.g. JPY).
-  const { maximumFractionDigits = 2 } = new Intl.NumberFormat('en-US', { style: 'currency', currency }).resolvedOptions()
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: Math.max(2, maximumFractionDigits)
-  }).format(value)
+  // Preserve currency-specific precision while showing at least two decimals.
+  return formatPurchasePrice(value, settings.value.currency)
 }
 
 function daysUntilExpiry(endDate?: string) {

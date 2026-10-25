@@ -25,7 +25,7 @@ useSeoMeta({
 
 const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isAuthDisabled, isOIDCEnabled, changePassword } = useAuth()
 const { features, loaded: featuresLoaded, error: featureError, load: loadFeatures } = useFeatures()
-const { load: loadOrganizationSettings, reset: resetOrganizationSettings } = useOrganizationSettings()
+const { loaded: organizationSettingsLoaded, error: organizationSettingsError, load: loadOrganizationSettings, reset: resetOrganizationSettings } = useOrganizationSettings()
 const config = useRuntimeConfig()
 const { data: savedSearches, refresh: refreshSavedSearches } = useApi<SavedFilter[]>('/api/saved-filters', {
   immediate: false
@@ -111,6 +111,7 @@ const handleChangePassword = async () => {
 }
 
 const route = useRoute()
+const requiresCurrency = computed(() => route.path === '/' || /^\/(?:assets|locations)(?:\/|$)/.test(route.path))
 const protectedRoutes: Array<[string, keyof typeof features.value]> = [
   ['/locations', 'locations'],
   ['/collections', 'collections'],
@@ -526,7 +527,7 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
           <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 xl:p-7">
             <div class="mx-auto flex min-h-full max-w-[1440px] flex-col">
               <div class="flex-1">
-                <NuxtPage v-if="featuresLoaded && currentRouteEnabled" />
+                <NuxtPage v-if="featuresLoaded && currentRouteEnabled && (!requiresCurrency || organizationSettingsLoaded)" />
                 <div
                   v-else-if="featureError"
                   role="alert"
@@ -546,6 +547,32 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
                     Try again
                   </UButton>
                 </div>
+                <div
+                  v-else-if="featuresLoaded && requiresCurrency && organizationSettingsError"
+                  role="alert"
+                  class="mx-auto max-w-lg rounded-2xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/60 dark:bg-red-950/20"
+                >
+                  <h2 class="font-extrabold text-mist-950 dark:text-white">
+                    Currency settings could not be loaded
+                  </h2>
+                  <p class="mt-2 text-sm text-muted">
+                    Prices are hidden until your organization’s currency is available.
+                  </p>
+                  <UButton
+                    class="mt-4"
+                    icon="i-lucide-refresh-cw"
+                    @click="loadOrganizationSettings"
+                  >
+                    Try again
+                  </UButton>
+                </div>
+                <p
+                  v-else-if="featuresLoaded && requiresCurrency && !organizationSettingsLoaded"
+                  role="status"
+                  class="p-6 text-center text-sm text-muted"
+                >
+                  Loading currency settings…
+                </p>
               </div>
 
               <footer class="shrink-0 pt-6 text-center text-xs font-medium text-muted dark:text-mist-400">
