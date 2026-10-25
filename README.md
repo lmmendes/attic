@@ -98,8 +98,7 @@ with rule paths for invalid saved definitions. Expressions allow five group leve
 ### Prerequisites
 
 - Docker & Docker Compose
-- Go 1.27+
-- Bun 1.1+
+- [mise](https://mise.jdx.dev/) to install Go, Bun, and Node.js from `mise.toml`
 - Make
 
 ### Development Setup
@@ -108,6 +107,8 @@ with rule paths for invalid saved definitions. Expressions allow five group leve
    ```bash
    git clone git@github.com:lmmendes/attic.git
    cd attic
+   mise install
+   mise run frontend:install
    docker compose up -d
    ```
 
@@ -119,14 +120,13 @@ with rule paths for invalid saved definitions. Expressions allow five group leve
 3. **Start the backend:**
    ```bash
    cd backend
-   go run ./cmd/server
+   mise exec -- go run ./cmd/server
    ```
 
 4. **Start the frontend (new terminal):**
    ```bash
    cd frontend
-   bun install
-   bun run dev
+   mise exec -- bun run dev
    ```
 
 5. **Open the app:**
@@ -140,6 +140,23 @@ with rule paths for invalid saved definitions. Expressions allow five group leve
 
    Default test credentials: `testuser` / `testpassword`
 
+### TypeScript toolchain
+
+Run `mise run typescript -- --version` to check the project-local TypeScript 7
+compiler, or pass compiler arguments after `--`. Its version is locked in the
+frontend dependency tree rather than installed as a second global tool.
+
+`mise run frontend:check` verifies the compiler, runs ESLint, and checks Vue types.
+GitHub Actions installs Node.js, Bun, and Go with their setup actions and runs
+the frontend package scripts directly. mise is used for local development.
+
+TypeScript 7 is installed under the `@typescript/native` package alias and provides
+`tsc`. The `typescript` import is aliased to Microsoft's `@typescript/typescript6`
+compatibility package because ESLint and the current `vue-tsc` require the
+JavaScript compiler API. Vue type checking continues through `nuxt typecheck`
+using that API; installing the native compiler does not replace Vue's checker.
+See [Microsoft's side-by-side setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0).
+
 ### Browser integration tests
 
 The Playwright suite exercises real browser workflows against a running Attic
@@ -147,8 +164,8 @@ instance, including login, category/attribute handoffs, and feature settings.
 
 ```bash
 cd frontend
-bunx playwright install chromium
-bun run test:e2e
+mise exec -- bunx playwright install chromium
+mise exec -- bun run test:e2e
 ```
 
 The local suite targets the Nuxt development server at `http://127.0.0.1:3000`.
