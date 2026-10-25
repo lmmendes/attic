@@ -15,6 +15,7 @@ const selectedType = ref('all')
 
 const dataTypes = [
   { value: 'all', label: 'All fields', icon: 'i-lucide-layers-3' },
+  { value: 'url', label: 'URL', icon: 'i-lucide-link' },
   { value: 'date', label: 'Date', icon: 'i-lucide-calendar' },
   { value: 'text', label: 'Long text', icon: 'i-lucide-align-left' },
   { value: 'number', label: 'Number', icon: 'i-lucide-hash' },
@@ -92,13 +93,14 @@ function confirmDelete(attribute: Attribute) {
 // Get style for data type
 function getTypeStyle(type: string): { icon: string, bgColor: string, textColor: string, borderColor: string, label: string } {
   switch (type) {
+    case 'url':
     case 'string':
       return {
-        icon: 'i-lucide-type',
+        icon: type === 'url' ? 'i-lucide-link' : 'i-lucide-type',
         bgColor: 'bg-slate-100 dark:bg-slate-800',
         textColor: 'text-slate-700 dark:text-slate-300',
         borderColor: 'border-slate-200 dark:border-slate-700',
-        label: 'Short text'
+        label: type === 'url' ? 'URL' : 'Short text'
       }
     case 'text':
       return {

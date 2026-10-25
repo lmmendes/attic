@@ -92,7 +92,7 @@ func validateDefinition(a *domain.Attribute) error {
 		if a.SelectionMode != "single" && a.SelectionMode != "multiple" {
 			return invalidAttribute("selection_mode must be single or multiple")
 		}
-	case domain.AttributeTypeString, domain.AttributeTypeNumber, domain.AttributeTypeBoolean, domain.AttributeTypeDate, domain.AttributeTypeText:
+	case domain.AttributeTypeURL, domain.AttributeTypeString, domain.AttributeTypeNumber, domain.AttributeTypeBoolean, domain.AttributeTypeDate, domain.AttributeTypeText:
 		if a.SelectionMode != "" || a.Options != nil {
 			return invalidAttribute("options and selection_mode require a select field")
 		}
@@ -671,22 +671,34 @@ func validateSelectAsset(ctx context.Context, tx pgx.Tx, a *domain.Asset) error 
  SELECT c.id,c.parent_id,0 depth,ARRAY[c.id] path FROM categories c WHERE c.id=$2 AND c.organization_id=$1 AND c.deleted_at IS NULL
  UNION ALL SELECT c.id,c.parent_id,p.depth+1,p.path||c.id FROM categories c JOIN parents p ON c.id=p.parent_id WHERE c.organization_id=$1 AND c.deleted_at IS NULL AND NOT c.id=ANY(p.path)
  )
- SELECT a.key,a.selection_mode,COALESCE((SELECT ca.required FROM parents p JOIN category_attributes ca ON ca.category_id=p.id WHERE ca.attribute_id=a.id ORDER BY p.depth LIMIT 1),false),
+ SELECT a.key,a.data_type,COALESCE(a.selection_mode,''),COALESCE((SELECT ca.required FROM parents p JOIN category_attributes ca ON ca.category_id=p.id WHERE ca.attribute_id=a.id ORDER BY p.depth LIMIT 1),false),
  COALESCE((SELECT jsonb_agg(value) FROM attribute_options WHERE attribute_id=a.id),'[]'::jsonb)
- FROM attributes a WHERE a.organization_id=$1 AND a.deleted_at IS NULL AND a.data_type='select'`, a.OrganizationID, a.CategoryID)
+ FROM attributes a WHERE a.organization_id=$1 AND a.deleted_at IS NULL AND a.data_type IN ('select','url')`, a.OrganizationID, a.CategoryID)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var key, mode string
+		var key, dataType, mode string
 		var required bool
 		var allowed []string
-		if err = rows.Scan(&key, &mode, &required, &allowed); err != nil {
+		if err = rows.Scan(&key, &dataType, &mode, &required, &allowed); err != nil {
 			return err
 		}
 		required = required && fieldsEnabled
 		v, present := values[key]
+		if dataType == "url" {
+			value, err := domain.NormalizeURLAttribute(v, required)
+			if err != nil {
+				return invalidAttribute(fmt.Sprintf("%s: %s", key, err))
+			}
+			if value == nil {
+				delete(values, key)
+			} else {
+				values[key] = value
+			}
+			continue
+		}
 		if !present {
 			if required {
 				return invalidAttribute(fmt.Sprintf("%s requires a selection", key))

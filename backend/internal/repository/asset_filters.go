@@ -258,6 +258,7 @@ func (c *filterCompiler) quick(s string) string {
  JOIN attributes d ON d.key=v.key AND d.organization_id=` + org + `::uuid AND d.deleted_at IS NULL` + plugin + `
  WHERE (d.data_type<>'select' AND jsonb_typeof(v.value) IN ('string','number','boolean')
  AND strpos(lower(v.value #>> '{}'),lower(` + p + `::text))>0)
+ OR (d.data_type='url' AND jsonb_typeof(v.value)='object' AND (strpos(lower(v.value->>'url'),lower(` + p + `::text))>0 OR strpos(lower(v.value->>'label'),lower(` + p + `::text))>0))
  OR (d.data_type='select' AND EXISTS (SELECT 1 FROM attribute_options o WHERE o.attribute_id=d.id
  AND (v.value=to_jsonb(o.value) OR (jsonb_typeof(v.value)='array' AND v.value @> jsonb_build_array(o.value)))
  AND strpos(lower(o.label),lower(` + p + `::text))>0)))`
@@ -274,6 +275,10 @@ func (c *filterCompiler) attribute(n domain.FilterNode, path string) string {
 	p := c.param(a.Key)
 	raw := "(a.attributes -> " + p + "::text)"
 	txt := "(a.attributes ->> " + p + "::text)"
+	if a.DataType == domain.AttributeTypeURL {
+		raw = "(" + raw + " -> 'url')"
+		txt = "(" + raw + " #>> '{}')"
+	}
 	if n.Operator == "empty" || n.Operator == "not_empty" {
 		if n.Value != nil || n.Upper != nil || len(n.Values) > 0 {
 			return c.issue(path, "Empty checks do not accept values")
@@ -315,7 +320,7 @@ func (c *filterCompiler) attribute(n domain.FilterNode, path string) string {
 	if len(n.Values) > 0 {
 		return c.issue(path, "This comparison requires one value")
 	}
-	if a.DataType == domain.AttributeTypeString || a.DataType == domain.AttributeTypeText {
+	if a.DataType == domain.AttributeTypeURL || a.DataType == domain.AttributeTypeString || a.DataType == domain.AttributeTypeText {
 		s, valid := n.Value.(string)
 		if !valid || len(s) > 1000 || n.Upper != nil {
 			return c.issue(path, "Enter a text value (up to 1000 bytes)")

@@ -784,7 +784,14 @@ function getShortId(): string {
                 class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50"
               >
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ ca.attribute?.name }}</span>
-                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ getAttributeValue(ca.attribute?.key || '') }}</span>
+                <URLAttributeDisplay
+                  v-if="ca.attribute?.data_type === 'url'"
+                  :value="asset?.attributes?.[ca.attribute.key]"
+                />
+                <span
+                  v-else
+                  class="min-w-0 break-all text-sm font-bold text-mist-950 dark:text-white"
+                >{{ getAttributeValue(ca.attribute?.key || '') }}</span>
               </div>
             </div>
             <div class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -794,7 +801,14 @@ function getShortId(): string {
                 class="flex items-center justify-between p-4 transition-colors hover:bg-mist-50 dark:hover:bg-mist-700/50"
               >
                 <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ ca.attribute?.name }}</span>
-                <span class="text-sm font-bold text-mist-950 dark:text-white">{{ getAttributeValue(ca.attribute?.key || '') }}</span>
+                <URLAttributeDisplay
+                  v-if="ca.attribute?.data_type === 'url'"
+                  :value="asset?.attributes?.[ca.attribute.key]"
+                />
+                <span
+                  v-else
+                  class="min-w-0 break-all text-sm font-bold text-mist-950 dark:text-white"
+                >{{ getAttributeValue(ca.attribute?.key || '') }}</span>
               </div>
             </div>
           </div>
