@@ -11,11 +11,13 @@ mockNuxtImport('useOrganizationSettings', () => () => ({ settings: ref({ currenc
 
 const stats = ref<{ total_value: number }>()
 const statsStatus = ref('idle')
+const assets = ref<{ assets: Array<{ id: string, name: string, purchase_price: number }>, total: number }>({ assets: [], total: 0 })
 
 beforeEach(() => {
   vi.clearAllMocks()
   stats.value = undefined
   statsStatus.value = 'idle'
+  assets.value = { assets: [], total: 0 }
   statsRefresh.mockImplementation(() => {
     statsStatus.value = 'pending'
     return Promise.resolve()
@@ -27,11 +29,23 @@ beforeEach(() => {
     if (options?.key === 'location-asset-stats') return {
       data: stats, status: statsStatus, refresh: statsRefresh, clear: statsClear
     }
-    return { data: ref({ assets: [], total: 0 }), status: ref('success'), refresh: vi.fn() }
+    return { data: assets, status: ref('success'), refresh: vi.fn() }
   })
 })
 
 describe('selected location totals', () => {
+  it('uses price precision on asset cards and concise precision on the total', async () => {
+    assets.value = { assets: [{ id: 'asset', name: 'Sample asset', purchase_price: 0.5 }], total: 1 }
+    const wrapper = await mountSuspended(LocationsPage, { global: { stubs: { UModal: true } } })
+    await wrapper.get('[aria-label="View Location A"]').trigger('click')
+    stats.value = { total_value: 0.5 }
+    statsStatus.value = 'success'
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('a[href="/assets/asset"]').text()).toContain('$0.50')
+    expect(wrapper.get('[role="status"]').text()).toBe('$0.5')
+    wrapper.unmount()
+  })
+
   it('clears the previous request and hides its total while the next location loads or fails', async () => {
     const wrapper = await mountSuspended(LocationsPage, { global: { stubs: { UModal: true } } })
     await wrapper.get('[aria-label="View Location A"]').trigger('click')

@@ -707,7 +707,7 @@ function getLocationIcon(location: Location): string {
                         v-if="asset.purchase_price"
                         class="absolute top-2 right-2 bg-white/90 dark:bg-black/80 backdrop-blur px-2 py-0.5 rounded-full text-[10px] font-bold text-mist-950 dark:text-white shadow-sm"
                       >
-                        {{ formatCurrency(asset.purchase_price) }}
+                        {{ formatPurchasePrice(asset.purchase_price, settings.currency) }}
                       </div>
                     </div>
                     <div class="p-4 flex flex-col flex-1">

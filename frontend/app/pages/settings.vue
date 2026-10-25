@@ -48,7 +48,7 @@ async function saveFeatures() {
 }
 
 async function saveGeneralSettings() {
-  if (!settingsLoaded.value) return
+  if (savingGeneral.value || !settingsLoaded.value) return
   savingGeneral.value = true
   try {
     await updateSettings({ ...draft.value })

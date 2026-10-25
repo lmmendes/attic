@@ -149,6 +149,23 @@ describe('organization feature settings', () => {
     wrapper.unmount()
   })
 
+  it('does not send overlapping saves when duplicate clicks arrive before a render', async () => {
+    let finish!: (value: { currency: string }) => void
+    updateSettings.mockReturnValueOnce(new Promise((resolve) => {
+      finish = resolve
+    }))
+    const wrapper = await mountSuspended(SettingsPage, { global: { stubs: { USelectMenu: currencyMenu } } })
+    const save = button(wrapper, 'Save settings')
+    const first = save.trigger('click')
+    const second = save.trigger('click')
+    await Promise.all([first, second])
+    expect(updateSettings).toHaveBeenCalledOnce()
+    finish({ currency: 'USD' })
+    await flushPromises()
+    expect(save.attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('keeps an unsaved currency choice on this page until it is saved', async () => {
     const wrapper = await mountSuspended(SettingsPage, { global: { stubs: { USelectMenu: currencyMenu } } })
     await wrapper.get('button[aria-label="Currency"]').trigger('click')
