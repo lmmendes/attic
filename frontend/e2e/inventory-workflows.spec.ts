@@ -66,8 +66,8 @@ test('applies feature settings to navigation and asset forms', async ({ page }) 
     restoreLocations = true
     await locations.click()
     await expect(locations).not.toBeChecked()
-    await page.getByRole('button', { name: 'Save changes' }).click()
-    await expect(page.getByText('Settings saved', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Save features' }).click()
+    await expect(page.getByText('Features saved', { exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Locations' })).toHaveCount(0)
 
     await page.goto('/assets/new')
@@ -79,8 +79,8 @@ test('applies feature settings to navigation and asset forms', async ({ page }) 
       await expect(locations).toBeVisible()
       if (!(await locations.isChecked())) {
         await locations.click()
-        await page.getByRole('button', { name: 'Save changes' }).click()
-        await expect(page.getByText('Settings saved', { exact: true })).toBeVisible()
+        await page.getByRole('button', { name: 'Save features' }).click()
+        await expect(page.getByText('Features saved', { exact: true })).toBeVisible()
       }
     }
   }
