@@ -3,10 +3,8 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/lmmendes/attic/internal/domain"
-	"golang.org/x/text/currency"
 )
 
 // GetOrganizationFeatures returns the effective feature switches for the
@@ -77,14 +75,12 @@ func (h *Handler) UpdateOrganizationSettings(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	// Historical codes (e.g. DEM) are accepted; x/text's table lacks a few recent ones
-	// (MRU, SLE, VES, XCG, ZWG), so the frontend picker hides those.
-	unit, err := currency.ParseISO(strings.TrimSpace(req.Currency))
+	code, err := domain.NormalizeCurrency(req.Currency)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "currency must be a known ISO 4217 currency code")
 		return
 	}
-	settings := &domain.OrganizationSettings{Currency: unit.String()}
+	settings := &domain.OrganizationSettings{Currency: code}
 	if err := h.repos.Organizations.UpdateSettings(r.Context(), h.orgID, settings); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update organization settings")
 		return

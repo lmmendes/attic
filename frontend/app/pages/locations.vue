@@ -31,18 +31,20 @@ const { data: locationAssets, refresh: refreshAssets } = useApi<{ assets: Asset[
 const locationStatsUrl = computed(() =>
   selectedLocation.value ? `/api/assets/stats?location_id=${selectedLocation.value.id}` : ''
 )
-const { data: locationStats, refresh: refreshLocationStats } = useApi<AssetStats>(
+const { data: locationStats, status: locationStatsStatus, clear: clearLocationStats, refresh: refreshLocationStats } = useApi<AssetStats>(
   () => locationStatsUrl.value,
   { key: 'location-asset-stats', immediate: false, watch: false }
 )
 
 // Watch selected location to fetch assets
-watch(selectedLocation, (loc) => {
-  if (loc) {
+watch(() => selectedLocation.value?.id, (locationID) => {
+  // Cancel the previous request and clear its result before showing a new location.
+  clearLocationStats()
+  if (locationID) {
     refreshAssets()
     refreshLocationStats()
   }
-})
+}, { flush: 'sync' })
 
 // Modal state
 const modalOpen = ref(false)
@@ -306,14 +308,7 @@ function hasChildren(locationId: string): boolean {
 
 // Format currency
 const { settings } = useOrganizationSettings()
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: settings.value.currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(value)
-}
+const formatCurrency = (value: number) => formatPurchaseTotal(value, settings.value.currency)
 
 // Get icon for location based on explicit icon or fallback by name
 function getLocationIcon(location: Location): string {
@@ -585,8 +580,23 @@ function getLocationIcon(location: Location): string {
                         <p class="text-[10px] font-bold uppercase tracking-wider text-white/60">
                           Total value
                         </p>
-                        <p class="text-2xl font-black text-white">
-                          {{ formatCurrency(locationStats?.total_value ?? 0) }}
+                        <p
+                          class="text-2xl font-black text-white"
+                          role="status"
+                          aria-live="polite"
+                        >
+                          <template v-if="locationStatsStatus === 'pending'">
+                            Loading…
+                          </template>
+                          <template v-else-if="locationStatsStatus === 'error'">
+                            Unavailable
+                          </template>
+                          <template v-else-if="locationStatsStatus === 'success' && locationStats">
+                            {{ formatCurrency(locationStats.total_value) }}
+                          </template>
+                          <template v-else>
+                            —
+                          </template>
                         </p>
                       </div>
                     </div>
