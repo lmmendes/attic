@@ -23,8 +23,8 @@ const fetchGlobals = await vi.hoisted(async () => {
   return original
 })
 
-const { route, toast, flags, currencySettings } = vi.hoisted(() => ({
-  currencySettings: { value: { currency: 'USD' } },
+const currencySettings = ref({ currency: 'USD' })
+const { route, toast, flags } = vi.hoisted(() => ({
   route: { params: { id: 'pc' }, query: {} as Record<string, string> },
   toast: vi.fn(),
   flags: { locations: true, categories: false, collections: false, tags: false, conditions: false, warranties: false, plugins: false, attributes: false }
@@ -112,6 +112,73 @@ beforeEach(() => {
 })
 
 describe('Asset containment', () => {
+  it('keeps the hierarchy available while browsing, with the total scoped to the root asset', async () => {
+    currencySettings.value.currency = 'EUR'
+    assets.gpu!.child_count = 0
+    const wrapper = await mounted(AssetContentsBrowser, { props: {
+      asset: assets.pc!, summary: { total_value: 12.5, unpriced_asset_count: 1 }
+    } })
+    await settle(() => expect(wrapper.find('ul[aria-label="Asset results"]').exists()).toBe(true))
+    expect(wrapper.get('button[aria-label="Grid view"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('aside[aria-label="Asset hierarchy"]').exists()).toBe(true)
+    expect(wrapper.find('button[aria-controls="contents-hierarchy"]').exists()).toBe(false)
+    expect(wrapper.find('nav[aria-label="Contents path"]').exists()).toBe(false)
+    const total = wrapper.get('[aria-label="Total cost including contents"]')
+    expect(total.text()).toContain('Known total')
+    expect(total.text()).toContain('€12.50')
+    expect(total.text()).toContain('Gaming PC + all nested contents')
+    expect(total.text()).toContain('1 price missing')
+    await wrapper.get('button[aria-label="Browse Old GPU"]').trigger('click')
+    await settle(() => expect(wrapper.text()).toContain('No contents yet'))
+    expect(wrapper.get('nav[aria-label="Contents path"]').text()).toContain('Gaming PC')
+    expect(wrapper.find('aside[aria-label="Asset hierarchy"]').exists()).toBe(true)
+    expect(total.text()).toContain('Gaming PC + all nested contents')
+  })
+
+  it('recovers the root count and total when retrying a failed contents request', async () => {
+    let fail = true
+    server.use(http.get('http://attic.test/api/assets', () => fail
+      ? HttpResponse.json({ error: 'offline' }, { status: 400 })
+      : HttpResponse.json({ assets: [assets.gpu], total: 1 })))
+    const wrapper = await mounted(AssetContentsBrowser, { props: {
+      asset: assets.pc!, summary: { total_value: 50, unpriced_asset_count: 0 }
+    } })
+    await settle(() => expect(wrapper.text()).toContain('Contents could not be loaded'))
+    expect(wrapper.text()).not.toContain('No contents yet')
+    fail = false
+    await wrapper.findAll('button').find(button => button.text() === 'Try again')!.trigger('click')
+    await settle(() => expect(wrapper.find('ul[aria-label="Asset results"]').exists()).toBe(true))
+    expect(wrapper.get('[aria-label="Total cost including contents"]').text()).toContain('Total purchase cost')
+  })
+
+  it('keeps empty assets compact with creation actions and no redundant total or search controls', async () => {
+    server.use(http.get('http://attic.test/api/assets', () => HttpResponse.json({ assets: [], total: 0 })))
+    const wrapper = await mounted(AssetContentsBrowser, { props: {
+      asset: assets.pc!, summary: { total_value: 0, unpriced_asset_count: 1 }
+    } })
+    await settle(() => expect(wrapper.text()).toContain('No contents yet'))
+    expect(wrapper.find('input[type="search"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="Total cost including contents"]').exists()).toBe(false)
+    expect(wrapper.find('button[aria-controls="contents-hierarchy"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/assets/new?parent_id=pc"]').exists()).toBe(true)
+    expect(wrapper.findAll('button').some(button => button.text() === 'Link existing asset')).toBe(true)
+  })
+
+  it('retains search and the cost summary when a populated container has no matching results', async () => {
+    server.use(http.get('http://attic.test/api/assets', ({ request }) => HttpResponse.json(
+      new URL(request.url).searchParams.has('q') ? { assets: [], total: 0 } : { assets: [assets.gpu], total: 1 }
+    )))
+    const wrapper = await mounted(AssetContentsBrowser, { props: {
+      asset: assets.pc!, summary: { total_value: 50, unpriced_asset_count: 0 }
+    } })
+    await settle(() => expect(wrapper.find('ul[aria-label="Asset results"]').exists()).toBe(true))
+    await wrapper.get('input[type="search"]').setValue('missing')
+    await settle(() => expect(wrapper.text()).toContain('No matching assets'))
+    expect(wrapper.get('input[type="search"]').isVisible()).toBe(true)
+    expect(wrapper.text()).not.toContain('No contents yet')
+    expect(wrapper.get('[aria-label="Total cost including contents"]').text()).toContain('Total purchase cost')
+  })
+
   it('uses the organization currency and preserves fractional contents prices', async () => {
     currencySettings.value.currency = 'EUR'
     assets.gpu!.purchase_price = 0.25

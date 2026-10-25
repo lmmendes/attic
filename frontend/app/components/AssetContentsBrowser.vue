@@ -2,14 +2,13 @@
 import { formatPurchasePrice } from '~/utils/currency'
 import type { Asset, AssetsResponse } from '~/types/api'
 
-const props = defineProps<{ asset: Asset }>()
+const props = defineProps<{ asset: Asset, summary?: Asset['containment_summary'] }>()
 const emit = defineEmits<{ changed: [] }>()
 const { settings } = useOrganizationSettings()
 const apiFetch = useApiFetch()
 const toast = useToast()
 const active = ref(props.asset.id)
 const expanded = ref(new Set<string>())
-const hierarchyOpen = ref(false)
 const query = ref('')
 const nested = ref(false)
 const view = ref<'grid' | 'list'>('grid')
@@ -17,6 +16,7 @@ const offset = ref(0)
 const results = ref<AssetsResponse | null>(null)
 const loading = ref(false)
 const failed = ref(false)
+const rootContentsCount = ref<number | null>(null)
 const known = reactive<Record<string, Asset>>({})
 const branches = reactive<Record<string, { assets: Asset[], total: number, loading: boolean, error: boolean, offset: number }>>({})
 const cache = new Map<string, Promise<AssetsResponse>>()
@@ -29,6 +29,10 @@ const selectedAsset = ref<Asset | null>(null)
 const pickerOpen = ref(false)
 const linking = ref(false)
 const current = computed(() => known[active.value] || props.asset)
+// A filtered result count cannot tell us whether the root is an empty container.
+const rootEmpty = computed(() => active.value === props.asset.id && rootContentsCount.value === 0
+  && !loading.value && !failed.value && !query.value.trim())
+const hasRootContents = computed(() => (rootContentsCount.value || 0) > 0)
 const breadcrumb = computed(() => {
   const path: Asset[] = []
   const seen = new Set<string>()
@@ -84,6 +88,7 @@ async function loadBranch(id: string, more = false) {
       : data.assets || []
     branch.offset = (more ? branch.offset : 0) + (data.assets?.length || 0)
     branch.total = data.total
+    if (id === props.asset.id) rootContentsCount.value = data.total
     if (known[id]) known[id]!.child_count = data.total
     for (const asset of branch.assets) known[asset.id] = asset
   } catch {
@@ -94,6 +99,7 @@ async function loadBranch(id: string, more = false) {
 }
 async function loadResults() {
   const ticket = ++requestId
+  const unfilteredRoot = active.value === props.asset.id && !query.value.trim() && !nested.value
   loading.value = true
   failed.value = false
   try {
@@ -102,6 +108,7 @@ async function loadResults() {
       : await request(active.value, offset.value, query.value, nested.value)
     if (ticket !== requestId) return
     results.value = data
+    if (unfilteredRoot) rootContentsCount.value = data.total
     for (const asset of data.assets || []) known[asset.id] = asset
   } catch (error: unknown) {
     if (ticket !== requestId) return
@@ -143,7 +150,6 @@ async function select(asset: Asset) {
   pickerOpen.value = false
   selected.value = null
   selectedAsset.value = null
-  hierarchyOpen.value = false
   loadResults()
   if ((asset.child_count || 0) > 0) {
     expanded.value.add(asset.id)
@@ -194,6 +200,7 @@ watch(offset, loadResults)
 watch(() => props.asset.id, () => {
   generation++
   cache.clear()
+  rootContentsCount.value = null
   for (const id of Object.keys(branches)) Reflect.deleteProperty(branches, id)
   for (const id of Object.keys(known)) Reflect.deleteProperty(known, id)
   known[props.asset.id] = { ...props.asset }
@@ -219,37 +226,85 @@ function price(asset: Asset) {
     class="attic-panel overflow-hidden rounded-[20px] text-default"
     aria-label="Contents"
   >
-    <header class="border-b border-mist-100 bg-mist-50/60 px-5 py-4 dark:border-mist-700 dark:bg-mist-800/50">
-      <h2 class="flex items-center gap-2 text-base font-bold">
-        <UIcon
-          name="i-lucide-boxes"
-          class="size-5 text-attic-500"
-        />Contents
-      </h2>
-      <p class="mt-1 text-xs text-muted">
-        Browse what is inside {{ asset.name }}.
-      </p>
+    <header class="flex flex-wrap items-center justify-between gap-4 border-b border-mist-100 px-4 py-4 dark:border-mist-700 sm:px-5">
+      <div>
+        <h2 class="flex items-center gap-2 text-base font-bold">
+          <UIcon
+            name="i-lucide-boxes"
+            class="size-5 text-attic-500"
+          />Contents
+          <span
+            v-if="hasRootContents"
+            class="rounded-full bg-mist-100 px-2 py-0.5 text-xs font-medium text-muted dark:bg-mist-800"
+          >{{ rootContentsCount }} direct</span>
+        </h2>
+        <p class="mt-1 text-xs text-muted">
+          The assets kept inside this item.
+        </p>
+      </div>
+      <div
+        v-if="summary && hasRootContents"
+        role="region"
+        aria-label="Total cost including contents"
+        class="min-w-0 sm:text-right"
+      >
+        <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:justify-end">
+          <span class="text-xs font-medium text-muted">{{ summary.unpriced_asset_count ? 'Known total' : 'Total purchase cost' }}</span>
+          <span class="text-xl font-bold tabular-nums text-default">{{ formatPurchasePrice(summary.total_value, settings.currency) }}</span>
+        </div>
+        <p class="mt-1 break-words text-xs text-muted">
+          {{ asset.name }} + all nested contents<span v-if="summary.unpriced_asset_count"> · {{ summary.unpriced_asset_count }} {{ summary.unpriced_asset_count === 1 ? 'price' : 'prices' }} missing</span>
+        </p>
+      </div>
     </header>
-    <div class="lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-mist-100 px-4 py-3 dark:border-mist-700 sm:px-5">
+      <div
+        v-if="active !== asset.id"
+        class="flex min-w-0 flex-wrap items-center gap-3"
+      >
+        <div
+          v-if="active !== asset.id"
+          class="min-w-0"
+        >
+          <h3 class="break-words text-lg font-bold">
+            {{ current.name }}
+          </h3><NuxtLink
+            :to="`/assets/${active}`"
+            class="text-xs font-medium text-attic-500 hover:underline"
+          >View asset ↗</NuxtLink>
+        </div>
+      </div>
+      <div class="ml-auto flex flex-wrap gap-2">
+        <UButton
+          :to="{ path: '/assets/new', query: { parent_id: active } }"
+          size="sm"
+          variant="soft"
+          icon="i-lucide-plus"
+        >
+          Add asset
+        </UButton><UButton
+          size="sm"
+          variant="ghost"
+          icon="i-lucide-link"
+          :disabled="linking"
+          :aria-expanded="pickerOpen"
+          @click="pickerOpen = !pickerOpen"
+        >
+          Link existing asset
+        </UButton>
+      </div>
+    </div>
+    <div :class="rootEmpty ? '' : 'lg:grid lg:grid-cols-[240px_minmax(0,1fr)]'">
       <aside
-        class="border-b border-mist-100 bg-mist-50/40 dark:border-mist-700 dark:bg-mist-800/20 lg:border-b-0 lg:border-r"
+        v-if="!rootEmpty"
+        class="min-w-0 border-b border-mist-100 bg-mist-50/40 dark:border-mist-700 dark:bg-mist-800/20 lg:border-b-0 lg:border-r"
         aria-label="Asset hierarchy"
       >
-        <button
-          type="button"
-          class="flex w-full items-center justify-between p-4 text-sm font-bold lg:hidden"
-          :aria-expanded="hierarchyOpen"
-          aria-controls="contents-hierarchy"
-          @click="hierarchyOpen = !hierarchyOpen"
-        >
-          Browse hierarchy<UIcon :name="hierarchyOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" />
-        </button>
         <div
           id="contents-hierarchy"
-          class="overflow-auto p-3 lg:block lg:max-h-[640px]"
-          :class="hierarchyOpen ? 'block max-h-80' : 'hidden'"
+          class="max-h-80 overflow-auto p-3 lg:max-h-[520px]"
         >
-          <p class="mb-3 hidden px-2 text-xs font-bold uppercase tracking-wider text-muted lg:block">
+          <p class="mb-3 px-2 text-xs font-bold uppercase tracking-wider text-muted">
             Hierarchy
           </p>
           <template
@@ -333,6 +388,7 @@ function price(asset: Asset) {
       </aside>
       <div class="min-w-0 space-y-4 p-4 sm:p-5">
         <nav
+          v-if="active !== asset.id"
           aria-label="Contents path"
           class="flex flex-wrap items-center gap-1 text-xs text-muted"
         >
@@ -354,35 +410,6 @@ function price(asset: Asset) {
             </button>
           </template>
         </nav>
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div class="min-w-0">
-            <h3 class="break-words text-lg font-bold">
-              {{ current.name }}
-            </h3><NuxtLink
-              :to="`/assets/${active}`"
-              class="text-xs font-medium text-attic-500 hover:underline"
-            >View asset ↗</NuxtLink>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <UButton
-              :to="{ path: '/assets/new', query: { parent_id: active } }"
-              size="sm"
-              variant="soft"
-              icon="i-lucide-plus"
-            >
-              Add asset
-            </UButton><UButton
-              size="sm"
-              variant="ghost"
-              icon="i-lucide-link"
-              :disabled="linking"
-              :aria-expanded="pickerOpen"
-              @click="pickerOpen = !pickerOpen"
-            >
-              Link existing asset
-            </UButton>
-          </div>
-        </div>
         <div
           v-if="pickerOpen"
           class="space-y-3 rounded-xl border border-mist-200 p-4 dark:border-mist-700"
@@ -409,7 +436,10 @@ function price(asset: Asset) {
             </UButton>
           </div>
         </div>
-        <div class="flex flex-wrap items-center gap-3 rounded-xl bg-mist-50 p-3 dark:bg-mist-800/50">
+        <div
+          v-if="!rootEmpty"
+          class="flex flex-wrap items-center gap-3 rounded-xl bg-mist-50 p-3 dark:bg-mist-800/50"
+        >
           <label class="min-w-40 flex-1"><span class="sr-only">Search these contents</span><input
             v-model="query"
             type="search"
@@ -463,6 +493,7 @@ function price(asset: Asset) {
         </div>
         <template v-else>
           <p
+            v-if="!rootEmpty"
             class="text-xs text-muted"
             aria-live="polite"
           >
@@ -470,11 +501,11 @@ function price(asset: Asset) {
           </p>
           <div
             v-if="!results?.total"
-            class="rounded-xl border border-dashed border-mist-200 px-4 py-10 text-center dark:border-mist-700"
+            class="rounded-xl bg-mist-50/70 px-4 py-5 text-center dark:bg-mist-800/30"
           >
             <UIcon
               name="i-lucide-package-open"
-              class="mb-3 size-8 text-muted"
+              class="mb-2 size-6 text-muted"
             /><h4 class="font-bold">
               {{ query.trim() ? 'No matching assets' : 'No contents yet' }}
             </h4><p class="mt-1 text-sm text-muted">
@@ -496,56 +527,37 @@ function price(asset: Asset) {
             <li
               v-for="child in results?.assets"
               :key="child.id"
-              class="overflow-hidden rounded-xl border border-mist-200 dark:border-mist-700"
-              :class="view === 'list' ? 'flex items-center gap-3 p-3' : 'flex flex-col'"
+              class="min-w-0"
             >
-              <NuxtLink
-                :to="`/assets/${child.id}`"
-                class="flex shrink-0 items-center justify-center overflow-hidden bg-mist-50 dark:bg-mist-800"
-                :class="view === 'grid' ? 'aspect-[2/1]' : 'size-14 rounded-lg'"
-                tabindex="-1"
-                aria-hidden="true"
-              ><img
-                v-if="child.main_attachment_url"
-                :src="child.main_attachment_url"
-                alt=""
-                loading="lazy"
-                class="size-full object-cover"
-              ><UIcon
-                v-else
-                name="i-lucide-package"
-                class="size-8 text-mist-300"
-              /></NuxtLink>
-              <div
-                class="min-w-0 flex-1"
-                :class="view === 'grid' ? 'p-4' : ''"
+              <AssetCard
+                :asset="child"
+                :layout="view"
+                :price-label="price(child)"
+                class="h-full"
               >
-                <NuxtLink
-                  :to="`/assets/${child.id}`"
-                  class="break-words text-sm font-bold hover:text-attic-500"
-                >{{ child.name }}</NuxtLink><p
-                  v-if="nested && child.containment_path?.length"
-                  class="mt-1 break-words text-xs text-muted"
-                >
-                  Inside {{ child.containment_path.map(item => item.name).join(' › ') }}
-                </p><p class="mt-2 text-xs text-muted">
-                  Qty {{ child.quantity }} · {{ price(child) }}
-                </p><p
-                  v-if="child.category"
-                  class="mt-1 text-xs text-muted"
-                >
-                  {{ child.category.name }}
-                </p><UButton
+                <template #metadata>
+                  <p>Qty {{ child.quantity }}</p>
+                  <p
+                    v-if="nested && child.containment_path?.length"
+                    class="break-words"
+                  >
+                    Inside {{ child.containment_path.map(item => item.name).join(' › ') }}
+                  </p>
+                </template>
+                <template
                   v-if="child.child_count"
-                  class="mt-2"
-                  size="xs"
-                  variant="link"
-                  :aria-label="`Browse contents of ${child.name}`"
-                  @click="select(child)"
+                  #footer
                 >
-                  {{ child.child_count }} inside <UIcon name="i-lucide-arrow-right" />
-                </UButton>
-              </div>
+                  <UButton
+                    size="xs"
+                    variant="link"
+                    :aria-label="`Browse contents of ${child.name}`"
+                    @click="select(child)"
+                  >
+                    {{ child.child_count }} inside <UIcon name="i-lucide-arrow-right" />
+                  </UButton>
+                </template>
+              </AssetCard>
             </li>
           </ul>
           <div
