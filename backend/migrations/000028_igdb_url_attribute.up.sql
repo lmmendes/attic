@@ -16,6 +16,9 @@ DECLARE
     authority text;
     hostname text;
     suffix text;
+    zone text;
+    escape_code text;
+    decoded integer;
 BEGIN
     IF value = 'null'::jsonb THEN RETURN '{}'::jsonb; END IF;
     IF jsonb_typeof(value) = 'string' THEN
@@ -31,13 +34,13 @@ BEGIN
     label := pg_temp.igdb_url_trim(COALESCE(value->>'label', ''));
     IF destination = '' AND label = '' THEN RETURN '{}'::jsonb; END IF;
     IF destination !~* '^https?://'
-       OR destination ~ '[[:cntrl:][:space:]\\]'
-       OR regexp_replace(regexp_replace(destination, '\?[^#]*', ''), '%[[:xdigit:]]{2}', '', 'g') LIKE '%\%%' ESCAPE '\' THEN
+       OR destination ~ '[\x01-\x20\x7f\\]'
+       OR regexp_replace(regexp_replace(destination, '^([^?#]*)\?[^#]*', '\1'), '%[[:xdigit:]]{2}', '', 'g') LIKE '%\%%' ESCAPE '\' THEN
         RETURN NULL;
     END IF;
     authority := substring(destination FROM '(?i)^https?://([^/?#]*)');
     -- Userinfo and characters rejected by Go's net/url host parser.
-    IF authority = '' OR authority ~ '[@<>"{}|^`]' THEN
+    IF authority = '' OR authority ~ '[@{}|^`]' THEN
         RETURN NULL;
     END IF;
     IF left(authority, 1) = '[' THEN
@@ -45,6 +48,18 @@ BEGIN
         suffix := substring(authority FROM '^\[[^]]+\](.*)$');
         IF hostname IS NULL OR suffix IS NULL OR suffix !~ '^(:[0-9]*)?$' THEN
             RETURN NULL;
+        END IF;
+        IF position('%25' IN hostname) > 0 THEN
+            zone := substring(hostname FROM position('%25' IN hostname) + 3);
+            IF zone = '' THEN RETURN NULL; END IF;
+            FOR escape_code IN SELECT (regexp_matches(zone, '%([[:xdigit:]]{2})', 'g'))[1] LOOP
+                decoded := get_byte(decode(escape_code, 'hex'), 0);
+                IF decoded = 0 THEN RETURN NULL; END IF;
+                IF decoded < 128 AND decoded <> 32 AND decoded <> 37
+                   AND chr(decoded) !~ '^[A-Za-z0-9!$&''()*+,;=:\[\]<>"._~-]$' THEN
+                    RETURN NULL;
+                END IF;
+            END LOOP;
         END IF;
         BEGIN
             IF family(split_part(hostname, '%25', 1)::inet) <> 6 THEN RETURN NULL; END IF;
@@ -57,9 +72,8 @@ BEGIN
             RETURN NULL;
         END IF;
     END IF;
-    -- Percent escapes are accepted in hosts only for an escaped percent sign
-    -- (used by IPv6 zones); encoded path/query/fragment characters are retained.
-    IF left(authority, 1) <> '[' AND regexp_replace(authority, '%25', '', 'g') LIKE '%\%%' ESCAPE '\' THEN
+    -- Go permits escaped non-ASCII bytes and %25 in non-bracketed hosts.
+    IF left(authority, 1) <> '[' AND regexp_replace(authority, '%25|%[89A-Fa-f][[:xdigit:]]', '', 'g') LIKE '%\%%' ESCAPE '\' THEN
         RETURN NULL;
     END IF;
     RETURN jsonb_build_object('url', destination)
