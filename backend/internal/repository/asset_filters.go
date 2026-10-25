@@ -138,6 +138,7 @@ func (c *filterCompiler) param(value any) string {
 	return fmt.Sprintf("$%d", c.start+len(c.args)-1)
 }
 
+// node validates a filter rule or group and compiles its parameterized SQL predicate.
 func (c *filterCompiler) node(n domain.FilterNode, path string, depth int) string {
 	if n.Kind == "group" {
 		if depth >= 5 {
@@ -181,14 +182,7 @@ func (c *filterCompiler) node(n domain.FilterNode, path string, depth int) strin
 			return c.issue(path, "Enter search text (up to 1000 bytes)")
 		}
 		if n.Field == "q" && n.Operator == "search" {
-			p := c.param(s)
-			if !c.features.Tags {
-				return `a.search_vector @@ attic_prefix_tsquery(` + p + `)`
-			}
-			return `(a.search_vector @@ attic_prefix_tsquery(` + p + `)
- OR EXISTS (SELECT 1 FROM asset_tags at JOIN tags t ON t.id=at.tag_id
- WHERE at.asset_id=a.id AND t.organization_id=a.organization_id
- AND to_tsvector('english',t.name) @@ attic_prefix_tsquery(` + p + `)))`
+			return quickSearchPredicate(c.param(s), &c.features)
 		}
 		if n.Field == "attribute_q" && n.Operator == "contains" {
 			if !c.features.Attributes {
@@ -245,17 +239,37 @@ func (c *filterCompiler) node(n domain.FilterNode, path string, depth int) strin
 	return "(" + strings.Join(parts, join) + ")"
 }
 
+// quick compiles a literal substring search across enabled attribute values.
 func (c *filterCompiler) quick(s string) string {
-	p := c.param(s)
-	org := c.param(c.organization)
+	return attributeSearchPredicate(c.param(s), c.features.Plugins)
+}
+
+// quickSearchPredicate is shared by direct searches and reusable filter rules.
+// p is a positional SQL parameter, never user-supplied SQL.
+func quickSearchPredicate(p string, features *domain.OrganizationFeatures) string {
+	parts := []string{"a.search_vector @@ attic_prefix_tsquery(" + p + ")"}
+	if features == nil || features.Tags {
+		parts = append(parts, `EXISTS (SELECT 1 FROM asset_tags at JOIN tags t ON t.id=at.tag_id
+ WHERE at.asset_id=a.id AND t.organization_id=a.organization_id
+ AND to_tsvector('english',t.name) @@ attic_prefix_tsquery(`+p+`))`)
+	}
+	if features == nil || features.Attributes {
+		parts = append(parts, attributeSearchPredicate(p, features == nil || features.Plugins))
+	}
+	return "(" + strings.Join(parts, " OR ") + ")"
+}
+
+// attributeSearchPredicate matches active attribute values and select labels in the asset's organization.
+// Plugin attributes are included only when plugins is true.
+func attributeSearchPredicate(p string, plugins bool) string {
 	plugin := ""
-	if !c.features.Plugins {
+	if !plugins {
 		plugin = " AND d.plugin_id IS NULL"
 	}
 	// Scalar values are searched as text, while configured selections use labels.
 	// strpos treats %, _ and backslashes literally instead of as SQL wildcards.
 	return `EXISTS (SELECT 1 FROM jsonb_each(CASE WHEN jsonb_typeof(a.attributes)='object' THEN a.attributes ELSE '{}'::jsonb END) v(key,value)
- JOIN attributes d ON d.key=v.key AND d.organization_id=` + org + `::uuid AND d.deleted_at IS NULL` + plugin + `
+ JOIN attributes d ON d.key=v.key AND d.organization_id=a.organization_id AND d.deleted_at IS NULL` + plugin + `
  WHERE (d.data_type<>'select' AND jsonb_typeof(v.value) IN ('string','number','boolean')
  AND strpos(lower(v.value #>> '{}'),lower(` + p + `::text))>0)
  OR (d.data_type='url' AND jsonb_typeof(v.value)='object' AND (strpos(lower(v.value->>'url'),lower(` + p + `::text))>0 OR strpos(lower(v.value->>'label'),lower(` + p + `::text))>0))
