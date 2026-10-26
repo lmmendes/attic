@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -80,9 +81,21 @@ func (h *UserManagementHandler) ListUsers(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	response := make([]UserResponse, len(users))
+	usage, err := h.userRepo.APIKeyUsage(r.Context(), h.defaultOrgID)
+	if err != nil {
+		slog.Error("failed to summarize user API keys", "error", err)
+		writeError(w, 500, "internal server error")
+		return
+	}
+	type userListResponse struct {
+		UserResponse
+		APIKeyCount      int        `json:"api_key_count"`
+		APIKeyLastUsedAt *time.Time `json:"api_key_last_used_at"`
+	}
+	response := make([]userListResponse, len(users))
 	for i, u := range users {
-		response[i] = toUserResponse(&u)
+		activity := usage[u.ID]
+		response[i] = userListResponse{toUserResponse(&u), activity.Count, activity.LastUsedAt}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

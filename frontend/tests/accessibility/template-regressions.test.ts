@@ -18,7 +18,7 @@ describe('accessibility template regressions', () => {
 
   it('provides title and description props to every custom-content modal', () => {
     const files = [
-      'app.vue',
+      'components/PasswordChangeDialog.vue',
       'pages/assets/[id]/index.vue',
       'components/AttributeImpactModal.vue',
       'pages/categories/index.vue',

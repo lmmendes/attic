@@ -55,7 +55,7 @@ func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Limit upload size
-	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize+(1<<20))
 
 	// Parse multipart form
 	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
@@ -63,12 +63,18 @@ func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.MultipartForm.RemoveAll()
+
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "missing file in request")
 		return
 	}
 	defer file.Close()
+	if header.Size > maxUploadSize {
+		writeError(w, http.StatusBadRequest, "file exceeds 50 MB limit")
+		return
+	}
 
 	// Determine content type
 	contentType := header.Header.Get("Content-Type")

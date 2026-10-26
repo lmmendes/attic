@@ -65,6 +65,7 @@ paths:
       summary: Get current user
       security:
         - sessionCookie: []
+        - bearerKey: []
       responses:
         '200':
           description: Current user info
@@ -145,6 +146,7 @@ paths:
       summary: List categories
       security:
         - sessionCookie: []
+        - bearerKey: []
       responses:
         '200':
           description: List of categories
@@ -159,6 +161,7 @@ paths:
       summary: Create category
       security:
         - sessionCookie: []
+        - bearerKey: []
       requestBody:
         required: true
         content:
@@ -179,6 +182,7 @@ paths:
       summary: Get category by ID
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
         - name: inherited
@@ -201,6 +205,7 @@ paths:
       summary: Update category
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -221,6 +226,7 @@ paths:
       summary: Delete category
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -233,6 +239,7 @@ paths:
       summary: List locations
       security:
         - sessionCookie: []
+        - bearerKey: []
       responses:
         '200':
           description: List of locations
@@ -247,6 +254,7 @@ paths:
       summary: Create location
       security:
         - sessionCookie: []
+        - bearerKey: []
       requestBody:
         required: true
         content:
@@ -267,6 +275,7 @@ paths:
       summary: Get location by ID
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -281,6 +290,7 @@ paths:
       summary: Update location
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -297,6 +307,7 @@ paths:
       summary: Delete location
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -430,6 +441,7 @@ paths:
       summary: List conditions
       security:
         - sessionCookie: []
+        - bearerKey: []
       responses:
         '200':
           description: List of conditions
@@ -444,6 +456,7 @@ paths:
       summary: Create condition
       security:
         - sessionCookie: []
+        - bearerKey: []
       requestBody:
         required: true
         content:
@@ -460,6 +473,7 @@ paths:
       summary: Get condition by ID
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -474,6 +488,7 @@ paths:
       summary: Update condition
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -490,6 +505,7 @@ paths:
       summary: Delete condition
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -502,6 +518,7 @@ paths:
       summary: List shared collections
       security:
         - sessionCookie: []
+        - bearerKey: []
       responses:
         '200':
           description: Success
@@ -520,6 +537,7 @@ paths:
       summary: Create collection
       security:
         - sessionCookie: []
+        - bearerKey: []
       requestBody:
         required: true
         content:
@@ -546,6 +564,7 @@ paths:
       summary: Get collection
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -564,6 +583,7 @@ paths:
       summary: Update collection
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -590,6 +610,7 @@ paths:
       summary: Delete collection without deleting assets
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -672,6 +693,7 @@ paths:
       summary: List assets
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - name: parent_id
           in: query
@@ -757,6 +779,7 @@ paths:
       summary: Create asset
       security:
         - sessionCookie: []
+        - bearerKey: []
       requestBody:
         required: true
         content:
@@ -805,6 +828,7 @@ paths:
       description: Read-only search. Criteria are validated against current workspace references and enabled features before filtering and pagination. Maximum request body is 64 KiB; unknown properties and trailing JSON are rejected.
       security:
         - sessionCookie: []
+        - bearerKey: []
       requestBody:
         required: true
         content:
@@ -833,6 +857,7 @@ paths:
       summary: List the current user's personal saved filters
       security:
         - sessionCookie: []
+        - bearerKey: []
       responses:
         '200':
           description: Personal filters, including issues for definitions needing repair
@@ -850,6 +875,7 @@ paths:
       description: Ownership comes from authentication and the active workspace. Names need not be unique. Maximum request body is 64 KiB.
       security:
         - sessionCookie: []
+        - bearerKey: []
       requestBody:
         required: true
         content:
@@ -886,6 +912,7 @@ paths:
       description: Another user's filter returns 404, including for administrators. Invalid saved rules are retained and returned with issues.
       security:
         - sessionCookie: []
+        - bearerKey: []
       responses:
         '200':
           description: Saved filter
@@ -905,6 +932,7 @@ paths:
       description: Name is required. Omit criteria to preserve the definition, including rules needing repair. Supplied criteria must validate. Maximum request body is 64 KiB.
       security:
         - sessionCookie: []
+        - bearerKey: []
       requestBody:
         required: true
         content:
@@ -933,6 +961,7 @@ paths:
       summary: Delete a personal saved filter
       security:
         - sessionCookie: []
+        - bearerKey: []
       responses:
         '204':
           description: Deleted
@@ -949,6 +978,7 @@ paths:
       summary: Get asset by ID
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -963,6 +993,7 @@ paths:
       summary: Update asset
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -980,6 +1011,7 @@ paths:
       description: Direct children become standalone at their current location and keep their own contents.
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -992,6 +1024,7 @@ paths:
       summary: Get asset warranty
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -1008,6 +1041,7 @@ paths:
       summary: Create warranty for asset
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -1024,6 +1058,7 @@ paths:
       summary: Update asset warranty
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -1040,6 +1075,7 @@ paths:
       summary: Delete asset warranty
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -1052,6 +1088,7 @@ paths:
       summary: List custom events for an asset
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -1072,6 +1109,7 @@ paths:
       summary: Create a custom asset event
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -1098,6 +1136,7 @@ paths:
       summary: Update a custom asset event
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
         - name: eventId
@@ -1128,6 +1167,7 @@ paths:
       summary: Delete a custom asset event
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
         - name: eventId
@@ -1150,6 +1190,7 @@ paths:
       summary: List expiring warranties
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - name: days
           in: query
@@ -1173,6 +1214,7 @@ paths:
       summary: List asset attachments
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       responses:
@@ -1189,6 +1231,7 @@ paths:
       summary: Upload attachment
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - $ref: '#/components/parameters/id'
       requestBody:
@@ -1211,6 +1254,7 @@ paths:
       summary: Get attachment download URL
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - name: attachmentId
           in: path
@@ -1234,6 +1278,7 @@ paths:
       summary: Delete attachment
       security:
         - sessionCookie: []
+        - bearerKey: []
       parameters:
         - name: attachmentId
           in: path
@@ -1492,13 +1537,251 @@ paths:
           description: Collision or fresh impact preview required (code impact_preview_required)
 
 
+  /api/me/api-keys:
+    get:
+      summary: List your active API keys (interactive account only)
+      security: &id001
+      - sessionCookie: []
+      responses:
+        '200':
+          description: Active, unexpired keys owned by the current user; never includes secrets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/APIKey'
+        '401': &id002
+          description: Authentication required
+        '403': &id003
+          description: Interactive account or admin required
+    post:
+      summary: Create a scoped API key (interactive account only)
+      description: Trimmed description, at least one permission, and future expiry required. The secret is disclosed
+        only in this response. Permissions and expiry are immutable.
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAPIKey'
+      responses:
+        '201':
+          description: One-time secret
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/APIKey'
+                - type: object
+                  required:
+                  - secret
+                  properties:
+                    secret:
+                      type: string
+                      description: Shown only once; store securely
+        '400':
+          description: Invalid description, permissions, or expiry
+        '401': *id002
+        '403': *id003
+  /api/me/api-keys/permissions:
+    get:
+      summary: Permission catalog limited by current role (interactive account only)
+      security: *id001
+      responses:
+        '200':
+          description: Permission resources and selectable levels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    resource:
+                      type: string
+                      enum:
+                      - assets
+                      - locations
+                      - collections
+                      - categories
+                      - attributes
+                      - tags
+                      - conditions
+                      - warranties
+                      - attachments
+                      - asset_events
+                      - saved_filters
+                      - plugins
+                      - users
+                      - organization
+                    label:
+                      type: string
+                    levels:
+                      type: array
+                      items:
+                        type: string
+                        enum:
+                        - none
+                        - read
+                        - write
+        '401': *id002
+        '403': *id003
+  /api/me/api-keys/{id}:
+    parameters:
+    - &id004
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    patch:
+      summary: Edit your API key description (interactive account only)
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - description
+              properties:
+                description:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+      responses:
+        '204':
+          description: Description updated
+        '404':
+          description: Key not owned by current user
+        '401': *id002
+        '403': *id003
+    delete:
+      summary: Revoke your API key (interactive account only)
+      security: *id001
+      responses:
+        '204':
+          description: Revoked; subsequent requests fail immediately
+        '404':
+          description: Key not owned by current user
+        '401': *id002
+        '403': *id003
+  /api/organization/mcp:
+    get:
+      summary: Read MCP status
+      security:
+      - sessionCookie: []
+      - bearerKey: []
+      responses:
+        '200':
+          description: MCP status (default false)
+          content:
+            application/json:
+              schema: &id005
+                type: object
+                required:
+                - enabled
+                additionalProperties: false
+                properties:
+                  enabled:
+                    type: boolean
+        '401': *id002
+    put:
+      summary: Enable or disable MCP (admin only)
+      description: Separate from the complete inventory feature map. Disabling blocks the next MCP request without
+        disabling REST API keys. Requires organization write scope for API keys.
+      security:
+      - sessionCookie: []
+      - bearerKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *id005
+      responses:
+        '200':
+          description: Updated MCP status
+          content:
+            application/json:
+              schema: *id005
+        '400':
+          description: enabled must be a boolean
+        '401': *id002
+        '403': *id003
+  /api/users:
+    get:
+      summary: List workspace users with aggregate active API key usage (admin only)
+      description: Includes api_key_count and api_key_last_used_at for active, unexpired keys. No individual key details are exposed.
+      security:
+        - sessionCookie: []
+        - bearerKey: []
+      responses:
+        '200':
+          description: Workspace users with active-key counts and most recent active-key use
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/User'
+                    - type: object
+                      properties:
+                        api_key_count:
+                          type: integer
+                          minimum: 0
+                        api_key_last_used_at:
+                          type: string
+                          format: date-time
+                          nullable: true
+        '403':
+          description: Admin access required
+
+  /mcp:
+    post:
+      summary: Stateless MCP Streamable HTTP endpoint
+      description: Official MCP protocol with JSON responses. Requires a scoped bearer API key on every request and
+        the workspace MCP setting. Browser cookies and authentication-disabled mode cannot bypass authentication.
+        Tools are filtered by scopes, current role, and enabled features. Credential operations are excluded.
+      security:
+      - bearerKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: MCP JSON-RPC initialize, tools/list, or tools/call message
+      responses:
+        '200':
+          description: MCP JSON-RPC response
+        '202':
+          description: Notification accepted
+        '401':
+          description: Invalid or missing API key
+        '403':
+          description: Origin or host protection rejected request
+        '404':
+          description: MCP disabled
+        '413':
+          description: Request exceeds 72 MiB
+
 components:
   securitySchemes:
+    bearerKey:
+      type: http
+      scheme: bearer
+      description: Scoped API key created interactively at /api/me/api-keys. Write includes read. Effective access also follows the current owner role and enabled features.
     sessionCookie:
       type: apiKey
       in: cookie
       name: session
-      description: OIDC session cookie set after a successful login
+      description: Browser session cookie set after a successful local or OIDC login
 
   parameters:
     ImpactToken:
@@ -1536,6 +1819,133 @@ components:
                 type: string
 
   schemas:
+    APIKey:
+      type: object
+      description: Metadata only; secrets and hashes are never included.
+      properties:
+        id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        permissions:
+          $ref: '#/components/schemas/APIKeyPermissions'
+        prefix:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        revoked_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+    APIKeyPermissions:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        assets:
+          type: string
+          enum:
+          - read
+          - write
+        locations:
+          type: string
+          enum:
+          - read
+          - write
+        collections:
+          type: string
+          enum:
+          - read
+          - write
+        categories:
+          type: string
+          enum:
+          - read
+          - write
+        attributes:
+          type: string
+          enum:
+          - read
+          - write
+        tags:
+          type: string
+          enum:
+          - read
+          - write
+        conditions:
+          type: string
+          enum:
+          - read
+          - write
+        warranties:
+          type: string
+          enum:
+          - read
+          - write
+        attachments:
+          type: string
+          enum:
+          - read
+          - write
+        asset_events:
+          type: string
+          enum:
+          - read
+          - write
+        saved_filters:
+          type: string
+          enum:
+          - read
+          - write
+        plugins:
+          type: string
+          enum:
+          - read
+          - write
+        users:
+          type: string
+          enum:
+          - read
+          - write
+        organization:
+          type: string
+          enum:
+          - read
+          - write
+    CreateAPIKey:
+      type: object
+      additionalProperties: false
+      required:
+      - description
+      - permissions
+      properties:
+        description:
+          type: string
+          minLength: 1
+          maxLength: 255
+        permissions:
+          $ref: '#/components/schemas/APIKeyPermissions'
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Optional future expiration; omit or null for no expiry
     FilterCriteria:
       type: object
       additionalProperties: false

@@ -23,7 +23,7 @@ useSeoMeta({
   ogDescription: description
 })
 
-const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isAuthDisabled, isOIDCEnabled, changePassword } = useAuth()
+const { isAuthenticated: loggedIn, user, isAdmin, logout, fetchSession, isAuthDisabled } = useAuth()
 const { features, loaded: featuresLoaded, error: featureError, load: loadFeatures } = useFeatures()
 const { loaded: organizationSettingsLoaded, error: organizationSettingsError, load: loadOrganizationSettings, reset: resetOrganizationSettings } = useOrganizationSettings()
 const config = useRuntimeConfig()
@@ -63,52 +63,6 @@ watch(loggedIn, (isLoggedIn) => {
 onMounted(() => {
   fetchSession()
 })
-
-// Password change modal state
-const passwordModalOpen = ref(false)
-const currentPassword = ref('')
-const newPassword = ref('')
-const confirmPassword = ref('')
-const passwordError = ref('')
-const passwordSuccess = ref(false)
-const passwordLoading = ref(false)
-
-const openPasswordModal = () => {
-  currentPassword.value = ''
-  newPassword.value = ''
-  confirmPassword.value = ''
-  passwordError.value = ''
-  passwordSuccess.value = false
-  passwordModalOpen.value = true
-}
-
-const handleChangePassword = async () => {
-  passwordError.value = ''
-  passwordSuccess.value = false
-
-  if (newPassword.value !== confirmPassword.value) {
-    passwordError.value = 'New passwords do not match'
-    return
-  }
-
-  if (newPassword.value.length < 8) {
-    passwordError.value = 'Password must be at least 8 characters'
-    return
-  }
-
-  passwordLoading.value = true
-  const result = await changePassword(currentPassword.value, newPassword.value)
-  passwordLoading.value = false
-
-  if (result.success) {
-    passwordSuccess.value = true
-    setTimeout(() => {
-      passwordModalOpen.value = false
-    }, 1500)
-  } else {
-    passwordError.value = result.error || 'Failed to change password'
-  }
-}
 
 const route = useRoute()
 const requiresCurrency = computed(() => route.path === '/' || /^\/(?:assets|locations)(?:\/|$)/.test(route.path))
@@ -199,14 +153,11 @@ const userMenuItems = computed(() => {
     }]
   ]
 
-  // Add change password option if not using OIDC
-  if (!isOIDCEnabled.value && !isAuthDisabled.value) {
-    items.push([{
-      label: 'Change Password',
-      icon: 'i-lucide-key',
-      onSelect: openPasswordModal
-    }])
-  }
+  items.push([{
+    label: 'Profile',
+    icon: 'i-lucide-user-round',
+    onSelect: () => { navigateTo('/profile') }
+  }])
 
   if (!isAuthDisabled.value) {
     items.push([{
@@ -393,7 +344,7 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
           class="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-mist-900 border-r border-gray-200 dark:border-gray-800 flex flex-col lg:hidden transform transition-transform duration-200"
           :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
         >
-          <div class="p-6">
+          <div class="min-h-0 flex-1 overflow-y-auto p-6">
             <div class="flex items-center justify-between mb-8">
               <NuxtLink
                 to="/"
@@ -474,8 +425,14 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
             </nav>
           </div>
 
-          <div class="mt-auto p-6 border-t border-gray-100 dark:border-gray-800">
-            <div class="flex items-center gap-3">
+          <div class="shrink-0 p-6 border-t border-gray-100 dark:border-gray-800">
+            <NuxtLink
+              to="/profile"
+              aria-label="Profile"
+              class="flex items-center gap-3 rounded-xl p-2 -m-2 transition-colors hover:bg-mist-50 focus-visible:outline-2 focus-visible:outline-attic-500 dark:hover:bg-mist-800"
+              :aria-current="route.path === '/profile' ? 'page' : undefined"
+              @click="sidebarOpen = false"
+            >
               <div class="w-9 h-9 rounded-full bg-attic-500 flex items-center justify-center text-white">
                 <UIcon
                   name="i-lucide-user"
@@ -489,8 +446,13 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
                 <span class="text-xs text-muted dark:text-gray-400 truncate">
                   {{ user?.email }}
                 </span>
+                <span class="mt-1 text-xs font-semibold text-attic-600 dark:text-attic-300">View profile</span>
               </div>
-            </div>
+              <UIcon
+                name="i-lucide-chevron-right"
+                class="size-4 shrink-0 text-muted"
+              />
+            </NuxtLink>
           </div>
         </aside>
 
@@ -593,7 +555,7 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
 
         <!-- Mobile FAB -->
         <NuxtLink
-          v-if="!isAssetForm && route.path.replace(/\/$/, '') !== '/plugins'"
+          v-if="!isAssetForm && !['/plugins', '/profile', '/api-keys'].includes(route.path.replace(/\/$/, ''))"
           to="/assets/new"
           aria-label="Add asset"
           title="Add asset"
@@ -606,137 +568,5 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
         </NuxtLink>
       </div>
     </template>
-
-    <!-- Password Change Modal -->
-    <UModal
-      v-model:open="passwordModalOpen"
-      title="Change Password"
-      description="Enter your current password and choose a new password."
-    >
-      <template #content>
-        <div class="w-full max-w-lg overflow-hidden rounded-[24px] bg-white shadow-xl ring-1 ring-mist-200/80 dark:bg-mist-800 dark:ring-mist-700">
-          <div class="relative overflow-hidden bg-gradient-to-br from-attic-500 via-attic-600 to-[#174AE8] px-6 py-6 text-white sm:px-7">
-            <div class="pointer-events-none absolute -right-12 -top-16 size-44 rounded-full border-[24px] border-white/10" />
-            <div class="relative flex items-start gap-4">
-              <div class="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20">
-                <UIcon
-                  name="i-lucide-shield-check"
-                  class="size-6"
-                />
-              </div>
-              <div>
-                <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-white/70">
-                  Account security
-                </p>
-                <h2 class="mt-1 text-xl font-extrabold tracking-[-0.03em]">
-                  Change your password
-                </h2>
-                <p class="mt-1 text-sm text-white/75">
-                  Keep your account protected with a password you don’t reuse elsewhere.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <form
-            class="space-y-5 p-6 sm:p-7"
-            @submit.prevent="handleChangePassword"
-          >
-            <UAlert
-              v-if="passwordError"
-              color="error"
-              :title="passwordError"
-              icon="i-lucide-alert-circle"
-            />
-
-            <UAlert
-              v-if="passwordSuccess"
-              color="success"
-              title="Password changed successfully"
-              icon="i-lucide-check-circle"
-            />
-
-            <div class="space-y-4">
-              <UFormField
-                label="Current password"
-                name="currentPassword"
-              >
-                <UInput
-                  v-model="currentPassword"
-                  type="password"
-                  placeholder="Enter current password"
-                  autocomplete="current-password"
-                  icon="i-lucide-lock-keyhole"
-                  size="lg"
-                  required
-                />
-              </UFormField>
-
-              <div class="border-t border-mist-100 pt-4 dark:border-mist-700">
-                <p class="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-muted">
-                  New password
-                </p>
-                <div class="space-y-4">
-                  <UFormField
-                    label="New password"
-                    name="newPassword"
-                    help="Use at least 8 characters."
-                  >
-                    <UInput
-                      v-model="newPassword"
-                      type="password"
-                      placeholder="Create a new password"
-                      autocomplete="new-password"
-                      icon="i-lucide-key-round"
-                      size="lg"
-                      required
-                    />
-                  </UFormField>
-
-                  <UFormField
-                    label="Confirm new password"
-                    name="confirmPassword"
-                  >
-                    <UInput
-                      v-model="confirmPassword"
-                      type="password"
-                      placeholder="Repeat your new password"
-                      autocomplete="new-password"
-                      icon="i-lucide-check"
-                      size="lg"
-                      required
-                    />
-                  </UFormField>
-                </div>
-              </div>
-            </div>
-
-            <div class="flex flex-col-reverse gap-2 border-t border-mist-100 pt-5 sm:flex-row sm:justify-end dark:border-mist-700">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                class="rounded-xl font-bold"
-                @click="passwordModalOpen = false"
-              >
-                Cancel
-              </UButton>
-              <UButton
-                type="submit"
-                class="rounded-xl font-bold shadow-primary"
-                :loading="passwordLoading"
-                :disabled="passwordLoading || !currentPassword || !newPassword || !confirmPassword"
-              >
-                <UIcon
-                  v-if="!passwordLoading"
-                  name="i-lucide-check"
-                  class="size-4"
-                />
-                Update password
-              </UButton>
-            </div>
-          </form>
-        </div>
-      </template>
-    </UModal>
   </UApp>
 </template>

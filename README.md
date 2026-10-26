@@ -226,6 +226,50 @@ For more details, visit [getattic.dev](https://getattic.dev).
 
 [MIT](LICENSE.md)
 
+### Scoped API keys and MCP
+
+Open **Profile → API keys** from your account menu to create a key with a description, selected permissions, and optional expiry. Save the secret when it appears: Attic displays it only once and stores its SHA-256 hash. You can edit its description or revoke it; changing permissions or expiry requires a replacement key. The page lists active keys with their last-used time and a delete action. Administrators see only each person’s active-key count and the most recent use of those active keys in the People list. Key details and deletion remain private to the key owner.
+
+Each resource offers no access, read, or read-write access. REST resource names are `assets`, `locations`, `collections`, `categories`, `attributes`, `tags`, `conditions`, `warranties`, `attachments`, `asset_events`, `saved_filters`, `plugins`, `users`, and `organization`. Omit resources with no access from the permissions object; use `read` or `write` for the others. Write includes read. Regular users cannot grant attribute-definition writes, user administration, or organization-setting writes. The creation form uses the role-specific catalog at `GET /api/me/api-keys/permissions`.
+
+Authenticate REST requests with a bearer key:
+
+```sh
+curl -H "Authorization: Bearer $ATTIC_API_KEY" \
+  'https://attic.example.com/api/assets?limit=20&offset=0'
+
+# POST searches require asset read access, not write access.
+curl -H "Authorization: Bearer $ATTIC_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"criteria":{"version":1,"q":"camera"},"limit":20}' \
+  https://attic.example.com/api/assets/search
+```
+
+Keys are checked on every request against their current owner, role, workspace, revocation, expiry, and enabled features. Explicit invalid Authorization credentials fail even if a browser cookie is present or normal authentication is disabled. Key management, user creation, password changes, and password resets require interactive account authentication. Browser local and OIDC authentication continue to work.
+
+Every member can find MCP availability and connection instructions in **Profile → MCP connection**. Local accounts can change their password under **Profile → Account**. Administrators enable **MCP server** in **Settings → Integrations**. It defaults to disabled. The independent status endpoint is `GET /api/organization/mcp`; admins update it with `PUT /api/organization/mcp` and `{"enabled":true}`. Disabling MCP immediately blocks subsequent MCP requests and leaves REST access available.
+
+Connect an MCP client using stateless Streamable HTTP at `/mcp`, with the same bearer API key on every request. For clients that accept an `mcpServers` configuration with URL and headers:
+
+```json
+{
+  "mcpServers": {
+    "attic": {
+      "url": "https://attic.example.com/mcp",
+      "headers": { "Authorization": "Bearer <your-api-key>" }
+    }
+  }
+}
+```
+
+MCP requires a key even when browser authentication is disabled. It supports named tools for asset listing/search/statistics and CRUD; locations, collections, categories, attributes and select options (including impact previews and confirmation); tags, conditions, warranties, attachments and main images; asset events; personal saved filters; import-plugin discovery/search/import; user listing/update/deletion; organization feature switches and MCP status. Authentication, sessions, credential operations, and key management are excluded. Imports require both plugin and asset write access. Tool discovery follows effective permissions and enabled features, and calls are authorized again before dispatch.
+
+Tool arguments use the REST path parameter names (`id`, `attachmentId`, `eventId`, `option_id`, or `pluginId`), an optional `query` object with string values (an array for repeated `tag_id`), and a `body` matching the REST request. For example, `get_asset` takes `{"id":"<asset-uuid>"}` and `create_asset` takes `{"body":{"name":"Camera","quantity":1}}`. Results preserve REST status and response details as `{"status":200,"body":...}`; failed REST operations are marked as MCP tool errors. Linked summaries inside assets remain available with asset read permission.
+
+`upload_attachment` takes the asset `id` and a body with `filename`, `content_type`, optional `description`, and base64 `content`. The decoded file limit is 50 MiB; MCP requests are bounded to 72 MiB. Attachment reads return metadata and the existing download URL. For confirmed attribute changes, pass the `confirmation_token` returned by `preview_attribute_impact` as the tool's top-level `impact_token` argument. Host and origin protections remain enabled. No OAuth or stdio transport is provided.
+
+The authenticated operation registry in `backend/internal/handler/operations.go` defines REST dispatch, permissions, feature gates, and MCP inclusion together. Migration 34 adds keys and MCP status after the existing inventory and authentication migrations.
+
 ### Location photos
 
 Open a location’s **Photos** tab to add multiple photos of boxes, shelves, rooms, and other storage spaces. Choose several files or drag them into the gallery. Uploads run sequentially; successful photos remain saved if another fails, and **Retry failed photos** retries only failed uploads. Photo management is separate from creating or editing a location.

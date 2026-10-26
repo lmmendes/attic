@@ -298,178 +298,24 @@ func main() {
 		}
 	})
 
-	// API routes (auth required)
-	r.Route("/api", func(r chi.Router) {
-		// Apply auth middleware to all /api routes
-		r.Use(authMiddleware.Authenticate)
-
-		// Load the domain user for both authenticated modes.
+	// API keys are resolved before browser authentication, including in disabled mode.
+	keyRepo := repository.NewAPIKeyRepository(db.Pool)
+	keyAuth := &auth.APIKeyAuthenticator{Keys: keyRepo, Users: userRepo, OrganizationID: defaultOrgID}
+	keyHandler := &handler.APIKeyHandler{Keys: keyRepo, OrganizationID: defaultOrgID}
+	operations := handler.Operations(h, pluginHandler, userMgmtHandler, authHandler, keyHandler, Version)
+	r.Group(func(r chi.Router) {
+		r.Use(keyAuth.Authenticate(authMiddleware.Authenticate))
 		if cfg.OIDCEnabled && !cfg.AuthDisabled {
 			r.Use(userProvisioner.Provision)
 		} else if !cfg.AuthDisabled {
 			r.Use(userProvisioner.LoadLocalUser)
 		}
 		r.Use(h.LoadFeatures)
-
-		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"status":"ok","version":"` + Version + `"}`))
-		})
-
-		// Auth endpoints (requires authentication)
-		r.Route("/auth", func(r chi.Router) {
-			r.Put("/password", authHandler.ChangePassword)
-		})
-
-		// Current user info
-		r.Get("/me", h.GetCurrentUser)
-		r.Get("/organization/features", h.GetOrganizationFeatures)
-		r.With(auth.RequireAdmin(sessionManager)).Put("/organization/features", h.UpdateOrganizationFeatures)
-		r.Get("/organization/settings", h.GetOrganizationSettings)
-		r.Get("/organization/settings/currencies", h.GetOrganizationCurrencies)
-		r.With(auth.RequireAdmin(sessionManager)).Put("/organization/settings", h.UpdateOrganizationSettings)
-
-		// User management (admin only)
-		r.Route("/users", func(r chi.Router) {
-			r.Use(auth.RequireAdmin(sessionManager))
-			r.Get("/", userMgmtHandler.ListUsers)
-			r.Post("/", userMgmtHandler.CreateUser)
-			r.Get("/{id}", userMgmtHandler.GetUser)
-			r.Put("/{id}", userMgmtHandler.UpdateUser)
-			r.Delete("/{id}", userMgmtHandler.DeleteUser)
-			r.Post("/{id}/reset-password", userMgmtHandler.ResetPassword)
-		})
-
-		// Collections are shared by authenticated users in the workspace.
-		r.Route("/collections", func(r chi.Router) {
-			r.Use(h.RequireFeature("collections"))
-			r.Get("/", h.ListCollections)
-			r.Post("/", h.CreateCollection)
-			r.Get("/{id}", h.GetCollection)
-			r.Put("/{id}", h.UpdateCollection)
-			r.Delete("/{id}", h.DeleteCollection)
-		})
-
-		// Categories
-		r.Route("/categories", func(r chi.Router) {
-			r.Use(h.RequireFeature("categories"))
-			r.Get("/", h.ListCategories)
-			r.Post("/", h.CreateCategory)
-			r.Get("/asset-counts", h.GetCategoryAssetCounts)
-			r.Get("/{id}", h.GetCategory)
-			r.Put("/{id}", h.UpdateCategory)
-			r.Delete("/{id}", h.DeleteCategory)
-		})
-
-		// Attributes
-		r.Route("/attributes", func(r chi.Router) {
-			r.Use(h.RequireFeature("attributes"))
-			r.Get("/", h.ListAttributes)
-			r.Post("/", h.CreateAttribute)
-			r.Get("/{id}", h.GetAttribute)
-			r.Put("/{id}", h.UpdateAttribute)
-			r.Delete("/{id}", h.DeleteAttribute)
-			r.Post("/{id}/impact-preview", h.PreviewAttributeImpact)
-			r.Get("/{id}/options", h.ListAttributeOptions)
-			r.Post("/{id}/options", h.AddAttributeOption)
-			r.Patch("/{id}/options/{option_id}", h.UpdateAttributeOption)
-			r.Delete("/{id}/options/{option_id}", h.DeleteAttributeOption)
-			r.Put("/{id}/options/order", h.OrderAttributeOptions)
-		})
-
-		// Locations
-		r.Route("/locations", func(r chi.Router) {
-			r.Use(h.RequireFeature("locations"))
-			r.Get("/", h.ListLocations)
-			r.Post("/", h.CreateLocation)
-			r.Get("/{id}", h.GetLocation)
-			r.Put("/{id}", h.UpdateLocation)
-			r.Delete("/{id}", h.DeleteLocation)
-			r.Get("/{id}/photos", h.ListLocationPhotos)
-			r.Post("/{id}/photos", h.UploadLocationPhoto)
-			r.Delete("/{id}/photos/{photoId}", h.DeleteLocationPhoto)
-			r.Put("/{id}/photos/{photoId}/cover", h.SetLocationCoverPhoto)
-			r.Delete("/{id}/photos/{photoId}/cover", h.UnsetLocationCoverPhoto)
-		})
-
-		// Conditions
-		r.Route("/conditions", func(r chi.Router) {
-			r.Use(h.RequireFeature("conditions"))
-			r.Get("/", h.ListConditions)
-			r.Post("/", h.CreateCondition)
-			r.Get("/{id}", h.GetCondition)
-			r.Put("/{id}", h.UpdateCondition)
-			r.Delete("/{id}", h.DeleteCondition)
-		})
-
-		r.Route("/saved-filters", func(r chi.Router) {
-			r.Get("/", h.ListSavedFilters)
-			r.Post("/", h.CreateSavedFilter)
-			r.Get("/{id}", h.GetSavedFilter)
-			r.Put("/{id}", h.UpdateSavedFilter)
-			r.Delete("/{id}", h.DeleteSavedFilter)
-		})
-
-		r.Route("/tags", func(r chi.Router) {
-			r.Use(h.RequireFeature("tags"))
-			r.Get("/", h.ListTags)
-			r.Post("/", h.CreateTag)
-			r.Get("/{id}", h.GetTag)
-			r.Put("/{id}", h.UpdateTag)
-			r.Delete("/{id}", h.DeleteTag)
-		})
-
-		// Assets
-		r.Route("/assets", func(r chi.Router) {
-			r.Get("/", h.ListAssets)
-			r.Get("/stats", h.GetAssetStats)
-			r.Post("/search", h.SearchAssets)
-			r.Post("/", h.CreateAsset)
-			r.Get("/{id}", h.GetAsset)
-			r.Put("/{id}", h.UpdateAsset)
-			r.Patch("/{id}/parent", h.SetAssetParent)
-			r.Delete("/{id}", h.DeleteAsset)
-
-			// Warranty (nested under asset)
-			r.With(h.RequireFeature("warranties")).Get("/{id}/warranty", h.GetWarranty)
-			r.With(h.RequireFeature("warranties")).Post("/{id}/warranty", h.CreateWarranty)
-			r.With(h.RequireFeature("warranties")).Put("/{id}/warranty", h.UpdateWarranty)
-			r.With(h.RequireFeature("warranties")).Delete("/{id}/warranty", h.DeleteWarranty)
-
-			// Attachments (nested under asset)
-			r.Get("/{id}/attachments", h.ListAttachments)
-			r.Post("/{id}/attachments", h.UploadAttachment)
-
-			// Custom asset history events
-			r.Get("/{id}/events", h.ListAssetEvents)
-			r.Post("/{id}/events", h.CreateAssetEvent)
-			r.Put("/{id}/events/{eventId}", h.UpdateAssetEvent)
-			r.Delete("/{id}/events/{eventId}", h.DeleteAssetEvent)
-
-			// Main image
-			r.Put("/{id}/main-image/{attachmentId}", h.SetMainAttachment)
-			r.Delete("/{id}/main-image", h.ClearMainAttachment)
-		})
-
-		// Attachment operations (by attachment ID)
-		r.Route("/attachments", func(r chi.Router) {
-			r.Get("/{attachmentId}", h.GetAttachment)
-			r.Delete("/{attachmentId}", h.DeleteAttachment)
-		})
-
-		// Warranties overview
-		r.With(h.RequireFeature("warranties")).Get("/warranties", h.ListWarranties)
-		r.With(h.RequireFeature("warranties")).Get("/warranties/expiring", h.ListExpiringWarranties)
-
-		// Import Plugins
-		r.Route("/plugins", func(r chi.Router) {
-			r.Use(h.RequireFeature("plugins"))
-			r.Get("/", pluginHandler.ListPlugins)
-			r.Get("/{pluginId}", pluginHandler.GetPlugin)
-			r.Get("/{pluginId}/search", pluginHandler.Search)
-			r.Post("/{pluginId}/import", pluginHandler.Import)
-		})
+		h.RegisterOperations(r, operations)
 	})
+	r.Handle("/mcp", keyAuth.Authenticate(auth.RequireAPIKey)(h.MCPHandler(operations, keyRepo)))
+
+	r.Handle("/api/*", http.NotFoundHandler())
 
 	// Serve embedded frontend for all non-API routes
 	r.Handle("/*", spaHandler())
