@@ -182,19 +182,27 @@ func main() {
 	// OAuth handler for OIDC login flow (only if OIDC enabled)
 	var oauthHandler *auth.OAuthHandler
 	if cfg.OIDCEnabled && !cfg.AuthDisabled {
+		oidcSessions := repository.NewOIDCSessionRepository(db.Pool)
 		oauthHandler, err = auth.NewOAuthHandler(ctx, auth.OAuthConfig{
-			IssuerURL:     cfg.OIDCIssuer,
-			ClientID:      cfg.OIDCClientID,
-			ClientSecret:  cfg.OIDCClientSecret,
-			BaseURL:       cfg.BaseURL,
-			SessionSecret: cfg.SessionSecret,
-			Disabled:      cfg.AuthDisabled,
+			IssuerURL:    cfg.OIDCIssuer,
+			ClientID:     cfg.OIDCClientID,
+			ClientSecret: cfg.OIDCClientSecret,
+			BaseURL:      cfg.BaseURL,
+			SessionStore: oidcSessions,
+			Disabled:     cfg.AuthDisabled,
 		})
 		if err != nil {
 			slog.Error("failed to initialize OAuth handler", "error", err)
 			os.Exit(1)
 		}
 		authMiddleware.SetOAuthHandler(oauthHandler)
+		cleanupCtx, stopCleanup := context.WithCancel(ctx)
+		cleanupDone := make(chan struct{})
+		go func() {
+			defer close(cleanupDone)
+			auth.RunOIDCSessionCleanup(cleanupCtx, oidcSessions)
+		}()
+		defer func() { stopCleanup(); <-cleanupDone }()
 	}
 
 	// User provisioner (for OIDC mode)

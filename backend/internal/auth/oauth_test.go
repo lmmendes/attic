@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -118,7 +121,7 @@ func Test_OAuthHandler_GetSession_NoSession_ReturnsUnauthenticated(t *testing.T)
 	handler := &OAuthHandler{
 		disabled: false,
 		baseURL:  "http://localhost:3000",
-		secret:   make([]byte, 32),
+		sessions: newTestOIDCStore(),
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/session", nil)
@@ -138,7 +141,7 @@ func Test_OAuthHandler_GetSession_ExpiredSession_ReturnsUnauthenticated(t *testi
 	handler := &OAuthHandler{
 		disabled: false,
 		baseURL:  "http://localhost:3000",
-		secret:   make([]byte, 32),
+		sessions: newTestOIDCStore(),
 	}
 
 	// Create an expired session cookie
@@ -148,8 +151,7 @@ func Test_OAuthHandler_GetSession_ExpiredSession_ReturnsUnauthenticated(t *testi
 		Subject:     "user-123",
 		Email:       "test@example.com",
 	}
-	data, _ := json.Marshal(session)
-	encoded := base64.StdEncoding.EncodeToString(data)
+	encoded := seedOIDCSession(t, handler, session)
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/session", nil)
 	req.AddCookie(&http.Cookie{
@@ -172,7 +174,7 @@ func Test_OAuthHandler_GetSession_ValidSession_ReturnsAuthenticated(t *testing.T
 	handler := &OAuthHandler{
 		disabled: false,
 		baseURL:  "http://localhost:3000",
-		secret:   make([]byte, 32),
+		sessions: newTestOIDCStore(),
 	}
 
 	// Create a valid session cookie
@@ -183,8 +185,7 @@ func Test_OAuthHandler_GetSession_ValidSession_ReturnsAuthenticated(t *testing.T
 		Email:       "test@example.com",
 		Name:        "Test User",
 	}
-	data, _ := json.Marshal(session)
-	encoded := base64.StdEncoding.EncodeToString(data)
+	encoded := seedOIDCSession(t, handler, session)
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/session", nil)
 	req.AddCookie(&http.Cookie{
@@ -214,7 +215,7 @@ func Test_OAuthHandler_GetSession_ValidSession_ReturnsAuthenticated(t *testing.T
 func Test_OAuthHandler_GetAccessToken_NoSession_ReturnsEmpty(t *testing.T) {
 	handler := &OAuthHandler{
 		disabled: false,
-		secret:   make([]byte, 32),
+		sessions: newTestOIDCStore(),
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -228,15 +229,14 @@ func Test_OAuthHandler_GetAccessToken_NoSession_ReturnsEmpty(t *testing.T) {
 func Test_OAuthHandler_GetAccessToken_ValidSession_ReturnsToken(t *testing.T) {
 	handler := &OAuthHandler{
 		disabled: false,
-		secret:   make([]byte, 32),
+		sessions: newTestOIDCStore(),
 	}
 
 	session := Session{
 		AccessToken: "my-access-token",
 		ExpiresAt:   time.Now().Add(1 * time.Hour),
 	}
-	data, _ := json.Marshal(session)
-	encoded := base64.StdEncoding.EncodeToString(data)
+	encoded := seedOIDCSession(t, handler, session)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
@@ -254,15 +254,14 @@ func Test_OAuthHandler_GetAccessToken_ValidSession_ReturnsToken(t *testing.T) {
 func Test_OAuthHandler_GetIDToken_ValidSession_ReturnsToken(t *testing.T) {
 	handler := &OAuthHandler{
 		disabled: false,
-		secret:   make([]byte, 32),
+		sessions: newTestOIDCStore(),
 	}
 
 	session := Session{
 		IDToken:   "my-id-token",
 		ExpiresAt: time.Now().Add(1 * time.Hour),
 	}
-	data, _ := json.Marshal(session)
-	encoded := base64.StdEncoding.EncodeToString(data)
+	encoded := seedOIDCSession(t, handler, session)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
@@ -277,10 +276,10 @@ func Test_OAuthHandler_GetIDToken_ValidSession_ReturnsToken(t *testing.T) {
 	}
 }
 
-func Test_OAuthHandler_setSessionCookie_EncodesSession(t *testing.T) {
+func Test_OAuthHandler_setSessionCookie_PersistsSession(t *testing.T) {
 	handler := &OAuthHandler{
 		disabled: false,
-		secret:   make([]byte, 32),
+		sessions: newTestOIDCStore(),
 	}
 
 	session := &Session{
@@ -313,36 +312,33 @@ func Test_OAuthHandler_setSessionCookie_EncodesSession(t *testing.T) {
 		t.Fatal("expected session cookie to be set")
 	}
 
-	// Decode and verify
-	data, err := base64.StdEncoding.DecodeString(sessionCookie.Value)
+	if len(sessionCookie.Value) != 43 {
+		t.Fatalf("expected opaque ID, got %d bytes", len(sessionCookie.Value))
+	}
+	lookup := httptest.NewRequest(http.MethodGet, "/", nil)
+	lookup.AddCookie(sessionCookie)
+	decoded, err := handler.getSessionFromCookie(lookup)
 	if err != nil {
-		t.Fatalf("failed to decode cookie: %v", err)
+		t.Fatal(err)
 	}
-
-	var decoded Session
-	json.Unmarshal(data, &decoded)
-
-	if decoded.AccessToken != "access-123" {
-		t.Errorf("expected access token 'access-123', got '%s'", decoded.AccessToken)
-	}
-	if decoded.Email != "test@example.com" {
-		t.Errorf("expected email 'test@example.com', got '%s'", decoded.Email)
+	if decoded.AccessToken != "access-123" || decoded.Email != "test@example.com" {
+		t.Fatalf("unexpected session: %+v", decoded)
 	}
 }
 
-func Test_OAuthHandler_getSessionFromCookie_DecodesSession(t *testing.T) {
+func Test_OAuthHandler_getSessionFromCookie_LoadsSession(t *testing.T) {
 	handler := &OAuthHandler{
 		disabled: false,
-		secret:   make([]byte, 32),
+		sessions: newTestOIDCStore(),
 	}
 
 	session := Session{
 		AccessToken: "token-123",
+		ExpiresAt:   time.Now().Add(time.Hour),
 		Subject:     "sub-456",
 		Email:       "decode@example.com",
 	}
-	data, _ := json.Marshal(session)
-	encoded := base64.StdEncoding.EncodeToString(data)
+	encoded := seedOIDCSession(t, handler, session)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
@@ -366,7 +362,7 @@ func Test_OAuthHandler_getSessionFromCookie_DecodesSession(t *testing.T) {
 func Test_OAuthHandler_getSessionFromCookie_InvalidBase64_ReturnsError(t *testing.T) {
 	handler := &OAuthHandler{
 		disabled: false,
-		secret:   make([]byte, 32),
+		sessions: newTestOIDCStore(),
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -381,10 +377,10 @@ func Test_OAuthHandler_getSessionFromCookie_InvalidBase64_ReturnsError(t *testin
 	}
 }
 
-func Test_OAuthHandler_getSessionFromCookie_InvalidJSON_ReturnsError(t *testing.T) {
+func Test_OAuthHandler_getSessionFromCookie_InvalidID_ReturnsError(t *testing.T) {
 	handler := &OAuthHandler{
 		disabled: false,
-		secret:   make([]byte, 32),
+		sessions: newTestOIDCStore(),
 	}
 
 	// Valid base64 but invalid JSON
@@ -398,7 +394,7 @@ func Test_OAuthHandler_getSessionFromCookie_InvalidJSON_ReturnsError(t *testing.
 
 	_, err := handler.getSessionFromCookie(req)
 	if err == nil {
-		t.Error("expected error for invalid JSON")
+		t.Error("expected error for invalid ID")
 	}
 }
 
@@ -451,4 +447,188 @@ func Test_Session_Struct_Fields(t *testing.T) {
 	if session.Name != "Test Name" {
 		t.Error("Name not set correctly")
 	}
+}
+
+// testOIDCStore mimics persistence without exposing its contents in cookies.
+type testOIDCStore struct {
+	mu       sync.Mutex
+	sessions map[string]Session
+	err      error
+	cleanups chan struct{}
+}
+
+func newTestOIDCStore() *testOIDCStore { return &testOIDCStore{sessions: map[string]Session{}} }
+func (s *testOIDCStore) Create(_ context.Context, hash string, session *Session) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.err != nil {
+		return s.err
+	}
+	s.sessions[hash] = *session
+	return nil
+}
+func (s *testOIDCStore) Get(_ context.Context, hash string) (*Session, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.err != nil {
+		return nil, s.err
+	}
+	session, ok := s.sessions[hash]
+	if !ok {
+		return nil, nil
+	}
+	return &session, nil
+}
+func (s *testOIDCStore) Delete(_ context.Context, hash string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.err != nil {
+		return s.err
+	}
+	delete(s.sessions, hash)
+	return nil
+}
+func (s *testOIDCStore) DeleteExpired(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cleanups != nil {
+		select {
+		case s.cleanups <- struct{}{}:
+		case <-ctx.Done():
+		}
+	}
+	if s.err != nil {
+		return s.err
+	}
+	for hash, session := range s.sessions {
+		if !time.Now().Before(session.ExpiresAt) {
+			delete(s.sessions, hash)
+		}
+	}
+	return nil
+}
+func seedOIDCSession(t *testing.T, h *OAuthHandler, session Session) string {
+	t.Helper()
+	id := base64.RawURLEncoding.EncodeToString([]byte(strings.Repeat("x", 32)))
+	hash, err := sessionIDHash(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := h.sessions.Create(context.Background(), hash, &session); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func Test_OIDCSession_LargeTokensAndRevocation(t *testing.T) {
+	store := newTestOIDCStore()
+	h := &OAuthHandler{sessions: store}
+	session := &Session{AccessToken: strings.Repeat("a", 5000), RefreshToken: strings.Repeat("r", 5000), IDToken: strings.Repeat("i", 5000), ExpiresAt: time.Now().Add(time.Hour)}
+	req := httptest.NewRequest(http.MethodGet, "https://attic.example/auth/oidc/callback", nil)
+	rec := httptest.NewRecorder()
+	if err := h.setSessionCookie(rec, req, session); err != nil {
+		t.Fatal(err)
+	}
+	cookie := rec.Result().Cookies()[0]
+	if len(cookie.String()) >= 4096 || !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteLaxMode {
+		t.Fatalf("invalid cookie attributes: %s", cookie)
+	}
+	req.AddCookie(cookie)
+	second := &OAuthHandler{sessions: store}
+	if second.GetSessionInfo(req)["authenticated"] != true || second.GetIDToken(req) != session.IDToken {
+		t.Fatal("session not shared across handlers")
+	}
+	hash, _ := sessionIDHash(cookie.Value)
+	if hash == cookie.Value {
+		t.Fatal("raw session ID stored")
+	}
+	if err := second.ClearSession(httptest.NewRecorder(), req); err != nil {
+		t.Fatal(err)
+	}
+	if h.GetSessionInfo(req)["authenticated"] != false {
+		t.Fatal("revoked session accepted")
+	}
+}
+
+func Test_OIDCSession_StoreFailures(t *testing.T) {
+	store := newTestOIDCStore()
+	h := &OAuthHandler{sessions: store}
+	session := Session{ExpiresAt: time.Now().Add(time.Hour)}
+	id := seedOIDCSession(t, h, session)
+	store.err = errors.New("database unavailable")
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: id})
+	rec := httptest.NewRecorder()
+	if err := h.setSessionCookie(rec, req, &session); err == nil || len(rec.Result().Cookies()) != 0 {
+		t.Fatal("cookie issued despite failed persistence")
+	}
+	if h.GetSessionInfo(req)["authenticated"] != false {
+		t.Fatal("database failure authenticated")
+	}
+	rec = httptest.NewRecorder()
+	if err := h.ClearSession(rec, req); err == nil {
+		t.Fatal("expected revocation failure")
+	}
+	if rec.Result().Cookies()[0].MaxAge != -1 {
+		t.Fatal("cookie not cleared on failure")
+	}
+}
+
+func Test_OIDCSession_RejectsLegacyAndUnknownCookies(t *testing.T) {
+	h := &OAuthHandler{sessions: newTestOIDCStore()}
+	data, _ := json.Marshal(Session{ExpiresAt: time.Now().Add(time.Hour)})
+	for _, id := range []string{base64.StdEncoding.EncodeToString(data), "invalid", base64.RawURLEncoding.EncodeToString(make([]byte, 32))} {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: id})
+		if _, err := h.getSessionFromCookie(req); err == nil {
+			t.Fatal("accepted invalid session")
+		}
+	}
+}
+
+func Test_OIDCSessionExpiry(t *testing.T) {
+	now := time.Now()
+	for _, tc := range []struct{ access, id, want time.Time }{
+		{now.Add(time.Hour), now.Add(2 * time.Hour), now.Add(time.Hour)},
+		{now.Add(2 * time.Hour), now.Add(time.Hour), now.Add(time.Hour)},
+		{time.Time{}, now.Add(48 * time.Hour), now.Add(cookieMaxAge)},
+	} {
+		if got := oidcSessionExpiry(now, tc.access, tc.id); !got.Equal(tc.want) {
+			t.Fatalf("got %s, want %s", got, tc.want)
+		}
+	}
+}
+
+func Test_OIDCSessionCleanup_RetriesAndStops(t *testing.T) {
+	store := newTestOIDCStore()
+	store.err = errors.New("temporary failure")
+	store.cleanups = make(chan struct{}, 10)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan struct{})
+	go func() { defer close(done); runOIDCSessionCleanup(ctx, store, 10*time.Millisecond) }()
+	wait := func(ch <-chan struct{}) {
+		t.Helper()
+		select {
+		case <-ch:
+		case <-time.After(time.Second):
+			t.Fatal("cleanup timed out")
+		}
+	}
+	wait(store.cleanups)
+	store.mu.Lock()
+	store.err = nil
+	store.sessions["expired"] = Session{ExpiresAt: time.Now().Add(-time.Hour)}
+	store.sessions["valid"] = Session{ExpiresAt: time.Now().Add(time.Hour)}
+	store.mu.Unlock()
+	wait(store.cleanups)
+	store.mu.Lock()
+	_, expired := store.sessions["expired"]
+	_, valid := store.sessions["valid"]
+	store.mu.Unlock()
+	if expired || !valid {
+		t.Fatal("cleanup did not preserve only active sessions")
+	}
+	cancel()
+	wait(done)
 }
