@@ -7,8 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // LocalStorage implements file storage on the local filesystem
@@ -54,9 +52,12 @@ func NewLocalStorage(cfg LocalConfig) (*LocalStorage, error) {
 }
 
 // Upload saves a file to local storage and returns the storage key
-func (s *LocalStorage) Upload(ctx context.Context, filename string, contentType string, body io.Reader) (string, error) {
-	// Create a unique key like S3 does: uuid/filename
-	key := fmt.Sprintf("%s/%s", uuid.New().String(), filename)
+func (s *LocalStorage) Upload(ctx context.Context, prefix string, filename string, contentType string, body io.Reader) (string, error) {
+	// Use the same prefixed key layout as S3.
+	key, err := newUploadKey(prefix, filename)
+	if err != nil {
+		return "", err
+	}
 
 	// Create the full path
 	fullPath := filepath.Join(s.basePath, key)
@@ -65,6 +66,13 @@ func (s *LocalStorage) Upload(ctx context.Context, filename string, contentType 
 	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("creating directory: %w", err)
+	}
+
+	// Apply configured ownership to the shared prefix directory as well.
+	if prefix != "" {
+		if err := s.chown(filepath.Join(s.basePath, prefix)); err != nil {
+			return "", fmt.Errorf("setting prefix directory ownership: %w", err)
+		}
 	}
 
 	// Chown the directory if PUID/PGID are configured

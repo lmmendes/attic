@@ -45,11 +45,14 @@ func TestOperationRegistryCoverageAndScopeMatrix(t *testing.T) {
 		if op.Resource == "" && !op.Interactive && op.Path != "/api/" && op.Path != "/api/me" {
 			t.Fatal("undeclared permission policy", route)
 		}
-		if op.ToolName == "" && !op.Interactive && op.Path != "/api/" && op.Path != "/api/me" {
+		if op.ToolName == "" && !op.Interactive && !op.RESTOnly && op.Path != "/api/" && op.Path != "/api/me" {
 			t.Fatal("undeclared MCP exclusion", route)
 		}
 		if op.Interactive && op.ToolName != "" {
 			t.Fatal("credential operation exposed as MCP tool", route)
+		}
+		if op.RESTOnly && op.ToolName != "" {
+			t.Fatal("REST-only operation exposed as MCP tool", route)
 		}
 		if op.ToolName != "" {
 			if byTool[op.ToolName] {

@@ -80,6 +80,17 @@ func (r *OrganizationRepository) Update(ctx context.Context, o *domain.Organizat
 	return r.pool.QueryRow(ctx, query, o.ID, o.Name, o.Description).Scan(&o.UpdatedAt)
 }
 
+func (r *OrganizationRepository) GetSettings(ctx context.Context, orgID uuid.UUID) (*domain.OrganizationSettings, error) {
+	settings := &domain.OrganizationSettings{}
+	err := r.pool.QueryRow(ctx, `SELECT currency FROM organizations WHERE id = $1`, orgID).Scan(&settings.Currency)
+	return settings, err
+}
+
+func (r *OrganizationRepository) UpdateSettings(ctx context.Context, orgID uuid.UUID, s *domain.OrganizationSettings) error {
+	_, err := r.pool.Exec(ctx, `UPDATE organizations SET currency = $2, updated_at = NOW() WHERE id = $1`, orgID, s.Currency)
+	return err
+}
+
 func (r *OrganizationRepository) GetFeatures(ctx context.Context, orgID uuid.UUID) (*domain.OrganizationFeatures, error) {
 	features := &domain.OrganizationFeatures{}
 	err := r.pool.QueryRow(ctx, `

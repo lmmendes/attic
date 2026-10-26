@@ -34,7 +34,7 @@ func (h *Handler) MCPHandler(operations []Operation, keys MCPSettings) http.Hand
 		server := mcp.NewServer(&mcp.Implementation{Name: "attic", Version: "1.0.0"}, nil)
 		key, user := auth.GetAPIKey(r.Context()), auth.GetUser(r.Context())
 		for _, op := range operations {
-			if op.ToolName == "" || op.Interactive || (op.Admin && user.Role != "admin") || !op.keyAllows(key, user) {
+			if op.ToolName == "" || op.RESTOnly || op.Interactive || (op.Admin && user.Role != "admin") || !op.keyAllows(key, user) {
 				continue
 			}
 			if op.Feature != "" {

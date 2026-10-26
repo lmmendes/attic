@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Collection, Category, Location, Condition, AssetsResponse, AssetFilters, Asset, Attribute, Tag } from '~/types/api'
 import { buildCategoryOptions } from '~/utils/categoryHierarchy'
-import { filterFailure, issueLabel } from '~/utils/assetFilters'
+import { filterFailure, issueLabel, quickSearchDescription } from '~/utils/assetFilters'
 
 const uncategorizedCategoryFilter = 'uncategorized'
 
@@ -392,7 +392,9 @@ function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
         >
           <UInput
             v-model="searchQuery"
-            placeholder="Search by name, tag, or serial number..."
+            placeholder="Search assets..."
+            aria-label="Quick search"
+            :title="quickSearchDescription(features)"
             icon="i-lucide-search"
             size="lg"
             class="w-full"
@@ -894,6 +896,11 @@ function openAdvanced(mode: 'advanced' | 'edit' = 'advanced') {
                   <p class="mt-0.5 truncate text-xs text-muted">
                     {{ asset.description || `${asset.quantity} ${asset.quantity === 1 ? 'item' : 'items'} in inventory` }}
                   </p>
+                  <NuxtLink
+                    v-if="asset.parent"
+                    :to="`/assets/${asset.parent.id}`"
+                    class="text-xs text-attic-500 hover:underline"
+                  >Inside: {{ asset.parent.name }}</NuxtLink>
                   <div
                     v-if="features.categories || features.locations"
                     class="mt-1.5 flex items-center gap-1.5 md:hidden"

@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"errors"
+	"log/slog"
 	"net/http"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/lmmendes/attic/internal/domain"
 )
 
@@ -41,6 +44,11 @@ func (h *Handler) ListLocations(w http.ResponseWriter, r *http.Request) {
 		locations = []domain.Location{}
 	}
 
+	for i := range locations {
+		if err := h.populateLocationPhoto(r, &locations[i]); err != nil {
+			slog.Warn("failed to read location photo", "location_id", locations[i].ID, "error", err)
+		}
+	}
 	writeJSON(w, http.StatusOK, locations)
 }
 
@@ -56,11 +64,14 @@ func (h *Handler) GetLocation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to get location")
 		return
 	}
-	if loc == nil {
+	if loc == nil || loc.OrganizationID != h.orgID {
 		writeError(w, http.StatusNotFound, "location not found")
 		return
 	}
 
+	if err := h.populateLocationPhoto(r, loc); err != nil {
+		slog.Warn("failed to read location photo", "location_id", loc.ID, "error", err)
+	}
 	writeJSON(w, http.StatusOK, loc)
 }
 
@@ -118,7 +129,7 @@ func (h *Handler) UpdateLocation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to get location")
 		return
 	}
-	if loc == nil {
+	if loc == nil || loc.OrganizationID != h.orgID {
 		writeError(w, http.StatusNotFound, "location not found")
 		return
 	}
@@ -143,6 +154,9 @@ func (h *Handler) UpdateLocation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := h.populateLocationPhoto(r, loc); err != nil {
+		slog.Warn("failed to read location photo", "location_id", loc.ID, "error", err)
+	}
 	writeJSON(w, http.StatusOK, loc)
 }
 
@@ -153,10 +167,16 @@ func (h *Handler) DeleteLocation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repos.Locations.Delete(r.Context(), id); err != nil {
+	old, err := h.repos.Locations.DeleteWithPhotos(r.Context(), h.orgID, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, 404, "location not found")
+		return
+	}
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete location")
 		return
 	}
 
+	h.cleanupLocationPhotos(r.Context(), old)
 	w.WriteHeader(http.StatusNoContent)
 }

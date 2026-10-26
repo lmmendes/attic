@@ -47,7 +47,7 @@ func (h *Handler) checkOperationOrganization(w http.ResponseWriter, r *http.Requ
 		}
 	}
 	// Validate references in write bodies before the handler can persist them.
-	if r.Body == nil || op.ToolName == "upload_attachment" || op.Action != "write" {
+	if r.Body == nil || op.Multipart || op.ToolName == "upload_attachment" || op.Action != "write" {
 		return true
 	}
 	data, err := io.ReadAll(io.LimitReader(r.Body, 4<<20+1))

@@ -135,8 +135,12 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 // authenticateOIDC handles OIDC-based authentication
 func (m *Middleware) authenticateOIDC(w http.ResponseWriter, r *http.Request, next http.Handler) {
 	var tokenString string
+	var session *Session
 	if m.oauth != nil {
-		tokenString = m.oauth.GetIDToken(r)
+		session, _ = m.oauth.getSessionFromCookie(r)
+		if session != nil {
+			tokenString = session.IDToken
+		}
 	}
 
 	if tokenString == "" {
@@ -162,9 +166,8 @@ func (m *Middleware) authenticateOIDC(w http.ResponseWriter, r *http.Request, ne
 
 	claims.Subject = verifiedToken.Subject()
 
-	// If claims are missing from the verified token, supplement from the session cookie.
+	// If claims are missing from the verified token, supplement from the server-side session.
 	if (claims.Email == "" || claims.DisplayName == "") && m.oauth != nil {
-		session, _ := m.oauth.getSessionFromCookie(r)
 		if session != nil {
 			if claims.Email == "" {
 				claims.Email = session.Email

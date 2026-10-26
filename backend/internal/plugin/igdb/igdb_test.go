@@ -2,10 +2,14 @@ package igdb
 
 import (
 	"context"
+	"encoding/json"
+	"github.com/lmmendes/attic/internal/domain"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -338,5 +342,45 @@ func Test_Fetch_UsesCurrentIGDBFieldsAndMapsResponse(t *testing.T) {
 		if got := data.Attributes[key]; got != want {
 			t.Errorf("attribute %s = %#v; want %#v", key, got, want)
 		}
+	}
+}
+
+func Test_URLAttributeSchemaAndImports(t *testing.T) {
+	for _, attribute := range New().Attributes() {
+		if attribute.Key == "games.url" && attribute.DataType != domain.AttributeTypeURL {
+			t.Fatal("IGDB URL must be a URL attribute")
+		}
+	}
+	for _, tc := range []struct {
+		name, destination string
+		present           bool
+	}{
+		{"valid", " https://www.igdb.com/games/test?q=a#details ", true},
+		{"private host", "http://localhost:8000/game", true},
+		{"missing", "", false}, {"blank", "  ", false},
+		{"relative", "/games/test", false}, {"unsafe scheme", "javascript:alert(1)", false},
+		{"credentials", "https://user:secret@example.com/game", false},
+		{"malformed escape", "https://example.com/%zz", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := New()
+			p.tokens.token = "test-token"
+			p.tokens.expiresAt = time.Now().Add(time.Hour)
+			p.httpClient.Transport = roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+				body, _ := json.Marshal([]map[string]any{{"id": 1, "name": "Game", "url": tc.destination}})
+				return response(http.StatusOK, string(body)), nil
+			})
+			data, err := p.Fetch(t.Context(), "1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, present := data.Attributes["games.url"]
+			if present != tc.present {
+				t.Fatalf("URL present=%v; want %v", present, tc.present)
+			}
+			if present && !reflect.DeepEqual(got, map[string]string{"url": strings.TrimSpace(tc.destination)}) {
+				t.Fatalf("unexpected URL value: %#v", got)
+			}
+		})
 	}
 }

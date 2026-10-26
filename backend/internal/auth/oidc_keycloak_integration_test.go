@@ -3,7 +3,6 @@ package auth
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -70,7 +69,8 @@ func Test_Middleware_OIDC_KeycloakSession_UsesIDTokenFromCookie(t *testing.T) {
 		t.Fatalf("failed to create middleware: %v", err)
 	}
 
-	middleware.SetOAuthHandler(&OAuthHandler{})
+	h := &OAuthHandler{sessions: newTestOIDCStore()}
+	middleware.SetOAuthHandler(h)
 
 	session := Session{
 		AccessToken: "definitely-not-a-valid-jwt",
@@ -79,10 +79,7 @@ func Test_Middleware_OIDC_KeycloakSession_UsesIDTokenFromCookie(t *testing.T) {
 		Email:       "attic@example.com",
 		Name:        "Attic User",
 	}
-	cookieValue, err := encodeSessionCookie(session)
-	if err != nil {
-		t.Fatalf("failed to encode session cookie: %v", err)
-	}
+	cookieValue := seedOIDCSession(t, h, session)
 
 	var claims *Claims
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -315,10 +312,81 @@ func (p *keycloakProvider) getUserToken(ctx context.Context) (*keycloakTokenResp
 	return &payload, nil
 }
 
-func encodeSessionCookie(session Session) (string, error) {
-	data, err := json.Marshal(session)
+func Test_OAuthCallback_LargeTokens(t *testing.T) {
+	ctx := context.Background()
+	provider, err := getKeycloakProvider()
 	if err != nil {
-		return "", err
+		t.Fatal(err)
 	}
-	return base64.StdEncoding.EncodeToString(data), nil
+	token, err := provider.getUserToken(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := newTestOIDCStore()
+	h, err := NewOAuthHandler(ctx, OAuthConfig{IssuerURL: provider.issuerURL, ClientID: provider.clientID, ClientSecret: provider.clientSecret, BaseURL: "https://attic.example", SessionStore: store})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"access_token": strings.Repeat("a", 5000), "refresh_token": strings.Repeat("r", 5000), "id_token": token.IDToken, "token_type": "Bearer", "expires_in": 3600})
+	}))
+	defer tokenServer.Close()
+	h.oauth2Config.Endpoint.TokenURL = tokenServer.URL
+	for _, failing := range []bool{false, true} {
+		t.Run(fmt.Sprintf("store_failure=%t", failing), func(t *testing.T) {
+			if failing {
+				store.err = fmt.Errorf("database unavailable")
+			}
+			req := httptest.NewRequest(http.MethodGet, "https://attic.example/auth/oidc/callback?state=test-state&code=test-code", nil)
+			req.AddCookie(&http.Cookie{Name: stateCookieName, Value: "test-state"})
+			rec := httptest.NewRecorder()
+			h.Callback(rec, req)
+			var cookie *http.Cookie
+			for _, candidate := range rec.Result().Cookies() {
+				if candidate.Name == sessionCookieName {
+					cookie = candidate
+				}
+			}
+			if failing {
+				if rec.Code != http.StatusInternalServerError || cookie != nil || rec.Header().Get("Location") != "" {
+					t.Fatal("callback succeeded despite persistence failure")
+				}
+				return
+			}
+			if rec.Code != http.StatusTemporaryRedirect || cookie == nil {
+				t.Fatalf("callback failed: %d %s", rec.Code, rec.Body.String())
+			}
+			if len(cookie.String()) >= 4096 {
+				t.Fatal("oversized cookie")
+			}
+			sessionReq := httptest.NewRequest(http.MethodGet, "/auth/session", nil)
+			sessionReq.AddCookie(cookie)
+			if h.GetSessionInfo(sessionReq)["authenticated"] != true {
+				t.Fatal("callback session not authenticated")
+			}
+			middleware, err := NewMiddleware(ctx, Config{IssuerURL: provider.issuerURL, ClientID: provider.clientID, OIDCEnabled: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			middleware.SetOAuthHandler(h)
+			protected := httptest.NewRecorder()
+			middleware.Authenticate(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })).ServeHTTP(protected, sessionReq)
+			if protected.Code != http.StatusNoContent {
+				t.Fatalf("protected request rejected: %d", protected.Code)
+			}
+			logout := httptest.NewRecorder()
+			h.Logout(logout, sessionReq)
+			location, err := url.Parse(logout.Header().Get("Location"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if logout.Code != http.StatusTemporaryRedirect || location.Query().Get("id_token_hint") != token.IDToken {
+				t.Fatal("provider logout hint missing")
+			}
+			if h.GetSessionInfo(sessionReq)["authenticated"] != false {
+				t.Fatal("logout did not revoke session")
+			}
+		})
+	}
 }

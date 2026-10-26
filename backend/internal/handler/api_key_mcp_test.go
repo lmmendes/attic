@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -144,6 +146,43 @@ func TestAPIKeysRESTAndMCPIntegration(t *testing.T) {
 	request("GET", "/api/assets/", "", readSecret, nil, 200)
 	request("POST", "/api/assets/search", `{"criteria":{"version":1},"limit":10}`, readSecret, nil, 200)
 	request("POST", "/api/assets", `{"name":"Forbidden"}`, readSecret, nil, 403)
+	request("GET", "/api/organization/settings", "", secret, nil, 200)
+	request("GET", "/api/organization/settings/currencies", "", secret, nil, 200)
+	request("PUT", "/api/organization/settings", `{"currency":"EUR"}`, secret, nil, 200)
+	request("PUT", "/api/organization/settings", `{"currency":"USD"}`, readSecret, nil, 403)
+	localAsset := &domain.Asset{OrganizationID: org.ID, Name: "Local asset"}
+	must(fixtures.CreateAssetFull(ctx, localAsset))
+	request("PATCH", "/api/assets/"+localAsset.ID.String()+"/parent", `{"parent_id":null}`, secret, nil, 200)
+	request("PATCH", "/api/assets/"+localAsset.ID.String()+"/parent", `{"parent_id":null}`, readSecret, nil, 403)
+	request("PATCH", "/api/assets/"+localAsset.ID.String()+"/parent", `{"parent_id":"`+foreignAsset.ID.String()+`"}`, secret, nil, 404)
+	photoLocation, err := fixtures.CreateLocation(ctx, org.ID, "Photo location", nil)
+	must(err)
+	photoPath := "/api/locations/" + photoLocation.ID.String() + "/photos"
+	request("GET", photoPath, "", secret, nil, 200)
+	request("GET", photoPath, "", readSecret, nil, 403)
+	var photoBody bytes.Buffer
+	photoForm := multipart.NewWriter(&photoBody)
+	photoPart, err := photoForm.CreateFormFile("file", "photo.png")
+	must(err)
+	photoData, err := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j3ioAAAAASUVORK5CYII=")
+	must(err)
+	_, err = photoPart.Write(photoData)
+	must(err)
+	must(photoForm.Close())
+	photoRequest := httptest.NewRequest("POST", photoPath, &photoBody)
+	photoRequest.Header.Set("Content-Type", photoForm.FormDataContentType())
+	photoRequest.Header.Set("Authorization", "Bearer "+secret)
+	photoResponse := httptest.NewRecorder()
+	router.ServeHTTP(photoResponse, photoRequest)
+	if photoResponse.Code != 201 {
+		t.Fatalf("scoped location photo upload: %d %s", photoResponse.Code, photoResponse.Body)
+	}
+	var uploadedPhoto domain.LocationPhoto
+	must(json.Unmarshal(photoResponse.Body.Bytes(), &uploadedPhoto))
+	photoPath += "/" + uploadedPhoto.ID.String()
+	request("PUT", photoPath+"/cover", "", secret, nil, 204)
+	request("DELETE", photoPath+"/cover", "", secret, nil, 204)
+	request("DELETE", photoPath, "", secret, nil, 204)
 	for _, entry := range []struct{ method, path, body string }{{"GET", "/api/me/api-keys", ""}, {"POST", "/api/users", `{}`}, {"PUT", "/api/auth/password", `{}`}, {"POST", "/api/users/" + member.ID.String() + "/reset-password", `{}`}} {
 		request(entry.method, entry.path, entry.body, secret, nil, 403)
 	}
@@ -359,11 +398,11 @@ func TestAPIKeysRESTAndMCPIntegration(t *testing.T) {
 	must(users.Delete(ctx, admin.ID))
 	request("GET", "/api/assets", "", secret, nil, 401)
 	// Exercise rollback and reapply independently of the migration history table.
-	down, err := os.ReadFile("../../migrations/000031_api_keys_mcp.down.sql")
+	down, err := os.ReadFile("../../migrations/000034_api_keys_mcp.down.sql")
 	must(err)
 	_, err = db.Pool.Exec(ctx, string(down))
 	must(err)
-	up, err := os.ReadFile("../../migrations/000031_api_keys_mcp.up.sql")
+	up, err := os.ReadFile("../../migrations/000034_api_keys_mcp.up.sql")
 	must(err)
 	_, err = db.Pool.Exec(ctx, string(up))
 	must(err)
@@ -371,7 +410,7 @@ func TestAPIKeysRESTAndMCPIntegration(t *testing.T) {
 
 type keyFileStorage struct{}
 
-func (*keyFileStorage) Upload(_ context.Context, _ string, _ string, body io.Reader) (string, error) {
+func (*keyFileStorage) Upload(_ context.Context, _ string, _ string, _ string, body io.Reader) (string, error) {
 	_, err := io.Copy(io.Discard, body)
 	return "test-file", err
 }

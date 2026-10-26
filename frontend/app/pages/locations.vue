@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Location, Asset } from '~/types/api'
+import type { Location, Asset, AssetStats } from '~/types/api'
 import { getLocationNameError } from '~/utils/locationValidation'
 
 definePageMeta({
@@ -8,12 +8,24 @@ definePageMeta({
 
 const toast = useToast()
 const apiFetch = useApiFetch()
+const savingLocation = ref(false)
 
 const { data: locations, refresh, status } = useApi<Location[]>('/api/locations')
 
 // Selected location state
 const selectedLocation = ref<Location | null>(null)
 const searchQuery = ref('')
+const locationTab = ref<'assets' | 'photos'>('assets')
+const locationTabs = [
+  { value: 'assets', label: 'Assets', icon: 'i-lucide-package' },
+  { value: 'photos', label: 'Photos', icon: 'i-lucide-images' }
+] as const
+function navigateLocationTabs(event: KeyboardEvent) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  locationTab.value = event.key === 'Home' ? 'assets' : event.key === 'End' ? 'photos' : locationTab.value === 'assets' ? 'photos' : 'assets'
+  document.getElementById(`location-tab-${locationTab.value}`)?.focus()
+}
 
 // Track expanded nodes in the tree
 const expandedNodes = ref<Set<string>>(new Set())
@@ -27,12 +39,24 @@ const { data: locationAssets, refresh: refreshAssets } = useApi<{ assets: Asset[
   { immediate: false, watch: false }
 )
 
+// Purchase value of every asset in the location (not just the loaded page), including quantities
+const locationStatsUrl = computed(() =>
+  selectedLocation.value ? `/api/assets/stats?location_id=${selectedLocation.value.id}` : ''
+)
+const { data: locationStats, status: locationStatsStatus, clear: clearLocationStats, refresh: refreshLocationStats } = useApi<AssetStats>(
+  () => locationStatsUrl.value,
+  { key: 'location-asset-stats', immediate: false, watch: false }
+)
+
 // Watch selected location to fetch assets
-watch(selectedLocation, (loc) => {
-  if (loc) {
+watch(() => selectedLocation.value?.id, (locationID) => {
+  // Cancel the previous request and clear its result before showing a new location.
+  clearLocationStats()
+  if (locationID) {
     refreshAssets()
+    refreshLocationStats()
   }
-})
+}, { flush: 'sync' })
 
 // Modal state
 const modalOpen = ref(false)
@@ -44,9 +68,14 @@ const form = reactive({
   icon: undefined as string | undefined
 })
 const nameError = ref('')
+watch(locations, (list) => {
+  if (selectedLocation.value) selectedLocation.value = list?.find(location => location.id === selectedLocation.value?.id) || null
+})
 
 // Delete confirmation modal
 const deleteModalOpen = ref(false)
+const deletingLocation = ref(false)
+const deleteLocationError = ref('')
 const locationToDelete = ref<Location | null>(null)
 
 interface TreeNode {
@@ -81,37 +110,38 @@ function openEditModal(location: Location) {
 }
 
 async function saveLocation() {
+  if (savingLocation.value) return
   nameError.value = getLocationNameError(form.name) || ''
   if (nameError.value) return
-
+  const wasEditing = !!editingLocation.value
+  savingLocation.value = true
   try {
-    const url = editingLocation.value
-      ? `/api/locations/${editingLocation.value.id}`
-      : `/api/locations`
-
-    await apiFetch(url, {
+    const url = editingLocation.value ? `/api/locations/${editingLocation.value.id}` : '/api/locations'
+    const location = await apiFetch<Location>(url, {
       method: editingLocation.value ? 'PUT' : 'POST',
       body: JSON.stringify({ ...form, name: form.name.trim() })
     })
-
-    toast.add({
-      title: editingLocation.value ? 'Location updated' : 'Location created',
-      color: 'success'
-    })
+    selectedLocation.value = location
     modalOpen.value = false
-    refresh()
+    await refresh()
+    toast.add({ title: wasEditing ? 'Location updated' : 'Location created', color: 'success' })
   } catch {
     toast.add({ title: 'Failed to save location', color: 'error' })
+  } finally {
+    savingLocation.value = false
   }
 }
 
 function confirmDelete(location: Location) {
   locationToDelete.value = location
+  deleteLocationError.value = ''
   deleteModalOpen.value = true
 }
 
 async function deleteLocation() {
-  if (!locationToDelete.value) return
+  if (!locationToDelete.value || deletingLocation.value) return
+  deletingLocation.value = true
+  deleteLocationError.value = ''
 
   try {
     await apiFetch(`/api/locations/${locationToDelete.value.id}`, {
@@ -128,7 +158,9 @@ async function deleteLocation() {
     locationToDelete.value = null
     refresh()
   } catch {
-    toast.add({ title: 'Failed to delete location', color: 'error' })
+    deleteLocationError.value = 'Could not delete this location. Please try again.'
+  } finally {
+    deletingLocation.value = false
   }
 }
 
@@ -295,20 +327,17 @@ function hasChildren(locationId: string): boolean {
 }
 
 // Format currency
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(value)
+const formatRelativeTime = (dateString: string) => {
+  const diffDays = Math.floor((Date.now() - new Date(dateString).getTime()) / 86400000)
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays < 7) return `${diffDays} days ago`
+  const weeks = Math.floor(diffDays / 7)
+  return `${weeks} week${weeks > 1 ? 's' : ''} ago`
 }
 
-// Calculate total value of assets in location
-const totalValue = computed(() => {
-  if (!locationAssets.value?.assets) return 0
-  return locationAssets.value.assets.reduce((sum, asset) => sum + (asset.purchase_price || 0), 0)
-})
+const { settings } = useOrganizationSettings()
+const formatCurrency = (value: number) => formatPurchaseTotal(value, settings.value.currency)
 
 // Get icon for location based on explicit icon or fallback by name
 function getLocationIcon(location: Location): string {
@@ -521,6 +550,7 @@ function getLocationIcon(location: Location): string {
                 variant="outline"
                 color="neutral"
                 icon="i-lucide-edit"
+                aria-label="Edit location"
                 @click="openEditModal(selectedLocation)"
               >
                 <span class="hidden sm:inline">Edit</span>
@@ -531,6 +561,14 @@ function getLocationIcon(location: Location): string {
               >
                 Add Asset
               </UButton>
+              <UButton
+                variant="ghost"
+                color="error"
+                icon="i-lucide-trash-2"
+                aria-label="Delete location"
+                title="Delete location"
+                @click="confirmDelete(selectedLocation)"
+              />
             </div>
           </div>
 
@@ -568,14 +606,36 @@ function getLocationIcon(location: Location): string {
 
                     <!-- Stats Row -->
                     <div class="flex gap-5 pt-2">
-                      <div class="flex items-baseline gap-2">
-                        <span class="text-2xl font-black text-white">{{ locationAssets?.total || 0 }}</span>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-white/60">Assets</span>
+                      <div class="shrink-0">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-white/60">
+                          Assets
+                        </p>
+                        <p class="text-2xl font-black text-white">
+                          {{ locationAssets?.total || 0 }}
+                        </p>
                       </div>
-                      <div class="h-8 w-px bg-white/20" />
-                      <div class="flex items-baseline gap-2">
-                        <span class="text-2xl font-black text-white">{{ formatCurrency(totalValue) }}</span>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-white/60">Total value</span>
+                      <div class="min-w-0 border-l border-white/20 pl-5">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-white/60">
+                          Total value
+                        </p>
+                        <p
+                          class="text-2xl font-black text-white"
+                          role="status"
+                          aria-live="polite"
+                        >
+                          <template v-if="locationStatsStatus === 'pending'">
+                            Loading…
+                          </template>
+                          <template v-else-if="locationStatsStatus === 'error'">
+                            Unavailable
+                          </template>
+                          <template v-else-if="locationStatsStatus === 'success' && locationStats">
+                            {{ formatCurrency(locationStats.total_value) }}
+                          </template>
+                          <template v-else>
+                            —
+                          </template>
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -641,8 +701,54 @@ function getLocationIcon(location: Location): string {
                 </div>
               </div>
 
+              <div
+                role="tablist"
+                aria-label="Location content"
+                class="flex gap-6 border-b border-mist-200 dark:border-mist-700"
+                @keydown="navigateLocationTabs"
+              >
+                <button
+                  v-for="tab in locationTabs"
+                  :id="`location-tab-${tab.value}`"
+                  :key="tab.value"
+                  type="button"
+                  role="tab"
+                  :aria-selected="locationTab === tab.value"
+                  :aria-controls="`location-panel-${tab.value}`"
+                  :tabindex="locationTab === tab.value ? 0 : -1"
+                  class="flex items-center gap-2 border-b-2 px-1 pb-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-attic-500"
+                  :class="locationTab === tab.value ? 'border-attic-500 text-attic-600 dark:text-attic-400' : 'border-transparent text-mist-500 hover:text-mist-950 dark:text-mist-400 dark:hover:text-white'"
+                  @click="locationTab = tab.value"
+                >
+                  <UIcon
+                    :name="tab.icon"
+                    class="size-4"
+                  />
+                  {{ tab.label }}
+                </button>
+              </div>
+
+              <div
+                v-show="locationTab === 'photos'"
+                id="location-panel-photos"
+                role="tabpanel"
+                aria-labelledby="location-tab-photos"
+                tabindex="0"
+              >
+                <LocationPhotoGallery
+                  :location="selectedLocation"
+                  @changed="refresh()"
+                />
+              </div>
+
               <!-- Asset Grid Section -->
-              <div>
+              <div
+                v-show="locationTab === 'assets'"
+                id="location-panel-assets"
+                role="tabpanel"
+                aria-labelledby="location-tab-assets"
+                tabindex="0"
+              >
                 <div class="mb-4 flex items-center justify-between">
                   <h2 class="text-lg font-bold text-mist-950 dark:text-white">
                     Assets in this location
@@ -662,61 +768,14 @@ function getLocationIcon(location: Location): string {
                   class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
                 >
                   <!-- Asset Cards -->
-                  <NuxtLink
+                  <AssetCard
                     v-for="asset in locationAssets.assets.slice(0, 7)"
                     :key="asset.id"
-                    :to="`/assets/${asset.id}`"
-                    class="attic-panel attic-panel-interactive group flex cursor-pointer flex-col overflow-hidden rounded-[18px]"
-                  >
-                    <!-- Asset Image Placeholder -->
-                    <div class="relative flex aspect-[2/1] items-center justify-center overflow-hidden bg-gradient-to-br from-attic-50 to-mist-100 dark:from-mist-700 dark:to-mist-800">
-                      <img
-                        v-if="asset.main_attachment_url"
-                        :src="asset.main_attachment_url"
-                        :alt="asset.name"
-                        class="size-full object-cover transition duration-300 group-hover:scale-[1.03]"
-                      >
-                      <UIcon
-                        v-else
-                        name="i-lucide-package"
-                        class="w-10 h-10 text-mist-300 dark:text-mist-500 group-hover:scale-110 transition-transform"
-                      />
-                      <div
-                        v-if="asset.purchase_price"
-                        class="absolute top-2 right-2 bg-white/90 dark:bg-black/80 backdrop-blur px-2 py-0.5 rounded-full text-[10px] font-bold text-mist-950 dark:text-white shadow-sm"
-                      >
-                        {{ formatCurrency(asset.purchase_price) }}
-                      </div>
-                    </div>
-                    <div class="p-4 flex flex-col flex-1">
-                      <div class="flex justify-between items-start mb-1">
-                        <h3 class="font-bold text-mist-950 dark:text-white text-sm line-clamp-1 group-hover:text-attic-500 transition-colors">
-                          {{ asset.name }}
-                        </h3>
-                        <span
-                          v-if="asset.condition"
-                          class="shrink-0 text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded font-medium ml-2"
-                        >
-                          {{ asset.condition.label }}
-                        </span>
-                      </div>
-                      <p
-                        v-if="asset.description"
-                        class="text-xs text-muted mb-3 line-clamp-2"
-                      >
-                        {{ asset.description }}
-                      </p>
-                      <div class="mt-auto flex items-center gap-2 pt-2 border-t border-mist-50 dark:border-mist-600">
-                        <UIcon
-                          name="i-lucide-tag"
-                          class="w-4 h-4 text-muted"
-                        />
-                        <span class="text-[10px] uppercase font-bold text-muted">
-                          {{ asset.category?.name || 'Uncategorized' }}
-                        </span>
-                      </div>
-                    </div>
-                  </NuxtLink>
+                    :asset="asset"
+                    :updated-label="formatRelativeTime(asset.updated_at)"
+                    :price-label="asset.purchase_price == null ? undefined : formatPurchasePrice(asset.purchase_price, settings.currency)"
+                    show-description
+                  />
 
                   <!-- Add Asset Card -->
                   <NuxtLink
@@ -763,36 +822,6 @@ function getLocationIcon(location: Location): string {
                   </UButton>
                 </div>
               </div>
-
-              <!-- Danger Zone -->
-              <div class="border-t border-mist-100 pt-5 dark:border-mist-700">
-                <div class="rounded-xl border border-red-100 bg-red-50/60 p-3 dark:border-red-900/40 dark:bg-red-900/10">
-                  <div class="flex items-start gap-3">
-                    <div class="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                      <UIcon
-                        name="i-lucide-trash-2"
-                        class="w-5 h-5 text-red-600 dark:text-red-400"
-                      />
-                    </div>
-                    <div class="flex-1">
-                      <h4 class="text-sm font-bold text-red-800 dark:text-red-300">
-                        Delete Location
-                      </h4>
-                      <p class="text-xs text-red-600 dark:text-red-400 mt-1">
-                        Permanently remove this location. This action cannot be undone.
-                      </p>
-                    </div>
-                    <UButton
-                      variant="soft"
-                      color="error"
-                      size="sm"
-                      @click="confirmDelete(selectedLocation)"
-                    >
-                      Delete
-                    </UButton>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </template>
@@ -804,17 +833,18 @@ function getLocationIcon(location: Location): string {
       v-model:open="modalOpen"
       :title="editingLocation ? 'Edit Location' : 'New Location'"
       description="Enter the location details and choose how it appears in the location tree."
+      :dismissible="!savingLocation"
     >
       <template #content>
-        <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl">
-          <div class="p-6 border-b border-mist-100 dark:border-mist-700">
+        <div class="flex max-h-[85dvh] flex-col overflow-hidden bg-white dark:bg-mist-800 rounded-xl shadow-xl">
+          <div class="shrink-0 p-6 border-b border-mist-100 dark:border-mist-700">
             <h3 class="text-lg font-bold text-mist-950 dark:text-white">
               {{ editingLocation ? 'Edit Location' : 'New Location' }}
             </h3>
           </div>
 
           <form
-            class="p-6 space-y-4"
+            class="p-6 space-y-4 overflow-y-auto"
             @submit.prevent="saveLocation"
           >
             <div>
@@ -877,15 +907,19 @@ function getLocationIcon(location: Location): string {
             </div>
           </form>
 
-          <div class="p-6 border-t border-mist-100 dark:border-mist-700 flex justify-end gap-3">
+          <div class="shrink-0 p-6 border-t border-mist-100 dark:border-mist-700 flex justify-end gap-3">
             <UButton
               variant="ghost"
               color="neutral"
+              :disabled="savingLocation"
               @click="modalOpen = false"
             >
               Cancel
             </UButton>
-            <UButton @click="saveLocation">
+            <UButton
+              :loading="savingLocation"
+              @click="saveLocation"
+            >
               {{ editingLocation ? 'Update' : 'Create' }}
             </UButton>
           </div>
@@ -896,42 +930,47 @@ function getLocationIcon(location: Location): string {
     <!-- Delete Confirmation Modal -->
     <UModal
       v-model:open="deleteModalOpen"
-      title="Delete Location"
-      description="Confirm permanent deletion of this location."
+      title="Delete location?"
+      :description="`Permanently delete “${locationToDelete?.name || 'this location'}”? This action cannot be undone.`"
+      :dismissible="!deletingLocation"
+      :close="!deletingLocation"
     >
-      <template #content>
-        <div class="bg-white dark:bg-mist-800 rounded-xl shadow-xl p-6">
-          <div class="flex items-start gap-4">
-            <div class="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
-              <UIcon
-                name="i-lucide-alert-triangle"
-                class="w-6 h-6 text-red-600 dark:text-red-400"
-              />
-            </div>
-            <div class="flex-1">
-              <h3 class="text-lg font-bold text-mist-950 dark:text-white">
-                Delete Location
-              </h3>
-              <p class="text-sm text-muted mt-2">
-                Are you sure you want to delete <strong>{{ locationToDelete?.name }}</strong>? This action cannot be undone.
-              </p>
-            </div>
+      <template #body>
+        <div class="flex gap-3 rounded-xl bg-red-50 p-4 dark:bg-red-900/15">
+          <UIcon
+            name="i-lucide-alert-triangle"
+            class="mt-0.5 size-5 shrink-0 text-red-600 dark:text-red-400"
+          />
+          <div class="space-y-2 text-sm text-mist-700 dark:text-mist-200">
+            <p>All photos in this location will be permanently deleted.</p>
+            <p>Assets will stay in your inventory and will no longer appear under this location.</p>
           </div>
-          <div class="flex justify-end gap-3 mt-6">
-            <UButton
-              variant="ghost"
-              color="neutral"
-              @click="deleteModalOpen = false"
-            >
-              Cancel
-            </UButton>
-            <UButton
-              color="error"
-              @click="deleteLocation"
-            >
-              Delete
-            </UButton>
-          </div>
+        </div>
+        <p
+          v-if="deleteLocationError"
+          role="alert"
+          class="mt-3 text-sm text-red-600 dark:text-red-400"
+        >
+          {{ deleteLocationError }}
+        </p>
+      </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            variant="ghost"
+            color="neutral"
+            :disabled="deletingLocation"
+            @click="deleteModalOpen = false"
+          >
+            Cancel
+          </UButton>
+          <UButton
+            color="error"
+            :loading="deletingLocation"
+            @click="deleteLocation"
+          >
+            Delete location
+          </UButton>
         </div>
       </template>
     </UModal>

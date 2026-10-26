@@ -74,7 +74,7 @@ func Test_S3Client_Upload_Success(t *testing.T) {
 	content := "Hello, World!"
 	body := strings.NewReader(content)
 
-	key, err := testS3Client.Upload(ctx, "test.txt", "text/plain", body)
+	key, err := testS3Client.Upload(ctx, "", "test.txt", "text/plain", body)
 	if err != nil {
 		t.Fatalf("failed to upload: %v", err)
 	}
@@ -108,7 +108,7 @@ func Test_S3Client_Upload_WithContentType(t *testing.T) {
 	content := []byte{0x89, 0x50, 0x4E, 0x47} // PNG header bytes
 	body := bytes.NewReader(content)
 
-	key, err := testS3Client.Upload(ctx, "image.png", "image/png", body)
+	key, err := testS3Client.Upload(ctx, "", "image.png", "image/png", body)
 	if err != nil {
 		t.Fatalf("failed to upload: %v", err)
 	}
@@ -130,12 +130,12 @@ func Test_S3Client_Upload_WithContentType(t *testing.T) {
 func Test_S3Client_Upload_GeneratesUniqueKeys(t *testing.T) {
 	ctx := context.Background()
 
-	key1, err := testS3Client.Upload(ctx, "file.txt", "text/plain", strings.NewReader("content1"))
+	key1, err := testS3Client.Upload(ctx, "", "file.txt", "text/plain", strings.NewReader("content1"))
 	if err != nil {
 		t.Fatalf("failed to upload first file: %v", err)
 	}
 
-	key2, err := testS3Client.Upload(ctx, "file.txt", "text/plain", strings.NewReader("content2"))
+	key2, err := testS3Client.Upload(ctx, "", "file.txt", "text/plain", strings.NewReader("content2"))
 	if err != nil {
 		t.Fatalf("failed to upload second file: %v", err)
 	}
@@ -149,7 +149,7 @@ func Test_S3Client_GetPresignedURL_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Upload a file first
-	key, err := testS3Client.Upload(ctx, "presign-test.txt", "text/plain", strings.NewReader("test content"))
+	key, err := testS3Client.Upload(ctx, "", "presign-test.txt", "text/plain", strings.NewReader("test content"))
 	if err != nil {
 		t.Fatalf("failed to upload: %v", err)
 	}
@@ -175,7 +175,7 @@ func Test_S3Client_GetPresignedURL_WithExpiry(t *testing.T) {
 	ctx := context.Background()
 
 	// Upload a file
-	key, _ := testS3Client.Upload(ctx, "expiry-test.txt", "text/plain", strings.NewReader("test"))
+	key, _ := testS3Client.Upload(ctx, "", "expiry-test.txt", "text/plain", strings.NewReader("test"))
 
 	// Get presigned URLs with different expiries
 	url1, err := testS3Client.GetPresignedURL(ctx, key, 5*time.Minute)
@@ -203,7 +203,7 @@ func Test_S3Client_Delete_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Upload a file
-	key, err := testS3Client.Upload(ctx, "delete-test.txt", "text/plain", strings.NewReader("to be deleted"))
+	key, err := testS3Client.Upload(ctx, "", "delete-test.txt", "text/plain", strings.NewReader("to be deleted"))
 	if err != nil {
 		t.Fatalf("failed to upload: %v", err)
 	}
@@ -266,7 +266,7 @@ func Test_S3Client_Upload_LargeFile(t *testing.T) {
 		content[i] = byte(i % 256)
 	}
 
-	key, err := testS3Client.Upload(ctx, "large-file.bin", "application/octet-stream", bytes.NewReader(content))
+	key, err := testS3Client.Upload(ctx, "", "large-file.bin", "application/octet-stream", bytes.NewReader(content))
 	if err != nil {
 		t.Fatalf("failed to upload large file: %v", err)
 	}

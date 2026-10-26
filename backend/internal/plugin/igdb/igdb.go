@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strconv"
@@ -77,7 +78,7 @@ func (p *Plugin) Attributes() []domain.PluginAttribute {
 		{Key: "games.category", Name: "Edition Type", DataType: domain.AttributeTypeString, Required: false},
 		{Key: "games.status", Name: "Release Status", DataType: domain.AttributeTypeString, Required: false},
 		{Key: "games.rating", Name: "IGDB Rating", DataType: domain.AttributeTypeNumber, Required: false},
-		{Key: "games.url", Name: "IGDB URL", DataType: domain.AttributeTypeString, Required: false},
+		{Key: "games.url", Name: "IGDB URL", DataType: domain.AttributeTypeURL, Required: false},
 	}
 }
 
@@ -206,7 +207,12 @@ func (p *Plugin) Fetch(ctx context.Context, externalID string) (*domain.ImportDa
 		data.Attributes["games.rating"] = roundTo(game.Rating, 1)
 	}
 	if game.URL != "" {
-		data.Attributes["games.url"] = game.URL
+		value, err := domain.NormalizeURLAttribute(map[string]any{"url": game.URL}, false)
+		if err != nil {
+			slog.WarnContext(ctx, "omitting invalid plugin URL", "plugin_id", PluginID, "external_id", externalID, "attribute_key", "games.url", "reason", err.Error())
+		} else if value != nil {
+			data.Attributes["games.url"] = value
+		}
 	}
 
 	return data, nil

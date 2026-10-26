@@ -26,6 +26,7 @@ import (
 	"github.com/lmmendes/attic/internal/plugin/bgg"
 	"github.com/lmmendes/attic/internal/plugin/googlebooks"
 	"github.com/lmmendes/attic/internal/plugin/igdb"
+	"github.com/lmmendes/attic/internal/plugin/rebrickable"
 	"github.com/lmmendes/attic/internal/plugin/tmdb"
 	"github.com/lmmendes/attic/internal/repository"
 	"github.com/lmmendes/attic/internal/storage"
@@ -182,19 +183,27 @@ func main() {
 	// OAuth handler for OIDC login flow (only if OIDC enabled)
 	var oauthHandler *auth.OAuthHandler
 	if cfg.OIDCEnabled && !cfg.AuthDisabled {
+		oidcSessions := repository.NewOIDCSessionRepository(db.Pool)
 		oauthHandler, err = auth.NewOAuthHandler(ctx, auth.OAuthConfig{
-			IssuerURL:     cfg.OIDCIssuer,
-			ClientID:      cfg.OIDCClientID,
-			ClientSecret:  cfg.OIDCClientSecret,
-			BaseURL:       cfg.BaseURL,
-			SessionSecret: cfg.SessionSecret,
-			Disabled:      cfg.AuthDisabled,
+			IssuerURL:    cfg.OIDCIssuer,
+			ClientID:     cfg.OIDCClientID,
+			ClientSecret: cfg.OIDCClientSecret,
+			BaseURL:      cfg.BaseURL,
+			SessionStore: oidcSessions,
+			Disabled:     cfg.AuthDisabled,
 		})
 		if err != nil {
 			slog.Error("failed to initialize OAuth handler", "error", err)
 			os.Exit(1)
 		}
 		authMiddleware.SetOAuthHandler(oauthHandler)
+		cleanupCtx, stopCleanup := context.WithCancel(ctx)
+		cleanupDone := make(chan struct{})
+		go func() {
+			defer close(cleanupDone)
+			auth.RunOIDCSessionCleanup(cleanupCtx, oidcSessions)
+		}()
+		defer func() { stopCleanup(); <-cleanupDone }()
 	}
 
 	// User provisioner (for OIDC mode)
@@ -215,6 +224,9 @@ func main() {
 	registerImportPlugin(pluginRegistry, tmdb.NewSeriesPlugin(), "ATTIC_TMDB_API_KEY")
 	registerImportPlugin(pluginRegistry, bgg.New(), "ATTIC_BGG_API_KEY")
 	registerImportPlugin(pluginRegistry, igdb.New(), "ATTIC_IGDB_CLIENT_ID")
+	rebrickableClient := rebrickable.NewClient()
+	registerImportPlugin(pluginRegistry, rebrickable.NewSets(rebrickableClient), "ATTIC_REBRICKABLE_API_KEY")
+	registerImportPlugin(pluginRegistry, rebrickable.NewMinifigs(rebrickableClient), "ATTIC_REBRICKABLE_API_KEY")
 	slog.Info("registered plugins", "count", len(pluginRegistry.List()))
 
 	// Initialize handlers

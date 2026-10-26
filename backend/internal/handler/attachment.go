@@ -92,7 +92,7 @@ func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key, err := h.storage.Upload(r.Context(), header.Filename, contentType, file)
+	key, err := h.storage.Upload(r.Context(), "", header.Filename, contentType, file)
 	if err != nil {
 		slog.Error("failed to upload file to storage", "error", err, "filename", header.Filename)
 		writeError(w, http.StatusInternalServerError, "failed to upload file")

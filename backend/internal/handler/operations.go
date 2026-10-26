@@ -16,6 +16,7 @@ type Operation struct {
 	AdditionalPermissions                   []PermissionRequirement
 	Method, Path, Resource, Action, Feature string
 	Admin, Interactive                      bool
+	RESTOnly, Multipart                     bool
 	ToolName, Description                   string
 	Handler                                 http.HandlerFunc
 	Body                                    any
@@ -28,6 +29,9 @@ func Operations(h *Handler, pluginHandler *PluginHandler, userMgmtHandler *UserM
 		{Method: "GET", Path: "/api/me", Handler: h.GetCurrentUser, Resource: "", Action: "read", Feature: "", Admin: false, Interactive: false, ToolName: "", Description: "Get Current User"},
 		{Method: "GET", Path: "/api/organization/features", Handler: h.GetOrganizationFeatures, Resource: "organization", Action: "read", Feature: "", Admin: false, Interactive: false, ToolName: "get_organization_features", Description: "Get Organization Features"},
 		{Method: "PUT", Path: "/api/organization/features", Handler: h.UpdateOrganizationFeatures, Resource: "organization", Action: "write", Feature: "", Admin: true, Interactive: false, ToolName: "update_organization_features", Description: "Update Organization Features"},
+		{Method: "GET", Path: "/api/organization/settings", Handler: h.GetOrganizationSettings, Resource: "organization", Action: "read", RESTOnly: true},
+		{Method: "GET", Path: "/api/organization/settings/currencies", Handler: h.GetOrganizationCurrencies, Resource: "organization", Action: "read", RESTOnly: true},
+		{Method: "PUT", Path: "/api/organization/settings", Handler: h.UpdateOrganizationSettings, Resource: "organization", Action: "write", Admin: true, RESTOnly: true},
 		{Method: "GET", Path: "/api/users", Handler: userMgmtHandler.ListUsers, Resource: "users", Action: "read", Feature: "", Admin: true, Interactive: false, ToolName: "list_users", Description: "List Users"},
 		{Method: "POST", Path: "/api/users", Handler: userMgmtHandler.CreateUser, Resource: "users", Action: "write", Feature: "", Admin: true, Interactive: true, ToolName: "", Description: "Create User"},
 		{Method: "GET", Path: "/api/users/{id}", Handler: userMgmtHandler.GetUser, Resource: "users", Action: "read", Feature: "", Admin: true, Interactive: false, ToolName: "get_user", Description: "Get User"},
@@ -61,6 +65,11 @@ func Operations(h *Handler, pluginHandler *PluginHandler, userMgmtHandler *UserM
 		{Method: "GET", Path: "/api/locations/{id}", Handler: h.GetLocation, Resource: "locations", Action: "read", Feature: "locations", Admin: false, Interactive: false, ToolName: "get_location", Description: "Get Location"},
 		{Method: "PUT", Path: "/api/locations/{id}", Handler: h.UpdateLocation, Resource: "locations", Action: "write", Feature: "locations", Admin: false, Interactive: false, ToolName: "update_location", Description: "Update Location"},
 		{Method: "DELETE", Path: "/api/locations/{id}", Handler: h.DeleteLocation, Resource: "locations", Action: "write", Feature: "locations", Admin: false, Interactive: false, ToolName: "delete_location", Description: "Delete Location"},
+		{Method: "GET", Path: "/api/locations/{id}/photos", Handler: h.ListLocationPhotos, Resource: "locations", Action: "read", Feature: "locations", RESTOnly: true},
+		{Method: "POST", Path: "/api/locations/{id}/photos", Handler: h.UploadLocationPhoto, Resource: "locations", Action: "write", Feature: "locations", RESTOnly: true, Multipart: true},
+		{Method: "DELETE", Path: "/api/locations/{id}/photos/{photoId}", Handler: h.DeleteLocationPhoto, Resource: "locations", Action: "write", Feature: "locations", RESTOnly: true},
+		{Method: "PUT", Path: "/api/locations/{id}/photos/{photoId}/cover", Handler: h.SetLocationCoverPhoto, Resource: "locations", Action: "write", Feature: "locations", RESTOnly: true},
+		{Method: "DELETE", Path: "/api/locations/{id}/photos/{photoId}/cover", Handler: h.UnsetLocationCoverPhoto, Resource: "locations", Action: "write", Feature: "locations", RESTOnly: true},
 		{Method: "GET", Path: "/api/conditions", Handler: h.ListConditions, Resource: "conditions", Action: "read", Feature: "conditions", Admin: false, Interactive: false, ToolName: "list_conditions", Description: "List Conditions"},
 		{Method: "POST", Path: "/api/conditions", Handler: h.CreateCondition, Resource: "conditions", Action: "write", Feature: "conditions", Admin: false, Interactive: false, ToolName: "create_condition", Description: "Create Condition"},
 		{Method: "GET", Path: "/api/conditions/{id}", Handler: h.GetCondition, Resource: "conditions", Action: "read", Feature: "conditions", Admin: false, Interactive: false, ToolName: "get_condition", Description: "Get Condition"},
@@ -82,13 +91,14 @@ func Operations(h *Handler, pluginHandler *PluginHandler, userMgmtHandler *UserM
 		{Method: "POST", Path: "/api/assets", Handler: h.CreateAsset, Resource: "assets", Action: "write", Feature: "", Admin: false, Interactive: false, ToolName: "create_asset", Description: "Create Asset"},
 		{Method: "GET", Path: "/api/assets/{id}", Handler: h.GetAsset, Resource: "assets", Action: "read", Feature: "", Admin: false, Interactive: false, ToolName: "get_asset", Description: "Get Asset"},
 		{Method: "PUT", Path: "/api/assets/{id}", Handler: h.UpdateAsset, Resource: "assets", Action: "write", Feature: "", Admin: false, Interactive: false, ToolName: "update_asset", Description: "Update Asset"},
+		{Method: "PATCH", Path: "/api/assets/{id}/parent", Handler: h.SetAssetParent, Resource: "assets", Action: "write", RESTOnly: true},
 		{Method: "DELETE", Path: "/api/assets/{id}", Handler: h.DeleteAsset, Resource: "assets", Action: "write", Feature: "", Admin: false, Interactive: false, ToolName: "delete_asset", Description: "Delete Asset"},
 		{Method: "GET", Path: "/api/assets/{id}/warranty", Handler: h.GetWarranty, Resource: "warranties", Action: "read", Feature: "warranties", Admin: false, Interactive: false, ToolName: "get_warranty", Description: "Get Warranty"},
 		{Method: "POST", Path: "/api/assets/{id}/warranty", Handler: h.CreateWarranty, Resource: "warranties", Action: "write", Feature: "warranties", Admin: false, Interactive: false, ToolName: "create_warranty", Description: "Create Warranty"},
 		{Method: "PUT", Path: "/api/assets/{id}/warranty", Handler: h.UpdateWarranty, Resource: "warranties", Action: "write", Feature: "warranties", Admin: false, Interactive: false, ToolName: "update_warranty", Description: "Update Warranty"},
 		{Method: "DELETE", Path: "/api/assets/{id}/warranty", Handler: h.DeleteWarranty, Resource: "warranties", Action: "write", Feature: "warranties", Admin: false, Interactive: false, ToolName: "delete_warranty", Description: "Delete Warranty"},
 		{Method: "GET", Path: "/api/assets/{id}/attachments", Handler: h.ListAttachments, Resource: "attachments", Action: "read", Feature: "", Admin: false, Interactive: false, ToolName: "list_attachments", Description: "List Attachments"},
-		{Method: "POST", Path: "/api/assets/{id}/attachments", Handler: h.UploadAttachment, Resource: "attachments", Action: "write", Feature: "", Admin: false, Interactive: false, ToolName: "upload_attachment", Description: "Upload Attachment"},
+		{Method: "POST", Path: "/api/assets/{id}/attachments", Handler: h.UploadAttachment, Resource: "attachments", Action: "write", Feature: "", Admin: false, Interactive: false, ToolName: "upload_attachment", Description: "Upload Attachment", Multipart: true},
 		{Method: "GET", Path: "/api/assets/{id}/events", Handler: h.ListAssetEvents, Resource: "asset_events", Action: "read", Feature: "", Admin: false, Interactive: false, ToolName: "list_asset_events", Description: "List Asset Events"},
 		{Method: "POST", Path: "/api/assets/{id}/events", Handler: h.CreateAssetEvent, Resource: "asset_events", Action: "write", Feature: "", Admin: false, Interactive: false, ToolName: "create_asset_event", Description: "Create Asset Event"},
 		{Method: "PUT", Path: "/api/assets/{id}/events/{eventId}", Handler: h.UpdateAssetEvent, Resource: "asset_events", Action: "write", Feature: "", Admin: false, Interactive: false, ToolName: "update_asset_event", Description: "Update Asset Event"},

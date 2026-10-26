@@ -21,6 +21,8 @@ tags:
     description: Asset condition management
   - name: Assets
     description: Asset management
+  - name: Organization
+    description: Organization-wide settings
   - name: Tags
     description: Shared asset tag management
   - name: Asset Events
@@ -71,6 +73,70 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/organization/settings:
+    get:
+      tags: [Organization]
+      summary: Get organization settings
+      description: Available to every signed-in user.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Current organization settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [Organization]
+      summary: Update organization settings
+      description: >-
+        Admin only. Changing the currency relabels every existing asset price;
+        amounts are not converted.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationSettings'
+      responses:
+        '200':
+          description: Settings saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationSettings'
+        '400':
+          description: currency is missing or not a current monetary ISO 4217 currency code (e.g. DEM, ZZZ, XXX, XTS)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin access required
+
+  /api/organization/settings/currencies:
+    get:
+      tags: [Organization]
+      summary: List available currencies
+      description: >-
+        Available to every signed-in user. Returns sorted, unique current monetary
+        ISO 4217 codes accepted when saving organization settings. Historical,
+        unknown, no-currency (XXX), and testing (XTS) codes are excluded.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Available currency choices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyOptionsResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -247,6 +313,127 @@ paths:
       responses:
         '204':
           description: Location deleted
+
+  /api/locations/{id}/photos:
+    parameters:
+      - $ref: '#/components/parameters/id'
+    get:
+      tags: [Locations]
+      summary: List location photos
+      description: Returns the cover first, followed by creation time and ID. Requires an active location in the current organization and the locations feature.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Location photos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LocationPhoto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Location not found or locations disabled
+    post:
+      tags: [Locations]
+      summary: Add a location photo
+      description: Validates JPEG, PNG or GIF content, with a 10 MiB file limit and a 40-megapixel limit. Uploads do not select a cover; the location keeps its icon until a cover is explicitly selected. Requires an active location in the current organization and the locations feature.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Created photo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationPhoto'
+        '400':
+          description: Invalid ID, missing file, unsupported image, or upload limit exceeded
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Location not found or locations disabled
+        '503':
+          description: File storage is unavailable
+
+  /api/locations/{id}/photos/{photoId}:
+    parameters:
+      - $ref: '#/components/parameters/id'
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags: [Locations]
+      summary: Delete a location photo
+      description: Deletes the photo and its stored file. Deleting the cover restores the location icon without selecting a replacement. Requires an active location in the current organization and the locations feature.
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: Photo deleted
+        '400':
+          description: Invalid location or photo ID
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Location or photo not found, or locations disabled
+
+  /api/locations/{id}/photos/{photoId}/cover:
+    parameters:
+      - $ref: '#/components/parameters/id'
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [Locations]
+      summary: Set the location cover photo
+      description: Selects an existing photo belonging to this active location in the current organization. Requires the locations feature.
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: Cover selected
+        '400':
+          description: Invalid location or photo ID
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Location or photo not found, or locations disabled
+    delete:
+      tags: [Locations]
+      summary: Unset a location cover photo
+      description: Removes this photo’s cover status without deleting it. Restores the location icon if this was the cover. Requires an active location in the current organization and the locations feature.
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: Photo is no longer the cover
+        '400':
+          description: Invalid location or photo ID
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Location or photo not found, or locations disabled
+
 
   /api/conditions:
     get:
@@ -508,6 +695,22 @@ paths:
         - sessionCookie: []
         - bearerKey: []
       parameters:
+        - name: parent_id
+          in: query
+          description: List direct contents of an active asset in this workspace.
+          schema: { type: string, format: uuid }
+        - name: descendant_of
+          in: query
+          description: List all active descendants, excluding the root. Mutually exclusive with parent_id. Results include containment_path from this root to their immediate parent.
+          schema: { type: string, format: uuid }
+        - name: exclude_subtree_of
+          in: query
+          description: Exclude this asset and all descendants when selecting a parent.
+          schema: { type: string, format: uuid }
+        - name: exclude_ancestors_of
+          in: query
+          description: Exclude this asset and all ancestors when selecting contents.
+          schema: { type: string, format: uuid }
         - name: q
           in: query
           description: Full-text search query
@@ -590,6 +793,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Asset'
+
+  /api/assets/{id}/parent:
+    patch:
+      tags: [Assets]
+      summary: Change an asset's parent or detach it
+      description: Atomically synchronize the subtree location with its new parent. Detach preserves the current location. Rejects cycles and unavailable parent assignments.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parent_id]
+              properties:
+                parent_id: { type: string, format: uuid, nullable: true }
+      responses:
+        '200':
+          description: Updated asset with parent and containment summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Asset' }
+        '400': { description: Invalid parent, cycle, or unavailable assignment }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/assets/search:
     post:
@@ -777,7 +1007,8 @@ paths:
           description: Asset updated
     delete:
       tags: [Assets]
-      summary: Delete asset
+      summary: Delete asset and detach its direct contents
+      description: Direct children become standalone at their current location and keep their own contents.
       security:
         - sessionCookie: []
         - bearerKey: []
@@ -1808,7 +2039,7 @@ components:
           format: uuid
         data_type:
           type: string
-          enum: [string, text, number, boolean, date, select]
+          enum: [string, text, number, boolean, date, select, url]
         selection_mode:
           type: string
           enum: [single, multiple]
@@ -1954,7 +2185,7 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 255 }
         key: { type: string, minLength: 1, maxLength: 100 }
-        data_type: { type: string, enum: [string, text, number, boolean, date, select] }
+        data_type: { type: string, enum: [string, text, number, boolean, date, select, url] }
         selection_mode:
           type: string
           enum: [single, multiple]
@@ -1986,7 +2217,7 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 255 }
         key: { type: string, minLength: 1, maxLength: 100 }
-        data_type: { type: string, enum: [string, text, number, boolean, date, select] }
+        data_type: { type: string, enum: [string, text, number, boolean, date, select, url] }
         selection_mode: { type: string, enum: [single, multiple] }
         options:
           $ref: '#/components/schemas/AttributeOptionsUpdate'
@@ -2015,6 +2246,19 @@ components:
           anyOf:
             - $ref: '#/components/schemas/AttributeChanges'
             - $ref: '#/components/schemas/OptionChanges'
+    URLAttributeValue:
+      type: object
+      required: [url]
+      additionalProperties: false
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Absolute HTTP or HTTPS URL, including private hosts and ports.
+        label:
+          type: string
+          description: Optional plain-text link text; defaults to the `url` value when omitted.
+
     AttributeImpact:
       type: object
       required: [affected_assets, deleted_assets, required_fields_left_empty, current, proposed, confirmation_token]
@@ -2115,12 +2359,37 @@ components:
           type: string
         icon:
           type: string
+        photo_url:
+          type: string
+          format: uri
+          description: URL for the cover photo, when one is available. S3 URLs expire after 15 minutes; refresh location data to renew them.
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+
+    LocationPhoto:
+      type: object
+      required: [id, location_id, file_name, is_cover, created_at, url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        location_id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+        is_cover:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        url:
+          type: string
+          description: Download URL; empty if URL generation is temporarily unavailable. S3 URLs expire after 15 minutes.
 
     LocationInput:
       type: object
@@ -2231,6 +2500,21 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    AssetReference:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+
+    ContainmentSummary:
+      type: object
+      description: Includes this asset and all active descendants. Sums each purchase price times its own quantity once; missing prices contribute zero. Ancestor quantities do not multiply contents. Inventory statistics continue to count stored asset prices once.
+      required: [total_value, unpriced_asset_count]
+      properties:
+        total_value: { type: number }
+        unpriced_asset_count: { type: integer, minimum: 0 }
+
     Asset:
       type: object
       properties:
@@ -2268,6 +2552,19 @@ components:
           type: string
           format: uuid
           nullable: true
+        parent:
+          $ref: '#/components/schemas/AssetReference'
+        child_count:
+          type: integer
+          minimum: 0
+          description: Number of active direct contents. Populated on asset list responses for expandable contents trees.
+        containment_path:
+          type: array
+          description: Ordered ancestors from descendant_of to the immediate parent; populated for descendant queries.
+          items:
+            $ref: '#/components/schemas/AssetReference'
+        containment_summary:
+          $ref: '#/components/schemas/ContainmentSummary'
         parent_id:
           type: string
           format: uuid
@@ -2276,9 +2573,16 @@ components:
           type: string
         description:
           type: string
+        purchase_price:
+          type: number
+          description: Unit purchase price in the current single-currency model; zero is valid.
+        purchase_at:
+          type: string
+          format: date
         quantity:
           type: integer
         attributes:
+          description: Custom values by attribute key. URL fields contain a URLAttributeValue object with url and optional label.
           type: object
           additionalProperties: true
         category:
@@ -2329,12 +2633,31 @@ components:
           type: string
           format: uuid
         parent_id:
+          description: On update omission preserves the parent, null detaches, and a UUID reparents. Contents always share the parent's location. Detach retains the current location unless another is explicitly supplied.
           type: string
           format: uuid
+          nullable: true
+        add_child_ids:
+          description: Update only. Move these active assets inside this asset atomically with Save. Omission leaves contents unchanged.
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        remove_child_ids:
+          description: Update only. Detach these direct contents atomically with Save; returns 409 if an asset is no longer a direct child. Cannot overlap add_child_ids.
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        purchase_price:
+          type: number
+          description: Unit purchase price in the current single-currency model; zero is valid.
+        purchase_at:
+          type: string
+          format: date
         quantity:
           type: integer
           default: 1
         attributes:
+          description: Custom values by attribute key. URL fields contain a URLAttributeValue object with url and optional label.
           type: object
           additionalProperties: true
 
@@ -2351,6 +2674,28 @@ components:
           type: integer
         offset:
           type: integer
+
+    CurrencyOptionsResponse:
+      type: object
+      required: [currencies]
+      properties:
+        currencies:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            pattern: '^[A-Z]{3}$'
+          example: [EUR, JPY, MRU, USD]
+
+    OrganizationSettings:
+      type: object
+      required: [currency]
+      properties:
+        currency:
+          type: string
+          description: >-
+            Current monetary ISO 4217 code that every asset price is shown in. Trimmed and uppercased on save; available choices are returned by the currencies helper endpoint.
+          example: EUR
 
     Warranty:
       type: object

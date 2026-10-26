@@ -17,7 +17,22 @@ export interface OrganizationFeatures {
   plugins: boolean
 }
 
-export type AttributeDataType = 'string' | 'number' | 'boolean' | 'text' | 'date' | 'select'
+export interface CurrencyOptionsResponse {
+  currencies: string[]
+}
+
+export interface OrganizationSettings {
+  currency: string // ISO 4217 code of every asset price; amounts are never converted
+}
+
+export type AttributeDataType = 'string' | 'number' | 'boolean' | 'text' | 'date' | 'select' | 'url'
+
+export interface URLAttributeValue {
+  url: string
+  label?: string
+}
+
+export type AssetAttributeValue = string | number | boolean | string[] | URLAttributeValue | undefined
 
 export interface AttributeOptionInput {
   id?: string
@@ -72,6 +87,15 @@ export interface Category {
   children?: Category[]
 }
 
+export interface LocationPhoto {
+  id: string
+  location_id: string
+  file_name: string
+  is_cover: boolean
+  created_at: string
+  url: string
+}
+
 export interface Location {
   id: string
   organization_id: string
@@ -79,6 +103,7 @@ export interface Location {
   name: string
   description?: string
   icon?: string
+  photo_url?: string
   created_at: string
   updated_at: string
 }
@@ -125,7 +150,11 @@ export interface Asset {
   category_id?: string
   location_id?: string
   condition_id?: string
-  parent_id?: string
+  parent_id?: string | null
+  parent?: { id: string, name: string }
+  containment_path?: { id: string, name: string }[]
+  child_count?: number
+  containment_summary?: { total_value: number, unpriced_asset_count: number }
   main_attachment_id?: string
   name: string
   description?: string

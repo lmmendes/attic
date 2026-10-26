@@ -12,6 +12,25 @@ async function signIn(page: import('@playwright/test').Page, email = adminEmail,
   await expect(page).toHaveURL(url => url.pathname === '/')
 }
 
+test('settings preserve currency controls alongside MCP integration settings', async ({ page }) => {
+  await signIn(page)
+  const original = await (await page.request.get(apiURL('/api/organization/mcp'))).json() as { enabled: boolean }
+  try {
+    await page.goto('/settings')
+    await expect(page.getByRole('heading', { name: 'General settings', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Currency', exact: true })).toBeEnabled()
+    await page.getByRole('tab', { name: 'Integrations', exact: true }).click()
+    const toggle = page.getByRole('switch', { name: 'Enable MCP server', exact: true })
+    await expect(toggle).toBeEnabled()
+    await toggle.click()
+    await expect.poll(async () => (await (await page.request.get(apiURL('/api/organization/mcp'))).json()).enabled).toBe(!original.enabled)
+    await page.getByRole('tab', { name: 'Inventory', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Save settings', exact: true })).toBeEnabled()
+  } finally {
+    expect((await page.request.put(apiURL('/api/organization/mcp'), { data: original })).status()).toBe(200)
+  }
+})
+
 test('private active keys and aggregate usage in the people list', async ({ page, browser }) => {
   const marker = Date.now().toString()
   const memberEmail = `keys-${marker}@example.test`

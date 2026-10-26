@@ -28,7 +28,7 @@ Attic mirrors the way a home is organized with nested locations such as rooms, s
 - Save named filters privately for reuse, and pin up to five as one-click desktop sidebar shortcuts; even workspace administrators cannot access another user's saved filters
 
 **Smart Integrations**
-- Automated imports from Google Books, TMDB (movies and TV), BoardGameGeek, and IGDB (video games)
+- Automated imports from Google Books, TMDB (movies and TV), BoardGameGeek, IGDB (video games), and Rebrickable (LEGO sets and minifigures)
 - Metadata and cover images populated automatically
 - Plugin system for adding new import sources
 
@@ -39,6 +39,16 @@ self-hosted or shared deployment. The key is sent only to Google Books API reque
 IGDB imports require `ATTIC_IGDB_CLIENT_ID` and `ATTIC_IGDB_CLIENT_SECRET` from a
 [Twitch application](https://dev.twitch.tv/console/apps). Attic exchanges these credentials for a
 short-lived access token and keeps the token in memory only.
+
+Rebrickable imports require `ATTIC_REBRICKABLE_API_KEY`. Create a free account and generate
+an API key at [Rebrickable](https://rebrickable.com/api/), add it to your server environment
+(or `.env` for Docker Compose), and restart Attic. The same key enables **Rebrickable LEGO Sets**
+and **Rebrickable Minifigures**, each with its own category. Search by name or the complete
+catalog number, including set variants (for example, `75192-1` or `fig-000001`). Each selection
+creates one asset with quantity one and imports its image, catalog number, piece count, source
+URL, and release year for sets when available. Both sources share a one-request-per-second
+catalog limit and honor throttle cooldowns without automatic retries. Account synchronization,
+bulk imports, part inventories, and importing a set's included minifigures are outside this workflow.
 
 **Self-Hosted & Secure**
 - Docker-based deployment with complete data ownership
@@ -98,8 +108,7 @@ with rule paths for invalid saved definitions. Expressions allow five group leve
 ### Prerequisites
 
 - Docker & Docker Compose
-- Go 1.27+
-- Bun 1.1+
+- [mise](https://mise.jdx.dev/) to install Go, Bun, and Node.js from `mise.toml`
 - Make
 
 ### Development Setup
@@ -108,6 +117,8 @@ with rule paths for invalid saved definitions. Expressions allow five group leve
    ```bash
    git clone git@github.com:lmmendes/attic.git
    cd attic
+   mise install
+   mise run frontend:install
    docker compose up -d
    ```
 
@@ -119,14 +130,13 @@ with rule paths for invalid saved definitions. Expressions allow five group leve
 3. **Start the backend:**
    ```bash
    cd backend
-   go run ./cmd/server
+   mise exec -- go run ./cmd/server
    ```
 
 4. **Start the frontend (new terminal):**
    ```bash
    cd frontend
-   bun install
-   bun run dev
+   mise exec -- bun run dev
    ```
 
 5. **Open the app:**
@@ -140,6 +150,23 @@ with rule paths for invalid saved definitions. Expressions allow five group leve
 
    Default test credentials: `testuser` / `testpassword`
 
+### TypeScript toolchain
+
+Run `mise run typescript -- --version` to check the project-local TypeScript 7
+compiler, or pass compiler arguments after `--`. Its version is locked in the
+frontend dependency tree rather than installed as a second global tool.
+
+`mise run frontend:check` verifies the compiler, runs ESLint, and checks Vue types.
+GitHub Actions installs Node.js, Bun, and Go with their setup actions and runs
+the frontend package scripts directly. mise is used for local development.
+
+TypeScript 7 is installed under the `@typescript/native` package alias and provides
+`tsc`. The `typescript` import is aliased to Microsoft's `@typescript/typescript6`
+compatibility package because ESLint and the current `vue-tsc` require the
+JavaScript compiler API. Vue type checking continues through `nuxt typecheck`
+using that API; installing the native compiler does not replace Vue's checker.
+See [Microsoft's side-by-side setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0).
+
 ### Browser integration tests
 
 The Playwright suite exercises real browser workflows against a running Attic
@@ -147,8 +174,8 @@ instance, including login, category/attribute handoffs, and feature settings.
 
 ```bash
 cd frontend
-bunx playwright install chromium
-bun run test:e2e
+mise exec -- bunx playwright install chromium
+mise exec -- bun run test:e2e
 ```
 
 The local suite targets the Nuxt development server at `http://127.0.0.1:3000`.
@@ -241,4 +268,26 @@ Tool arguments use the REST path parameter names (`id`, `attachmentId`, `eventId
 
 `upload_attachment` takes the asset `id` and a body with `filename`, `content_type`, optional `description`, and base64 `content`. The decoded file limit is 50 MiB; MCP requests are bounded to 72 MiB. Attachment reads return metadata and the existing download URL. For confirmed attribute changes, pass the `confirmation_token` returned by `preview_attribute_impact` as the tool's top-level `impact_token` argument. Host and origin protections remain enabled. No OAuth or stdio transport is provided.
 
-The authenticated operation registry in `backend/internal/handler/operations.go` defines REST dispatch, permissions, feature gates, and MCP inclusion together. Migration 31 adds keys and MCP status; numbers 26–30 remain reserved for the existing parallel changes.
+The authenticated operation registry in `backend/internal/handler/operations.go` defines REST dispatch, permissions, feature gates, and MCP inclusion together. Migration 34 adds keys and MCP status after the existing inventory and authentication migrations.
+
+### Location photos
+
+Open a location’s **Photos** tab to add multiple photos of boxes, shelves, rooms, and other storage spaces. Choose several files or drag them into the gallery. Uploads run sequentially; successful photos remain saved if another fails, and **Retry failed photos** retries only failed uploads. Photo management is separate from creating or editing a location.
+
+Locations keep their icon until you choose **Set as cover** from a photo’s menu. Choose **Remove cover** to restore the icon without deleting the photo. Deleting the cover also restores the icon; other photos never become covers automatically. Each photo’s menu also offers **Delete photo**. Open a photo to view it full screen; use the arrow keys to browse and Escape to close.
+
+Photos accept JPEG, PNG, or GIF files up to 10 MiB and 40 megapixels each, using the existing local or S3 file storage.
+
+Location photos are stored at `<uploads>/locations/<unique-id>/location-photo.<extension>`, beneath the shared `ATTIC_LOCAL_STORAGE_PATH`. S3 uses the same `locations/<unique-id>/location-photo.<extension>` object-key layout in the shared bucket. Asset attachments and imported images keep their existing storage layout.
+
+Deleting a photo preserves the location and its assets. Deleting a location also cleans up all its photos. Existing location photos are migrated into the gallery without moving their files. Rolling back migration 33 is refused while any location has multiple photos, to prevent data loss.
+
+Gallery endpoints (restricted to the current organization and the locations feature):
+
+- `GET /api/locations/{id}/photos`: list cover first, then creation time and ID.
+- `POST /api/locations/{id}/photos`: add one multipart `file`; returns the created photo.
+- `PUT /api/locations/{id}/photos/{photoId}/cover`: select the cover.
+- `DELETE /api/locations/{id}/photos/{photoId}/cover`: unset this photo as cover without deleting it.
+- `DELETE /api/locations/{id}/photos/{photoId}`: delete a photo.
+
+Location responses include an optional `photo_url` for the cover. Gallery responses include each photo’s ID, filename, cover status, creation time, and URL. S3 URLs expire after 15 minutes; refresh the gallery or location data to renew them.

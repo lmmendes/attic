@@ -74,7 +74,15 @@ const hasChildrenComputed = computed(() => props.node.children.length > 0)
         @keydown.enter.prevent="emit('select', node.location)"
         @keydown.space.prevent="emit('select', node.location)"
       >
+        <img
+          v-if="node.location.photo_url"
+          :src="node.location.photo_url"
+          alt=""
+          loading="lazy"
+          class="size-8 shrink-0 rounded-lg object-cover"
+        >
         <UIcon
+          v-else
           :name="getIcon(node.location)"
           class="w-5 h-5 transition-colors"
           :class="isSelected ? 'text-attic-500' : 'text-muted'"
