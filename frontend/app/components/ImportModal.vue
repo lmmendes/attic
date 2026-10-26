@@ -263,6 +263,7 @@ function close() {
           <USelectMenu
             v-model="searchField"
             :items="searchFieldOptions"
+            aria-label="Search field"
             class="w-full sm:w-36"
             value-key="value"
           />

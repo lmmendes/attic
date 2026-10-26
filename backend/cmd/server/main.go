@@ -26,6 +26,7 @@ import (
 	"github.com/lmmendes/attic/internal/plugin/bgg"
 	"github.com/lmmendes/attic/internal/plugin/googlebooks"
 	"github.com/lmmendes/attic/internal/plugin/igdb"
+	"github.com/lmmendes/attic/internal/plugin/rebrickable"
 	"github.com/lmmendes/attic/internal/plugin/tmdb"
 	"github.com/lmmendes/attic/internal/repository"
 	"github.com/lmmendes/attic/internal/storage"
@@ -223,6 +224,9 @@ func main() {
 	registerImportPlugin(pluginRegistry, tmdb.NewSeriesPlugin(), "ATTIC_TMDB_API_KEY")
 	registerImportPlugin(pluginRegistry, bgg.New(), "ATTIC_BGG_API_KEY")
 	registerImportPlugin(pluginRegistry, igdb.New(), "ATTIC_IGDB_CLIENT_ID")
+	rebrickableClient := rebrickable.NewClient()
+	registerImportPlugin(pluginRegistry, rebrickable.NewSets(rebrickableClient), "ATTIC_REBRICKABLE_API_KEY")
+	registerImportPlugin(pluginRegistry, rebrickable.NewMinifigs(rebrickableClient), "ATTIC_REBRICKABLE_API_KEY")
 	slog.Info("registered plugins", "count", len(pluginRegistry.List()))
 
 	// Initialize handlers

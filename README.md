@@ -28,7 +28,7 @@ Attic mirrors the way a home is organized with nested locations such as rooms, s
 - Save named filters privately for reuse, and pin up to five as one-click desktop sidebar shortcuts; even workspace administrators cannot access another user's saved filters
 
 **Smart Integrations**
-- Automated imports from Google Books, TMDB (movies and TV), BoardGameGeek, and IGDB (video games)
+- Automated imports from Google Books, TMDB (movies and TV), BoardGameGeek, IGDB (video games), and Rebrickable (LEGO sets and minifigures)
 - Metadata and cover images populated automatically
 - Plugin system for adding new import sources
 
@@ -39,6 +39,16 @@ self-hosted or shared deployment. The key is sent only to Google Books API reque
 IGDB imports require `ATTIC_IGDB_CLIENT_ID` and `ATTIC_IGDB_CLIENT_SECRET` from a
 [Twitch application](https://dev.twitch.tv/console/apps). Attic exchanges these credentials for a
 short-lived access token and keeps the token in memory only.
+
+Rebrickable imports require `ATTIC_REBRICKABLE_API_KEY`. Create a free account and generate
+an API key at [Rebrickable](https://rebrickable.com/api/), add it to your server environment
+(or `.env` for Docker Compose), and restart Attic. The same key enables **Rebrickable LEGO Sets**
+and **Rebrickable Minifigures**, each with its own category. Search by name or the complete
+catalog number, including set variants (for example, `75192-1` or `fig-000001`). Each selection
+creates one asset with quantity one and imports its image, catalog number, piece count, source
+URL, and release year for sets when available. Both sources share a one-request-per-second
+catalog limit and honor throttle cooldowns without automatic retries. Account synchronization,
+bulk imports, part inventories, and importing a set's included minifigures are outside this workflow.
 
 **Self-Hosted & Secure**
 - Docker-based deployment with complete data ownership
