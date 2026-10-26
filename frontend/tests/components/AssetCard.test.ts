@@ -21,6 +21,25 @@ beforeEach(() => {
 })
 
 describe('shared asset card', () => {
+  it('shows fallback metadata when optional asset details are missing', async () => {
+    const wrapper = await mountSuspended(AssetCard, {
+      props: { asset: { ...asset, main_attachment_url: undefined, category: undefined, location: undefined, collections: [] } }
+    })
+    expect(wrapper.find('img').exists()).toBe(false)
+    for (const text of ['Uncategorized', 'No location', 'No collections']) expect(wrapper.text()).toContain(text)
+    wrapper.unmount()
+  })
+
+  it('shows a single collection without an overflow count', async () => {
+    const wrapper = await mountSuspended(AssetCard, {
+      props: { asset: { ...asset, collections: asset.collections!.slice(0, 1) } }
+    })
+    expect(wrapper.text()).toContain('Computer')
+    expect(wrapper.text()).not.toContain('+')
+    expect(wrapper.get('[title]').attributes('title')).toBe('Computer')
+    wrapper.unmount()
+  })
+
   it('shows consistent asset identity and optional price and update metadata', async () => {
     const wrapper = await mountSuspended(AssetCard, { props: { asset, priceLabel: '$0.00', updatedLabel: 'Updated today' } })
     const link = wrapper.get('a')

@@ -5,7 +5,7 @@ import LocationsPage from '../../app/pages/locations.vue'
 
 const { api, statsRefresh, statsClear } = vi.hoisted(() => ({ api: vi.fn(), statsRefresh: vi.fn(), statsClear: vi.fn() }))
 mockNuxtImport('useApi', () => api)
-mockNuxtImport('useApiFetch', () => () => vi.fn())
+mockNuxtImport('useApiFetch', () => () => vi.fn().mockResolvedValue([]))
 mockNuxtImport('useToast', () => () => ({ add: vi.fn() }))
 mockNuxtImport('useOrganizationSettings', () => () => ({ settings: ref({ currency: 'USD' }) }))
 

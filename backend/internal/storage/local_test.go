@@ -24,7 +24,7 @@ func Test_LocalStorage_Upload_Success(t *testing.T) {
 	content := "Hello, World!"
 	body := strings.NewReader(content)
 
-	key, err := storage.Upload(ctx, "test.txt", "text/plain", body)
+	key, err := storage.Upload(ctx, "", "test.txt", "text/plain", body)
 	if err != nil {
 		t.Fatalf("failed to upload: %v", err)
 	}
@@ -56,12 +56,12 @@ func Test_LocalStorage_Upload_GeneratesUniqueKeys(t *testing.T) {
 
 	ctx := context.Background()
 
-	key1, err := storage.Upload(ctx, "file.txt", "text/plain", strings.NewReader("content1"))
+	key1, err := storage.Upload(ctx, "", "file.txt", "text/plain", strings.NewReader("content1"))
 	if err != nil {
 		t.Fatalf("failed to upload first file: %v", err)
 	}
 
-	key2, err := storage.Upload(ctx, "file.txt", "text/plain", strings.NewReader("content2"))
+	key2, err := storage.Upload(ctx, "", "file.txt", "text/plain", strings.NewReader("content2"))
 	if err != nil {
 		t.Fatalf("failed to upload second file: %v", err)
 	}
@@ -82,7 +82,7 @@ func Test_LocalStorage_GetPresignedURL_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Upload a file first
-	key, err := storage.Upload(ctx, "presign-test.txt", "text/plain", strings.NewReader("test content"))
+	key, err := storage.Upload(ctx, "", "presign-test.txt", "text/plain", strings.NewReader("test content"))
 	if err != nil {
 		t.Fatalf("failed to upload: %v", err)
 	}
@@ -128,7 +128,7 @@ func Test_LocalStorage_Delete_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Upload a file
-	key, err := storage.Upload(ctx, "delete-test.txt", "text/plain", strings.NewReader("to be deleted"))
+	key, err := storage.Upload(ctx, "", "delete-test.txt", "text/plain", strings.NewReader("to be deleted"))
 	if err != nil {
 		t.Fatalf("failed to upload: %v", err)
 	}
@@ -209,7 +209,7 @@ func Test_LocalStorage_Upload_LargeFile(t *testing.T) {
 		content[i] = byte(i % 256)
 	}
 
-	key, err := storage.Upload(ctx, "large-file.bin", "application/octet-stream", strings.NewReader(string(content)))
+	key, err := storage.Upload(ctx, "", "large-file.bin", "application/octet-stream", strings.NewReader(string(content)))
 	if err != nil {
 		t.Fatalf("failed to upload large file: %v", err)
 	}
@@ -238,7 +238,7 @@ func Test_LocalStorage_Upload_PreservesContent(t *testing.T) {
 	// Binary content with various bytes
 	content := []byte{0x00, 0x01, 0x02, 0xFF, 0xFE, 0xFD, 0x89, 0x50, 0x4E, 0x47}
 
-	key, err := storage.Upload(ctx, "binary.bin", "application/octet-stream", strings.NewReader(string(content)))
+	key, err := storage.Upload(ctx, "", "binary.bin", "application/octet-stream", strings.NewReader(string(content)))
 	if err != nil {
 		t.Fatalf("failed to upload: %v", err)
 	}
@@ -285,7 +285,7 @@ func Test_LocalStorage_Upload_ReaderError(t *testing.T) {
 		pos:  0,
 	}
 
-	_, err := storage.Upload(ctx, "error-test.txt", "text/plain", errReader)
+	_, err := storage.Upload(ctx, "", "error-test.txt", "text/plain", errReader)
 	if err == nil {
 		t.Error("expected error from failing reader")
 	}
@@ -401,7 +401,7 @@ func Test_LocalStorage_Upload_WithoutPUIDPGID_Success(t *testing.T) {
 	content := "Hello, World!"
 	body := strings.NewReader(content)
 
-	key, err := storage.Upload(ctx, "test.txt", "text/plain", body)
+	key, err := storage.Upload(ctx, "", "test.txt", "text/plain", body)
 	if err != nil {
 		t.Fatalf("failed to upload: %v", err)
 	}
@@ -441,7 +441,7 @@ func Test_LocalStorage_Upload_WithPUIDPGID_Success(t *testing.T) {
 	content := "Hello, World with chown!"
 	body := strings.NewReader(content)
 
-	key, err := storage.Upload(ctx, "test-chown.txt", "text/plain", body)
+	key, err := storage.Upload(ctx, "locations", "test-chown.txt", "text/plain", body)
 	if err != nil {
 		t.Fatalf("failed to upload: %v", err)
 	}

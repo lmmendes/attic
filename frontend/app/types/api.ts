@@ -87,6 +87,15 @@ export interface Category {
   children?: Category[]
 }
 
+export interface LocationPhoto {
+  id: string
+  location_id: string
+  file_name: string
+  is_cover: boolean
+  created_at: string
+  url: string
+}
+
 export interface Location {
   id: string
   organization_id: string
@@ -94,6 +103,7 @@ export interface Location {
   name: string
   description?: string
   icon?: string
+  photo_url?: string
   created_at: string
   updated_at: string
 }

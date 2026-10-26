@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { getIconLabel } from '../../app/utils/iconLabel'
-import { getLocationNameError } from '../../app/utils/locationValidation'
+import { getLocationNameError, getLocationPhotoError, maxLocationPhotoSize } from '../../app/utils/locationValidation'
 
 interface Location {
   id: string
@@ -37,6 +37,18 @@ describe('Locations Page', () => {
     it('provides human-readable names for icon choices', () => {
       expect(getIconLabel('i-lucide-map-pin')).toBe('Map Pin')
       expect(getIconLabel('i-lucide-door-open')).toBe('Door Open')
+    })
+  })
+
+  describe('photo validation', () => {
+    it.each(['image/jpeg', 'image/png', 'image/gif', ''])('accepts supported photos with type %s', (type) => {
+      expect(getLocationPhotoError({ type, size: maxLocationPhotoSize })).toBeNull()
+    })
+    it('rejects oversized files', () => {
+      expect(getLocationPhotoError({ type: 'image/png', size: maxLocationPhotoSize + 1 })).toContain('10 MB')
+    })
+    it('rejects SVG and unsupported formats', () => {
+      expect(getLocationPhotoError({ type: 'image/svg+xml', size: 100 })).toContain('JPEG, PNG or GIF')
     })
   })
 
