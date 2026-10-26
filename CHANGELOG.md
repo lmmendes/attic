@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.8.0](https://github.com/lmmendes/attic/compare/v2.7.1...v2.8.0) (2026-10-26)
+
+
+### Features
+
+* add scoped API keys and authenticated MCP server ([#136](https://github.com/lmmendes/attic/issues/136)) ([3cf7086](https://github.com/lmmendes/attic/commit/3cf708657f22caffeecb6365b96b7d1513fdc84b))
+* **assets:** Add nested assets with contents trees and recursive cost totals ([#115](https://github.com/lmmendes/attic/issues/115)) ([04bb2cd](https://github.com/lmmendes/attic/commit/04bb2cde37f93fc4301668a56e8f318f731e222f))
+* **assets:** add per-asset purchase currency ([#110](https://github.com/lmmendes/attic/issues/110)) ([59ed0c9](https://github.com/lmmendes/attic/commit/59ed0c954b7ec749068bdc3d21673495341d1cdb))
+* **assets:** improve attachment uploads and image gallery ([#130](https://github.com/lmmendes/attic/issues/130)) ([2f5483a](https://github.com/lmmendes/attic/commit/2f5483a13d91d6d49610fd4feaa68a091f7d9cc8))
+* **assets:** Support file upload by drag & drop ([#117](https://github.com/lmmendes/attic/issues/117)) ([358f51a](https://github.com/lmmendes/attic/commit/358f51aee7d26017bff6630261ffcc97e70b3b7e))
+* **attributes:** add URL fields with optional link text ([#133](https://github.com/lmmendes/attic/issues/133)) ([b410163](https://github.com/lmmendes/attic/commit/b410163fdc429ddef1549a915ee4906d3d4aab02))
+* **locations:** add photo galleries with optional covers ([#138](https://github.com/lmmendes/attic/issues/138)) ([7604da2](https://github.com/lmmendes/attic/commit/7604da2164bd2c13db5086507f40dc084348c7ec))
+* **plugins:** add Rebrickable set and minifigure imports ([#140](https://github.com/lmmendes/attic/issues/140)) ([55e64bb](https://github.com/lmmendes/attic/commit/55e64bb10e026f512628b60225266d9ab32d1b2c))
+* **search:** include personal notes and custom attribute values ([#131](https://github.com/lmmendes/attic/issues/131)) ([f87b03d](https://github.com/lmmendes/attic/commit/f87b03d88985bcfea502f8affa1da0cec97b8246))
+
+
+### Bug Fixes
+
+* **auth:** prevent OIDC login loops caused by oversized session cookies ([#126](https://github.com/lmmendes/attic/issues/126)) ([15ee683](https://github.com/lmmendes/attic/commit/15ee683a554b8d4e30bc4e27f22f515372532806))
+* **currency:** harden settings loading and price formatting ([#143](https://github.com/lmmendes/attic/issues/143)) ([fd25d0b](https://github.com/lmmendes/attic/commit/fd25d0b689308377be51e218d2db65ab1e00620f))
+
 ## [2.7.1](https://github.com/lmmendes/attic/compare/v2.7.0...v2.7.1) (2026-10-11)
 
 
