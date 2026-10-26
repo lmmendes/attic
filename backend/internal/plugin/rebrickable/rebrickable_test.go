@@ -288,7 +288,17 @@ func TestRetryAfterAndCancellation(t *testing.T) {
 		header string
 		want   time.Time
 	}{
-		{"2", now.Add(2 * time.Second)}, {now.Add(10 * time.Second).Format(http.TimeFormat), now.Add(10 * time.Second)}, {"invalid", now}, {"-1", now},
+		{"2", now.Add(2 * time.Second)},
+		{"300", now.Add(5 * time.Minute)},
+		{"301", now.Add(5 * time.Minute)},
+		{"4294967295", now.Add(5 * time.Minute)},
+		{now.Add(10 * time.Second).Format(http.TimeFormat), now.Add(10 * time.Second)},
+		{now.Add(24 * time.Hour).Format(http.TimeFormat), now.Add(5 * time.Minute)},
+		{now.Add(-10 * time.Second).Format(http.TimeFormat), now},
+		{"0", now},
+		{"", now},
+		{"invalid", now},
+		{"-1", now},
 	} {
 		if got := retryAfter(tc.header, now); !got.Equal(tc.want) {
 			t.Errorf("Retry-After %q: %v", tc.header, got)

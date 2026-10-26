@@ -77,7 +77,6 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000
         await expect(dialog.getByRole('heading', { name: source.title, exact: true })).toBeVisible()
         await dialog.getByRole('button', { name: 'Search field', exact: true }).click()
         await page.getByRole('option', { name: 'Catalog Number', exact: true }).click()
-        await page.keyboard.press('Escape')
         await expect(page.getByRole('listbox')).toHaveCount(0)
         await dialog.getByPlaceholder('Search...').fill(source.number)
         await dialog.getByRole('button', { name: 'Search', exact: true }).click()

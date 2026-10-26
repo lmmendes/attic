@@ -19,7 +19,10 @@ import (
 	"github.com/lmmendes/attic/internal/domain"
 )
 
-const apiKeyEnv = "ATTIC_REBRICKABLE_API_KEY"
+const (
+	apiKeyEnv     = "ATTIC_REBRICKABLE_API_KEY"
+	maxRetryAfter = 5 * time.Minute
+)
 
 var (
 	errNotFound = errors.New("Rebrickable item not found")
@@ -270,11 +273,11 @@ func (c *Client) get(ctx context.Context, path string, result any) error {
 }
 
 func retryAfter(value string, now time.Time) time.Time {
+	wait := time.Duration(0)
 	if seconds, err := strconv.ParseUint(value, 10, 32); err == nil {
-		return now.Add(time.Duration(seconds) * time.Second)
+		wait = time.Duration(seconds) * time.Second
+	} else if date, err := http.ParseTime(value); err == nil {
+		wait = date.Sub(now)
 	}
-	if date, err := http.ParseTime(value); err == nil {
-		return date
-	}
-	return now
+	return now.Add(min(max(wait, 0), maxRetryAfter))
 }
