@@ -122,6 +122,9 @@ func TestRebrickableImportWorkflow(t *testing.T) {
 			if !strings.HasPrefix(a.Attribute.Key, "plugin."+p.ID()+".") {
 				t.Fatalf("missing namespace: %s", a.Attribute.Key)
 			}
+			if a.Attribute.Key == "plugin."+p.ID()+".url" && a.Attribute.DataType != domain.AttributeTypeURL {
+				t.Fatalf("Rebrickable URL definition has type %s", a.Attribute.DataType)
+			}
 		}
 		rec := request("POST", "/api/plugins/"+p.ID()+"/import", `{"external_id":"123-2"}`)
 		if rec.Code != 201 {
@@ -144,6 +147,10 @@ func TestRebrickableImportWorkflow(t *testing.T) {
 		}
 		if attrs["plugin."+p.ID()+".catalog_number"] != "123-2" || len(attrs) != len(p.Attributes()) {
 			t.Fatalf("wrong attributes: %#v", attrs)
+		}
+		pageURL, ok := attrs["plugin."+p.ID()+".url"].(map[string]any)
+		if !ok || len(pageURL) != 1 || pageURL["url"] != "https://rebrickable.com/item/" {
+			t.Fatalf("wrong URL attribute: %#v", attrs["plugin."+p.ID()+".url"])
 		}
 		attachments, err := repos.Attachments.ListByAsset(ctx, asset.ID)
 		if err != nil || len(attachments) != 1 {

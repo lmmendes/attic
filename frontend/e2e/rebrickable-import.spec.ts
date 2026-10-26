@@ -27,7 +27,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000
             description: `Import ${source.category} from the Rebrickable catalog`,
             enabled, disabled_reason: enabled ? '' : 'Missing API key: ATTIC_REBRICKABLE_API_KEY',
             search_fields: [{ key: 'name', label: 'Name' }, { key: 'catalog_number', label: 'Catalog Number' }],
-            attributes: [{ key: `plugin.${source.id}.catalog_number`, name: 'Catalog Number', data_type: 'string', required: false }]
+            attributes: [
+              { key: `plugin.${source.id}.catalog_number`, name: 'Catalog Number', data_type: 'string', required: false },
+              { key: `plugin.${source.id}.url`, name: 'Rebrickable URL', data_type: 'url', required: false }
+            ]
           })) } })
         } else if (url.pathname.endsWith('/search')) {
           searches.push(url.toString())
@@ -61,6 +64,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000
           await page.getByRole('button', { name: `Details for ${source.category}`, exact: true }).click()
           const panel = page.getByRole('dialog', { name: source.category, exact: true })
           await expect(panel.getByRole('heading', { name: 'Imported fields', exact: true })).toBeVisible()
+          await expect(panel.locator('dl > div').filter({ hasText: 'Rebrickable URL' }).locator('dd')).toHaveText('url')
           await panel.getByRole('button', { name: `Import ${source.category}`, exact: true }).click()
           await expect(panel).toHaveCount(0)
         } else {
@@ -71,7 +75,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000
         await dialog.getByPlaceholder('Search...').fill(source.title)
         await dialog.getByRole('button', { name: 'Search', exact: true }).click()
         await expect(dialog.getByRole('heading', { name: source.title, exact: true })).toBeVisible()
-        await dialog.getByRole('button', { name: 'Show popup', exact: true }).click()
+        await dialog.getByRole('button', { name: 'Search field', exact: true }).click()
         await page.getByRole('option', { name: 'Catalog Number', exact: true }).click()
         await page.keyboard.press('Escape')
         await expect(page.getByRole('listbox')).toHaveCount(0)
@@ -86,7 +90,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 1000
         await page.screenshot({ path: testInfo.outputPath(`${source.id}.png`) })
         await dialog.getByRole('button', { name: 'Import', exact: true }).click()
         await expect(dialog).toHaveCount(0)
-        await expect(page.getByText(`"${source.title}" has been added to your inventory`)).toBeVisible()
+        await expect(page.getByText(`"${source.title}" has been added to your inventory`, { exact: true })).toBeVisible()
       }
       expect(imports).toEqual(sources.map(source => source.id))
     })

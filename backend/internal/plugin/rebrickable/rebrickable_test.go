@@ -2,6 +2,7 @@ package rebrickable
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -83,7 +84,7 @@ func TestCatalogsSearchAndFetch(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			want := map[string]any{"catalog_number": id, "piece_count": 42, "url": "https://rebrickable.com/item/"}
+			want := map[string]any{"catalog_number": id, "piece_count": 42, "url": map[string]string{"url": "https://rebrickable.com/item/"}}
 			if catalog == "sets" {
 				want["release_year"] = 2024
 			}
@@ -92,6 +93,60 @@ func TestCatalogsSearchAndFetch(t *testing.T) {
 			}
 			if calls != 3 {
 				t.Errorf("got %d requests, expected 3", calls)
+			}
+		})
+	}
+}
+
+func TestURLAttributeSchemaAndImports(t *testing.T) {
+	for _, tc := range []struct {
+		name, destination string
+		present           bool
+	}{
+		{"valid", "https://rebrickable.com/sets/123-1/?view=details#parts", true},
+		{"trimmed", " https://rebrickable.com/minifigs/fig-000001/ ", true},
+		{"empty", "", false},
+		{"blank", "  ", false},
+		{"relative", "/sets/123-1/", false},
+		{"unsafe scheme", "javascript:alert(1)", false},
+		{"credentials", "https://user:secret@rebrickable.com/sets/123-1/", false},
+		{"malformed escape", "https://rebrickable.com/%zz", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := mockClient(t, func(*http.Request) (*http.Response, error) {
+				body, err := json.Marshal(map[string]any{"set_num": "123-1", "name": "Catalog item", "set_url": tc.destination})
+				if err != nil {
+					t.Fatal(err)
+				}
+				return response(http.StatusOK, string(body)), nil
+			})
+			for _, p := range catalogs(c) {
+				found := false
+				for _, attribute := range p.Attributes() {
+					if attribute.Key == "url" {
+						found = true
+						if attribute.DataType != domain.AttributeTypeURL {
+							t.Fatalf("%s: Rebrickable URL must be a URL attribute", p.ID())
+						}
+					}
+				}
+				if !found {
+					t.Fatalf("%s: missing URL attribute", p.ID())
+				}
+				data, err := p.Fetch(t.Context(), "123-1")
+				if err != nil {
+					t.Fatal(err)
+				}
+				got, present := data.Attributes["url"]
+				if present != tc.present {
+					t.Fatalf("%s: URL present=%v; want %v", p.ID(), present, tc.present)
+				}
+				if present && !reflect.DeepEqual(got, map[string]string{"url": strings.TrimSpace(tc.destination)}) {
+					t.Fatalf("%s: unexpected URL value: %#v", p.ID(), got)
+				}
+				if data.Attributes["catalog_number"] != "123-1" || data.Name != "Catalog item" {
+					t.Fatalf("%s: invalid URL affected the rest of the import: %#v", p.ID(), data)
+				}
 			}
 		})
 	}

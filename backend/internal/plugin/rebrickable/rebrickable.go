@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -80,7 +81,7 @@ func (p *Plugin) Attributes() []domain.PluginAttribute {
 	attrs := []domain.PluginAttribute{
 		{Key: "catalog_number", Name: "Catalog Number", DataType: domain.AttributeTypeString},
 		{Key: "piece_count", Name: "Piece Count", DataType: domain.AttributeTypeNumber},
-		{Key: "url", Name: "Rebrickable URL", DataType: domain.AttributeTypeString},
+		{Key: "url", Name: "Rebrickable URL", DataType: domain.AttributeTypeURL},
 	}
 	if p.catalog == "sets" {
 		attrs = append(attrs, domain.PluginAttribute{Key: "release_year", Name: "Release Year", DataType: domain.AttributeTypeNumber})
@@ -195,7 +196,12 @@ func (p *Plugin) Fetch(ctx context.Context, externalID string) (*domain.ImportDa
 		attrs["piece_count"] = *i.Parts
 	}
 	if i.URL != "" {
-		attrs["url"] = i.URL
+		value, err := domain.NormalizeURLAttribute(map[string]any{"url": i.URL}, false)
+		if err != nil {
+			slog.WarnContext(ctx, "omitting invalid plugin URL", "plugin_id", p.ID(), "external_id", externalID, "attribute_key", "url", "reason", err.Error())
+		} else if value != nil {
+			attrs["url"] = value
+		}
 	}
 	if p.catalog == "sets" && i.Year != nil {
 		attrs["release_year"] = *i.Year
