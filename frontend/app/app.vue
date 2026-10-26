@@ -344,7 +344,7 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
           class="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-mist-900 border-r border-gray-200 dark:border-gray-800 flex flex-col lg:hidden transform transition-transform duration-200"
           :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
         >
-          <div class="p-6">
+          <div class="min-h-0 flex-1 overflow-y-auto p-6">
             <div class="flex items-center justify-between mb-8">
               <NuxtLink
                 to="/"
@@ -425,8 +425,14 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
             </nav>
           </div>
 
-          <div class="mt-auto p-6 border-t border-gray-100 dark:border-gray-800">
-            <div class="flex items-center gap-3">
+          <div class="shrink-0 p-6 border-t border-gray-100 dark:border-gray-800">
+            <NuxtLink
+              to="/profile"
+              aria-label="Profile"
+              class="flex items-center gap-3 rounded-xl p-2 -m-2 transition-colors hover:bg-mist-50 focus-visible:outline-2 focus-visible:outline-attic-500 dark:hover:bg-mist-800"
+              :aria-current="route.path === '/profile' ? 'page' : undefined"
+              @click="sidebarOpen = false"
+            >
               <div class="w-9 h-9 rounded-full bg-attic-500 flex items-center justify-center text-white">
                 <UIcon
                   name="i-lucide-user"
@@ -440,8 +446,13 @@ const isAssetForm = computed(() => /^\/assets\/(?:new|[^/]+\/edit)\/?$/.test(rou
                 <span class="text-xs text-muted dark:text-gray-400 truncate">
                   {{ user?.email }}
                 </span>
+                <span class="mt-1 text-xs font-semibold text-attic-600 dark:text-attic-300">View profile</span>
               </div>
-            </div>
+              <UIcon
+                name="i-lucide-chevron-right"
+                class="size-4 shrink-0 text-muted"
+              />
+            </NuxtLink>
           </div>
         </aside>
 

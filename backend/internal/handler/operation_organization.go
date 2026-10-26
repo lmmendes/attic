@@ -72,14 +72,23 @@ func (h *Handler) checkOperationOrganization(w http.ResponseWriter, r *http.Requ
 		switch v := value.(type) {
 		case map[string]any:
 			for field, child := range v {
-				field = strings.ToLower(field)
 				// Asset attribute values are opaque user data, not resource references.
-				if field == "attributes" {
+				if strings.EqualFold(field, "attributes") {
 					if _, ok := child.(map[string]any); ok {
 						continue
 					}
 				}
-				if table := tables[field]; table != "" {
+				table := tables[field]
+				if table == "" {
+					// Match encoding/json's Unicode field-name folding, including long s.
+					for name, candidate := range tables {
+						if strings.EqualFold(field, name) {
+							table = candidate
+							break
+						}
+					}
+				}
+				if table != "" {
 					switch ids := child.(type) {
 					case string:
 						if !check(table, ids) {

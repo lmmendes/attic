@@ -48,6 +48,24 @@ test('profile tabs support direct links, browser history, and the account menu',
   await expect(page.getByRole('tab', { name: 'API keys', exact: true })).toBeFocused()
 })
 
+for (const role of ['user', 'admin'] as const) {
+  for (const viewport of [{ width: 390, height: 844 }, { width: 740, height: 360 }]) {
+    test(`mobile ${role} can open Profile at ${viewport.width}×${viewport.height} and the drawer closes`, async ({ page }) => {
+      await mockAccount(page, { role })
+      await page.setViewportSize(viewport)
+      await page.goto('/')
+      await page.getByRole('button', { name: 'Open navigation', exact: true }).click()
+      const profile = page.getByRole('link', { name: 'Profile', exact: true })
+      await expect(profile).toBeInViewport({ ratio: 1 })
+      await profile.click()
+      await expect(page).toHaveURL(/\/profile\/?$/)
+      await expect(page.getByRole('heading', { name: 'Account security' })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Close navigation', exact: true })).not.toBeInViewport()
+      await expect(page.getByRole('button', { name: 'Change password', exact: true })).toBeVisible()
+    })
+  }
+}
+
 for (const mode of ['oidc', 'disabled'] as const) {
   test(`profile explains password management for ${mode} authentication`, async ({ page }) => {
     await mockAccount(page, { oidc: mode === 'oidc', authDisabled: mode === 'disabled' })
