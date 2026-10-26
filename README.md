@@ -228,7 +228,7 @@ For more details, visit [getattic.dev](https://getattic.dev).
 
 ### Scoped API keys and MCP
 
-Open **API keys** in your account menu to create a key with a description, selected permissions, and optional expiry. Save the secret when it appears: Attic displays it only once and stores its SHA-256 hash. You can edit its description or revoke it; changing permissions or expiry requires a replacement key. The page lists active keys with their last-used time and a delete action. Administrators see only each person’s active-key count and the most recent use of those active keys in the People list. Key details and deletion remain private to the key owner.
+Open **Profile → API keys** from your account menu to create a key with a description, selected permissions, and optional expiry. Save the secret when it appears: Attic displays it only once and stores its SHA-256 hash. You can edit its description or revoke it; changing permissions or expiry requires a replacement key. The page lists active keys with their last-used time and a delete action. Administrators see only each person’s active-key count and the most recent use of those active keys in the People list. Key details and deletion remain private to the key owner.
 
 Each resource offers no access, read, or read-write access. REST resource names are `assets`, `locations`, `collections`, `categories`, `attributes`, `tags`, `conditions`, `warranties`, `attachments`, `asset_events`, `saved_filters`, `plugins`, `users`, and `organization`. Omit resources with no access from the permissions object; use `read` or `write` for the others. Write includes read. Regular users cannot grant attribute-definition writes, user administration, or organization-setting writes. The creation form uses the role-specific catalog at `GET /api/me/api-keys/permissions`.
 
@@ -247,7 +247,7 @@ curl -H "Authorization: Bearer $ATTIC_API_KEY" \
 
 Keys are checked on every request against their current owner, role, workspace, revocation, expiry, and enabled features. Explicit invalid Authorization credentials fail even if a browser cookie is present or normal authentication is disabled. Key management, user creation, password changes, and password resets require interactive account authentication. Browser local and OIDC authentication continue to work.
 
-Administrators enable **MCP server** in **Settings → Integrations**. It defaults to disabled. The independent status endpoint is `GET /api/organization/mcp`; admins update it with `PUT /api/organization/mcp` and `{"enabled":true}`. Disabling MCP immediately blocks subsequent MCP requests and leaves REST access available.
+Every member can find MCP availability and connection instructions in **Profile → MCP connection**. Local accounts can change their password under **Profile → Account**. Administrators enable **MCP server** in **Settings → Integrations**. It defaults to disabled. The independent status endpoint is `GET /api/organization/mcp`; admins update it with `PUT /api/organization/mcp` and `{"enabled":true}`. Disabling MCP immediately blocks subsequent MCP requests and leaves REST access available.
 
 Connect an MCP client using stateless Streamable HTTP at `/mcp`, with the same bearer API key on every request. For clients that accept an `mcpServers` configuration with URL and headers:
 
