@@ -106,7 +106,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 // Logout clears the session
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	h.sessionManager.ClearSession(w)
+	if h.oidcEnabled && h.oauthHandler != nil {
+		if err := h.oauthHandler.ClearSession(w, r); err != nil {
+			slog.Error("failed to revoke OIDC session", "error", err)
+			http.Error(w, "Failed to revoke session", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		h.sessionManager.ClearSession(w)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{"success": true})
 }

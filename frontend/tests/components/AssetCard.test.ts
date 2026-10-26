@@ -1,78 +1,76 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mountSuspended } from '@nuxt/test-utils/runtime'
-import type { Asset } from '../../app/types/api'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
+import { h, ref } from 'vue'
 import AssetCard from '../../app/components/AssetCard.vue'
+import type { Asset } from '../../app/types/api'
 
-const now = Date.parse('2026-10-24T12:00:00Z')
-function asset(overrides: Partial<Asset> = {}): Asset {
-  return {
-    id: 'asset-123',
-    organization_id: 'org',
-    name: 'Camera',
-    quantity: 1,
-    created_at: '2026-10-24T10:00:00Z',
-    updated_at: '2026-10-24T10:00:00Z',
-    ...overrides
-  }
+const flags = ref({ categories: true, locations: true, collections: true, conditions: true })
+mockNuxtImport('useFeatures', () => () => ({ features: flags }))
+const asset: Asset = {
+  id: 'gpu', organization_id: 'org', name: 'Graphics card', quantity: 2, created_at: '', updated_at: '',
+  main_attachment_url: '/files/gpu.jpg',
+  category: { id: 'category', name: 'Components', organization_id: 'org', created_at: '', updated_at: '' },
+  location: { id: 'location', name: 'Office', organization_id: 'org', created_at: '', updated_at: '' },
+  collections: [
+    { id: 'one', name: 'Computer', organization_id: 'org', created_at: '', updated_at: '' },
+    { id: 'two', name: 'Spare parts', organization_id: 'org', created_at: '', updated_at: '' }
+  ]
 }
+beforeEach(() => {
+  flags.value = { categories: true, locations: true, collections: true, conditions: true }
+})
 
-afterEach(() => vi.restoreAllMocks())
-
-describe('AssetCard', () => {
-  it('links to the asset and shows fallback metadata and image placeholder', async () => {
-    vi.spyOn(Date, 'now').mockReturnValue(now)
-    const wrapper = await mountSuspended(AssetCard, { props: { asset: asset() } })
-    expect(wrapper.get('a').attributes('href')).toBe('/assets/asset-123')
-    expect(wrapper.text()).toContain('Camera')
-    expect(wrapper.text()).toContain('Uncategorized')
-    expect(wrapper.text()).toContain('No location')
-    expect(wrapper.text()).toContain('No collections')
-    expect(wrapper.text()).toContain('Today')
+describe('shared asset card', () => {
+  it('shows fallback metadata when optional asset details are missing', async () => {
+    const wrapper = await mountSuspended(AssetCard, {
+      props: { asset: { ...asset, main_attachment_url: undefined, category: undefined, location: undefined, collections: [] } }
+    })
     expect(wrapper.find('img').exists()).toBe(false)
-    expect(wrapper.findComponent({ name: 'UIcon' }).exists()).toBe(true)
+    for (const text of ['Uncategorized', 'No location', 'No collections']) expect(wrapper.text()).toContain(text)
+    wrapper.unmount()
   })
 
-  it('shows the image, category, location, first collection and remaining count', async () => {
-    const timestamp = '2026-10-24T10:00:00Z'
+  it('shows a single collection without an overflow count', async () => {
     const wrapper = await mountSuspended(AssetCard, {
-      props: {
-        asset: asset({
-          main_attachment_url: 'https://example.test/camera.png',
-          category: { id: 'category', organization_id: 'org', name: 'Electronics', created_at: timestamp, updated_at: timestamp },
-          location: { id: 'location', organization_id: 'org', name: 'Office', created_at: timestamp, updated_at: timestamp },
-          collections: ['Photography', 'Travel', 'Equipment'].map((name, index) => ({ id: `collection-${index}`, organization_id: 'org', name, icon: 'i-lucide-library', asset_count: 1, created_at: timestamp, updated_at: timestamp }))
-        })
+      props: { asset: { ...asset, collections: asset.collections!.slice(0, 1) } }
+    })
+    expect(wrapper.text()).toContain('Computer')
+    expect(wrapper.text()).not.toContain('+')
+    expect(wrapper.get('[title]').attributes('title')).toBe('Computer')
+    wrapper.unmount()
+  })
+
+  it('shows consistent asset identity and optional price and update metadata', async () => {
+    const wrapper = await mountSuspended(AssetCard, { props: { asset, priceLabel: '$0.00', updatedLabel: 'Updated today' } })
+    const link = wrapper.get('a')
+    expect(link.attributes()).toMatchObject({ 'href': '/assets/gpu', 'aria-label': 'Graphics card' })
+    expect(wrapper.get('img').attributes()).toMatchObject({ src: '/files/gpu.jpg', alt: 'Graphics card', loading: 'lazy' })
+    for (const text of ['Components', 'Office', 'Computer', '+1', '$0.00', 'Updated today']) expect(wrapper.text()).toContain(text)
+    wrapper.unmount()
+  })
+
+  it('keeps contents actions outside the asset navigation link', async () => {
+    const browse = vi.fn()
+    const wrapper = await mountSuspended(AssetCard, {
+      props: { asset, layout: 'list' },
+      slots: {
+        metadata: () => h('p', 'Qty 2 · Inside Gaming PC'),
+        footer: () => h('button', { onClick: browse }, 'Browse contents')
       }
     })
-    expect(wrapper.get('img').attributes('src')).toBe('https://example.test/camera.png')
-    expect(wrapper.get('img').attributes('alt')).toBe('Camera')
-    expect(wrapper.text()).toContain('Electronics')
-    expect(wrapper.text()).toContain('Office')
-    expect(wrapper.text()).toContain('Photography')
-    expect(wrapper.text()).toContain('+2')
-    expect(wrapper.get('[title]').attributes('title')).toBe('Photography, Travel, Equipment')
-    expect(wrapper.text()).not.toContain('No collections')
+    expect(wrapper.get('a').text()).toContain('Qty 2 · Inside Gaming PC')
+    expect(wrapper.get('a').find('button').exists()).toBe(false)
+    await wrapper.get('button').trigger('click')
+    expect(browse).toHaveBeenCalledOnce()
+    wrapper.unmount()
   })
 
-  it('does not show an overflow count for a single collection', async () => {
-    const wrapper = await mountSuspended(AssetCard, {
-      props: { asset: asset({ collections: [{ id: 'collection', organization_id: 'org', name: 'Photography', icon: 'i-lucide-library', asset_count: 1, created_at: '', updated_at: '' }] }) }
-    })
-    expect(wrapper.text()).toContain('Photography')
-    expect(wrapper.text()).not.toContain('+')
-  })
-
-  it.each([
-    [0, 'Today'],
-    [1, 'Yesterday'],
-    [3, '3 days ago'],
-    [7, '1 week ago'],
-    [14, '2 weeks ago']
-  ])('shows the last update from %i days ago as %s', async (days, label) => {
-    vi.spyOn(Date, 'now').mockReturnValue(now)
-    const wrapper = await mountSuspended(AssetCard, {
-      props: { asset: asset({ updated_at: new Date(now - days * 86400000).toISOString() }) }
-    })
-    expect(wrapper.text()).toContain(label)
+  it('handles missing images and respects disabled metadata features', async () => {
+    flags.value = { categories: false, locations: false, collections: false, conditions: false }
+    const wrapper = await mountSuspended(AssetCard, { props: { asset: { ...asset, main_attachment_url: undefined }, layout: 'grid' } })
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('a').attributes('href')).toBe('/assets/gpu')
+    for (const text of ['Components', 'Office', 'Computer', 'No collections']) expect(wrapper.text()).not.toContain(text)
+    wrapper.unmount()
   })
 })

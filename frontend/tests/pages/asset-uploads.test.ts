@@ -63,7 +63,7 @@ describe('Asset attachment uploads', () => {
     }))
     await flushPromises()
     expect(wrapper.text()).toContain('2 files not uploaded')
-    await wrapper.findAll('button').find(button => button.text() === 'Retry')!.trigger('click')
+    Array.from(section.querySelectorAll('button')).find(button => button.textContent?.trim() === 'Retry')!.click()
     await flushPromises()
     expect(sentNames()).toEqual(['first.txt', 'failed.txt', 'new.txt', 'failed.txt', 'remaining.txt'])
     expect(wrapper.text()).not.toContain('not uploaded')

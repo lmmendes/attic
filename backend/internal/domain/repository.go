@@ -14,6 +14,8 @@ type OrganizationRepository interface {
 	Update(ctx context.Context, org *Organization) error
 	GetFeatures(ctx context.Context, orgID uuid.UUID) (*OrganizationFeatures, error)
 	UpdateFeatures(ctx context.Context, orgID uuid.UUID, features *OrganizationFeatures) error
+	GetSettings(ctx context.Context, orgID uuid.UUID) (*OrganizationSettings, error)
+	UpdateSettings(ctx context.Context, orgID uuid.UUID, settings *OrganizationSettings) error
 }
 
 // UserRepository handles user persistence
@@ -76,17 +78,21 @@ type LocationRepository interface {
 
 // AssetFilter defines filters for asset queries
 type AssetFilter struct {
-	CollectionID  *uuid.UUID
-	CategoryID    *uuid.UUID
-	Uncategorized bool
-	LocationID    *uuid.UUID
-	ConditionID   *uuid.UUID
-	TagIDs        []uuid.UUID
-	TagMatch      string
-	Query         string // Full-text search query
-	Attributes    map[string]any
-	Criteria      *FilterCriteria
-	Features      *OrganizationFeatures
+	DescendantOf       *uuid.UUID
+	ParentID           *uuid.UUID
+	ExcludeSubtreeOf   *uuid.UUID
+	ExcludeAncestorsOf *uuid.UUID
+	CollectionID       *uuid.UUID
+	CategoryID         *uuid.UUID
+	Uncategorized      bool
+	LocationID         *uuid.UUID
+	ConditionID        *uuid.UUID
+	TagIDs             []uuid.UUID
+	TagMatch           string
+	Query              string // Full-text search query
+	Attributes         map[string]any
+	Criteria           *FilterCriteria
+	Features           *OrganizationFeatures
 }
 
 // Pagination defines pagination parameters

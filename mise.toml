@@ -1,3 +1,19 @@
 [tools]
-bun = "latest"
+bun = "1.4.0"
 go = "1.27"
+node = "26"
+
+[tasks."frontend:install"]
+description = "Install the locked frontend dependency tree"
+dir = "{{config_root}}/frontend"
+run = "bun install --frozen-lockfile"
+
+[tasks."frontend:check"]
+description = "Verify TypeScript 7, lint, and check Vue types"
+dir = "{{config_root}}/frontend"
+run = ["bun run tsc --version", "bun run lint", "bun run typecheck"]
+
+[tasks.typescript]
+description = "Run the project-local TypeScript 7 compiler"
+dir = "{{config_root}}/frontend"
+run = "bun run tsc"

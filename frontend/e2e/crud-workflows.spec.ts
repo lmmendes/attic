@@ -96,7 +96,7 @@ test.describe('core browser workflows', () => {
     await page.getByRole('button', { name: 'Save Asset' }).first().click()
 
     await expect(page).toHaveURL(/\/assets\/[^/]+$/)
-    await expect(page.getByRole('heading', { name: assetName })).toBeVisible()
+    await expect(page.getByRole('heading', { name: assetName, level: 1, exact: true })).toBeVisible()
 
     await page.getByRole('link', { name: 'Edit Asset' }).click()
     await expect(page).toHaveURL(/\/assets\/[^/]+\/edit$/)
@@ -105,15 +105,15 @@ test.describe('core browser workflows', () => {
     await page.getByRole('button', { name: 'Save Changes' }).first().click()
 
     await expect(page).toHaveURL(/\/assets\/[^/]+$/)
-    await expect(page.getByRole('heading', { name: updatedName })).toBeVisible()
+    await expect(page.getByRole('heading', { name: updatedName, level: 1, exact: true })).toBeVisible()
 
     await page.goto('/assets')
     const asset = page.getByRole('row').filter({ hasText: updatedName })
     await expect(asset).toBeVisible()
-    await page.getByPlaceholder('Search by name, tag, or serial number...').fill('Updated by browser')
+    await page.getByRole('textbox', { name: 'Quick search', exact: true }).fill('Updated by browser')
     await expect(page.getByRole('row').filter({ hasText: updatedName })).toHaveCount(1)
 
-    await page.getByPlaceholder('Search by name, tag, or serial number...').fill('does-not-exist')
+    await page.getByRole('textbox', { name: 'Quick search', exact: true }).fill('does-not-exist')
     await expect(page.getByText('No assets match these filters')).toBeVisible()
   })
 
@@ -150,7 +150,7 @@ test.describe('core browser workflows', () => {
     await page.getByRole('dialog', { name: 'Delete tag' }).getByRole('button', { name: 'Delete tag' }).click()
     await expect(page.getByText('Tag deleted. Your assets are safe.', { exact: true })).toBeVisible()
     await page.goto(`/assets/${asset.id}`)
-    await expect(page.getByRole('heading', { name: assetName })).toBeVisible()
+    await expect(page.getByRole('heading', { name: assetName, level: 1, exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: renamedTag, exact: true })).toHaveCount(0)
   })
 
@@ -204,7 +204,7 @@ test.describe('core browser workflows', () => {
     await page.getByRole('button', { name: 'Save Asset' }).first().click()
 
     await expect(page).toHaveURL(/\/assets\/[^/]+$/)
-    await expect(page.getByRole('heading', { name: assetName })).toBeVisible()
+    await expect(page.getByRole('heading', { name: assetName, level: 1, exact: true })).toBeVisible()
     await expect(page.getByText(collectionName, { exact: true })).toBeVisible()
 
     await page.getByRole('link', { name: 'Edit Asset' }).click()
