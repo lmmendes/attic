@@ -123,11 +123,6 @@ func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto-set as main image for any image upload
-	if isImageContentType(contentType) {
-		h.repos.Assets.SetMainAttachment(r.Context(), assetID, &attachment.ID)
-	}
-
 	writeJSON(w, http.StatusCreated, attachment)
 }
 

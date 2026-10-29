@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -66,6 +67,19 @@ func (r *AttachmentRepository) ListByAsset(ctx context.Context, assetID uuid.UUI
 }
 
 func (r *AttachmentRepository) Create(ctx context.Context, a *domain.Attachment) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// Serialize uploads for the same asset so concurrent images cannot both
+	// claim the default, or overwrite a user's selection.
+	var assetID uuid.UUID
+	if err := tx.QueryRow(ctx, `SELECT id FROM assets WHERE id = $1 FOR UPDATE`, a.AssetID).Scan(&assetID); err != nil {
+		return err
+	}
+
 	query := `
 		INSERT INTO attachments (id, asset_id, uploaded_by, file_key, file_name, file_size, content_type, description)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -74,9 +88,27 @@ func (r *AttachmentRepository) Create(ctx context.Context, a *domain.Attachment)
 	if a.ID == uuid.Nil {
 		a.ID = uuid.New()
 	}
-	return r.pool.QueryRow(ctx, query,
+	if err := tx.QueryRow(ctx, query,
 		a.ID, a.AssetID, a.UploadedBy, a.FileKey, a.FileName, a.FileSize, a.ContentType, a.Description,
-	).Scan(&a.CreatedAt)
+	).Scan(&a.CreatedAt); err != nil {
+		return err
+	}
+
+	if a.ContentType != nil && strings.HasPrefix(*a.ContentType, "image/") {
+		// Existing images also preserve an explicitly cleared default.
+		_, err := tx.Exec(ctx, `
+			UPDATE assets SET main_attachment_id = $2
+			WHERE id = $1 AND deleted_at IS NULL AND main_attachment_id IS NULL
+			AND NOT EXISTS (
+				SELECT 1 FROM attachments
+				WHERE asset_id = $1 AND id <> $2 AND content_type LIKE 'image/%'
+			)
+		`, a.AssetID, a.ID)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *AttachmentRepository) Delete(ctx context.Context, id uuid.UUID) error {
