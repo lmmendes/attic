@@ -32,7 +32,7 @@ func mockClient(t *testing.T, fn transportFunc) *Client {
 }
 func catalogs(c *Client) []*Plugin { return []*Plugin{NewSets(c), NewMinifigs(c)} }
 func fixture(id string) string {
-	return fmt.Sprintf(`{"set_num":%q,"name":"Catalog item","num_parts":42,"year":2024,"set_img_url":"https://cdn.rebrickable.com/item.jpg","set_url":"https://rebrickable.com/item/"}`, id)
+	return fmt.Sprintf(`{"set_num":%q,"name":"Catalog item","num_parts":42,"year":2024,"theme_id":158,"set_img_url":"https://cdn.rebrickable.com/item.jpg","set_url":"https://rebrickable.com/item/"}`, id)
 }
 
 func TestCatalogsSearchAndFetch(t *testing.T) {
@@ -53,6 +53,9 @@ func TestCatalogsSearchAndFetch(t *testing.T) {
 				}
 				if r.Method != http.MethodGet {
 					t.Error("expected GET")
+				}
+				if catalog == "sets" && r.URL.Path == "/api/v3/lego/themes/158/" {
+					return response(200, `{"id":158,"name":"Star Wars","parent_id":null}`), nil
 				}
 				if r.URL.Path == "/api/v3/lego/"+catalog+"/" {
 					if r.URL.Query().Get("search") != "Darth & Vader" || r.URL.Query().Get("page_size") != "5" {
@@ -87,12 +90,17 @@ func TestCatalogsSearchAndFetch(t *testing.T) {
 			want := map[string]any{"catalog_number": id, "piece_count": 42, "url": map[string]string{"url": "https://rebrickable.com/item/"}}
 			if catalog == "sets" {
 				want["release_year"] = 2024
+				want["theme"] = "Star Wars"
 			}
 			if data.Name != "Catalog item" || data.ExternalID != id || data.ImageURL == nil || !reflect.DeepEqual(data.Attributes, want) {
 				t.Fatalf("unexpected data: %#v", data)
 			}
-			if calls != 3 {
-				t.Errorf("got %d requests, expected 3", calls)
+			wantCalls := 3
+			if catalog == "sets" {
+				wantCalls++
+			}
+			if calls != wantCalls {
+				t.Errorf("got %d requests, expected %d", calls, wantCalls)
 			}
 		})
 	}
@@ -153,7 +161,7 @@ func TestURLAttributeSchemaAndImports(t *testing.T) {
 }
 
 func TestOptionalFieldsAndEmptyResults(t *testing.T) {
-	for _, body := range []string{`{"set_num":"123-1","name":"Minimal"}`, `{"set_num":"123-1","name":"Minimal","set_img_url":null,"num_parts":null,"year":null}`, `{"set_num":"123-1","name":"Minimal","set_img_url":""}`} {
+	for _, body := range []string{`{"set_num":"123-1","name":"Minimal"}`, `{"set_num":"123-1","name":"Minimal","set_img_url":null,"num_parts":null,"year":null,"theme_id":null}`, `{"set_num":"123-1","name":"Minimal","set_img_url":"","theme_id":0}`, `{"set_num":"123-1","name":"Minimal","theme_id":-1}`} {
 		c := mockClient(t, func(*http.Request) (*http.Response, error) { return response(200, body), nil })
 		for _, p := range catalogs(c) {
 			data, err := p.Fetch(t.Context(), "123-1")
@@ -186,6 +194,64 @@ func TestOptionalFieldsAndEmptyResults(t *testing.T) {
 	data, err := NewSets(c).Fetch(t.Context(), "123-1")
 	if err != nil || data.Attributes["piece_count"] != 0 {
 		t.Fatalf("zero piece count lost: %#v %v", data, err)
+	}
+}
+
+func TestThemeLookupFailuresPreserveImport(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+	}{
+		{"not found", 404, ""},
+		{"server error", 500, ""},
+		{"throttled", 429, ""},
+		{"invalid JSON", 200, "{"},
+		{"null", 200, "null"},
+		{"missing name", 200, `{"id":158}`},
+		{"blank name", 200, `{"id":158,"name":" "}`},
+		{"wrong theme", 200, `{"id":999,"name":"Other"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			c := mockClient(t, func(r *http.Request) (*http.Response, error) {
+				calls++
+				switch r.URL.Path {
+				case "/api/v3/lego/sets/123-1/":
+					return response(200, fixture("123-1")), nil
+				case "/api/v3/lego/themes/158/":
+					return response(tc.status, tc.body), nil
+				default:
+					t.Fatalf("unexpected request: %s", r.URL)
+					return nil, nil
+				}
+			})
+			data, err := NewSets(c).Fetch(t.Context(), "123-1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, present := data.Attributes["theme"]; present {
+				t.Fatalf("unexpected theme: %#v", data.Attributes)
+			}
+			if calls != 2 || data.Name != "Catalog item" || data.Attributes["catalog_number"] != "123-1" || data.Attributes["piece_count"] != 42 {
+				t.Fatalf("theme failure affected import: %#v (%d requests)", data, calls)
+			}
+		})
+	}
+}
+
+func TestThemeLookupCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	c := mockClient(t, func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path == "/api/v3/lego/sets/123-1/" {
+			return response(200, fixture("123-1")), nil
+		}
+		cancel()
+		return nil, ctx.Err()
+	})
+	if _, err := NewSets(c).Fetch(ctx, "123-1"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected cancellation, got %v", err)
 	}
 }
 

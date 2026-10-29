@@ -87,7 +87,10 @@ func (p *Plugin) Attributes() []domain.PluginAttribute {
 		{Key: "url", Name: "Rebrickable URL", DataType: domain.AttributeTypeURL},
 	}
 	if p.catalog == "sets" {
-		attrs = append(attrs, domain.PluginAttribute{Key: "release_year", Name: "Release Year", DataType: domain.AttributeTypeNumber})
+		attrs = append(attrs,
+			domain.PluginAttribute{Key: "release_year", Name: "Release Year", DataType: domain.AttributeTypeNumber},
+			domain.PluginAttribute{Key: "theme", Name: "Theme", DataType: domain.AttributeTypeString},
+		)
 	}
 	return attrs
 }
@@ -100,6 +103,7 @@ type item struct {
 	Number   string  `json:"set_num"`
 	Name     string  `json:"name"`
 	Year     *int    `json:"year"`
+	ThemeID  *int    `json:"theme_id"`
 	Parts    *int    `json:"num_parts"`
 	ImageURL *string `json:"set_img_url"`
 	URL      string  `json:"set_url"`
@@ -209,7 +213,33 @@ func (p *Plugin) Fetch(ctx context.Context, externalID string) (*domain.ImportDa
 	if p.catalog == "sets" && i.Year != nil {
 		attrs["release_year"] = *i.Year
 	}
+	if p.catalog == "sets" && i.ThemeID != nil && *i.ThemeID > 0 {
+		name, err := p.client.themeName(ctx, *i.ThemeID)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			slog.WarnContext(ctx, "omitting unavailable plugin theme", "plugin_id", p.ID(), "external_id", externalID, "theme_id", *i.ThemeID, "reason", err.Error())
+		} else {
+			attrs["theme"] = name
+		}
+	}
 	return &domain.ImportData{Name: i.Name, ExternalID: i.Number, ImageURL: i.image(), Attributes: attrs}, nil
+}
+
+func (c *Client) themeName(ctx context.Context, id int) (string, error) {
+	var theme struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := c.get(ctx, "/themes/"+strconv.Itoa(id)+"/", &theme); err != nil {
+		return "", err
+	}
+	name := strings.TrimSpace(theme.Name)
+	if theme.ID != id || name == "" {
+		return "", errors.New("invalid Rebrickable theme response")
+	}
+	return name, nil
 }
 
 func (c *Client) get(ctx context.Context, path string, result any) error {

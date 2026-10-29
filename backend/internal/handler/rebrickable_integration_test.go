@@ -104,7 +104,10 @@ func TestRebrickableImportWorkflow(t *testing.T) {
 		if r.Header.Get("Authorization") != "key test-key" {
 			t.Error("missing catalog credentials")
 		}
-		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"set_num":"123-2","name":"LEGO item","num_parts":42,"year":2024,"set_url":"https://rebrickable.com/item/","set_img_url":"https://images.example.test/cover.png"}`))}, nil
+		if r.URL.Path == "/api/v3/lego/themes/158/" {
+			return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"id":158,"name":"Star Wars","parent_id":null}`))}, nil
+		}
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"set_num":"123-2","name":"LEGO item","num_parts":42,"year":2024,"theme_id":158,"set_url":"https://rebrickable.com/item/","set_img_url":"https://images.example.test/cover.png"}`))}, nil
 	})
 	for _, p := range sources {
 		cat, err := repos.Categories.GetByPluginID(ctx, org.ID, p.ID())
@@ -148,6 +151,9 @@ func TestRebrickableImportWorkflow(t *testing.T) {
 		if attrs["plugin."+p.ID()+".catalog_number"] != "123-2" || len(attrs) != len(p.Attributes()) {
 			t.Fatalf("wrong attributes: %#v", attrs)
 		}
+		if p.ID() == "rebrickable_sets" && attrs["plugin.rebrickable_sets.theme"] != "Star Wars" {
+			t.Fatalf("missing imported theme: %#v", attrs)
+		}
 		pageURL, ok := attrs["plugin."+p.ID()+".url"].(map[string]any)
 		if !ok || len(pageURL) != 1 || pageURL["url"] != "https://rebrickable.com/item/" {
 			t.Fatalf("wrong URL attribute: %#v", attrs["plugin."+p.ID()+".url"])
@@ -158,6 +164,9 @@ func TestRebrickableImportWorkflow(t *testing.T) {
 		}
 		if string(storage.files[attachments[0].FileKey]) != "test-image" {
 			t.Fatal("image not stored")
+		}
+		if asset.MainAttachmentID == nil || *asset.MainAttachmentID != attachments[0].ID || imported.Asset.MainAttachmentID == nil || *imported.Asset.MainAttachmentID != attachments[0].ID {
+			t.Fatalf("imported image was not selected as default in storage and response: %#v %#v", asset, imported.Asset)
 		}
 	}
 	features.Categories = false
@@ -173,6 +182,9 @@ func TestRebrickableImportWorkflow(t *testing.T) {
 	}
 	if imported.Asset.CategoryID != nil || string(imported.Asset.Attributes) != "{}" {
 		t.Fatalf("disabled features imported: %#v", imported.Asset)
+	}
+	if imported.Asset.MainAttachmentID != nil {
+		t.Fatal("failed image download should not set a default image")
 	}
 	features.Plugins = false
 	for _, p := range sources {

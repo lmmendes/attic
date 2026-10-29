@@ -441,12 +441,16 @@ func (h *PluginHandler) Import(w http.ResponseWriter, r *http.Request) {
 
 	// Download and store image if available
 	if importData.ImageURL != nil && *importData.ImageURL != "" && h.storage != nil {
-		if err := h.downloadAndStoreImage(r.Context(), asset.ID, *importData.ImageURL); err != nil {
+		attachment, err := h.downloadAndStoreImage(r.Context(), asset.ID, *importData.ImageURL)
+		if err != nil {
 			// Log error but don't fail the import - image is optional
 			slog.Warn("failed to download image for imported asset",
 				"asset_id", asset.ID,
 				"image_url", *importData.ImageURL,
 				"error", err)
+		} else {
+			asset.MainAttachmentID = &attachment.ID
+			asset.MainAttachment = attachment
 		}
 	}
 
@@ -569,7 +573,7 @@ func strPtr(s string) *string {
 }
 
 // downloadAndStoreImage downloads an image from URL and stores it as an attachment
-func (h *PluginHandler) downloadAndStoreImage(ctx context.Context, assetID uuid.UUID, imageURL string) error {
+func (h *PluginHandler) downloadAndStoreImage(ctx context.Context, assetID uuid.UUID, imageURL string) (*domain.Attachment, error) {
 	// Create HTTP client with timeout
 	client := &http.Client{
 		Timeout: 30 * time.Second,
@@ -578,24 +582,24 @@ func (h *PluginHandler) downloadAndStoreImage(ctx context.Context, assetID uuid.
 	// Download the image
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, imageURL, nil)
 	if err != nil {
-		return fmt.Errorf("creating request: %w", err)
+		return nil, fmt.Errorf("creating request: %w", err)
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("downloading image: %w", err)
+		return nil, fmt.Errorf("downloading image: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("image download returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("image download returned status %d", resp.StatusCode)
 	}
 
 	// Limit download size to 10MB
 	limitedReader := io.LimitReader(resp.Body, 10*1024*1024)
 	imageData, err := io.ReadAll(limitedReader)
 	if err != nil {
-		return fmt.Errorf("reading image data: %w", err)
+		return nil, fmt.Errorf("reading image data: %w", err)
 	}
 
 	// Detect content type
@@ -606,7 +610,7 @@ func (h *PluginHandler) downloadAndStoreImage(ctx context.Context, assetID uuid.
 
 	// Only accept image content types
 	if !strings.HasPrefix(contentType, "image/") {
-		return fmt.Errorf("invalid content type: %s", contentType)
+		return nil, fmt.Errorf("invalid content type: %s", contentType)
 	}
 
 	// Generate filename from URL or use default
@@ -640,7 +644,7 @@ func (h *PluginHandler) downloadAndStoreImage(ctx context.Context, assetID uuid.
 	// Upload to storage
 	key, err := h.storage.Upload(ctx, "", filename, contentType, bytes.NewReader(imageData))
 	if err != nil {
-		return fmt.Errorf("uploading to storage: %w", err)
+		return nil, fmt.Errorf("uploading to storage: %w", err)
 	}
 
 	// Create attachment record
@@ -657,7 +661,7 @@ func (h *PluginHandler) downloadAndStoreImage(ctx context.Context, assetID uuid.
 	if err := h.repos.Attachments.Create(ctx, attachment); err != nil {
 		// Try to clean up uploaded file
 		h.storage.Delete(ctx, key)
-		return fmt.Errorf("creating attachment record: %w", err)
+		return nil, fmt.Errorf("creating attachment record: %w", err)
 	}
 
 	slog.Info("downloaded and stored import image",
@@ -666,5 +670,5 @@ func (h *PluginHandler) downloadAndStoreImage(ctx context.Context, assetID uuid.
 		"filename", filename,
 		"size", len(imageData))
 
-	return nil
+	return attachment, nil
 }
