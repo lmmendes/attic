@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.1](https://github.com/lmmendes/attic/compare/v2.8.0...v2.8.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **plugin:** import Rebrickable themes and default asset image ([#147](https://github.com/lmmendes/attic/issues/147)) ([ea5d0c2](https://github.com/lmmendes/attic/commit/ea5d0c287bca8364afb18dec7026ea8e2b2dcedc))
+
 ## [2.8.0](https://github.com/lmmendes/attic/compare/v2.7.1...v2.8.0) (2026-10-26)
 
 
