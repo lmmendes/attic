@@ -15,11 +15,11 @@
     "tsc": "tsc"
   },
   "dependencies": {
-    "@iconify-json/lucide": "^1.2.147",
-    "@iconify-json/simple-icons": "^1.2.100",
-    "@nuxt/fonts": "^1.1.0",
+    "@iconify-json/lucide": "^1.2.149",
+    "@iconify-json/simple-icons": "^1.2.101",
+    "@nuxt/fonts": "^1.2.0",
     "@nuxt/ui": "^4.12.0",
-    "nuxt": "^4.6.2"
+    "nuxt": "^4.6.3"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.17.0",
@@ -29,7 +29,7 @@
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/user-event": "^14.6.8",
     "@testing-library/vue": "^8.1.0",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.6",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vue/test-utils": "^2.5.1",
     "eslint": "^10.13.0",
